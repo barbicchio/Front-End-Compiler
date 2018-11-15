@@ -4,20 +4,22 @@ Progr.  Program ::= [Dec] ;
 separator Dec "" ;
 
 DecFunction.   Dec ::= Function_def; --dich. funzioni
-InitDeclarArr. Dec ::= Pident "{" Type_specifier "}" "=" ArrayInit; --dich. array (Controllare come gestire gli array multidim)
+--InitDeclarArr. Dec ::= Pident "{" Type_specifier "}" "=" ArrayInit; --dich. array (Controllare come gestire gli array multidim)
 VarDeclar.     Dec ::= Type_specifier Pident;
 InitDeclarI.   Dec ::= Type_specifier Pident  "=" Exp;
 
+Typespec.      Type_specifier ::= BasicType;
+Typecompl.	   Type_specifier ::= ComplexType;
 
-
-Tinteger.      Type_specifier ::= "integer";
-Tboolean.      Type_specifier ::= "boolean";
-Tfloat.        Type_specifier ::= "float";
-Tchar.         Type_specifier ::= "character";
-Tstring.       Type_specifier ::= "string";
-Tarray.		   Type_specifier ::= "{" Type_specifier "}";
-Tpointer.	   Type_specifier ::= "pointer" Type_specifier;
-Tvoid. 		   Type_specifier ::= {-empty-};
+Tinteger.      BasicType ::= "integer";
+Tboolean.      BasicType ::= "boolean";
+Tfloat.        BasicType ::= "float";
+Tchar.         BasicType ::= "character";
+Tstring.       BasicType ::= "string";
+Tvoid. 		   BasicType ::= {-empty-};
+Tarray.		   Type_specifier ::= "{" "}" Type_specifier;
+Tarraydef.	   Type_specifier ::= "{"Integer"}" Type_specifier;
+Tpointer.	   ComplexType ::= "pointer" Type_specifier;
 
 
 --ArrayDef.      ArrayInit::= da controllare
@@ -44,7 +46,7 @@ While.          Cond_stm ::= "while" Exp "do" Chunk_stm "end";
 DoWhile.		Cond_stm ::="repeat" Chunk_stm "until" Exp;
 --For.          Cond_stm ::= "for" Exp "do" Chunk_stm "end";
 Chunkstm.	    Chunk_stm::=[Dec][Stm];
-ReturnStm.		Return_stm::="return" Exp;
+ReturnStm1.		Return_stm::="return" Exp;
 separator Stm "";
 
 
@@ -77,24 +79,25 @@ Eboolean.	 Exp17 ::= Pbool;
 Estring.	 Exp17 ::= Pstring;
 Echar.	  	 Exp17 ::= Pchar;
 Lexp.		 Exp17 ::= Lexp;
-coercions Exp 16;
+ArrayExp.	 Exp18 ::= "{"[Exp]"}";
+coercions Exp 18;
+
 ActParam.    ActPar::=[Exp];
 
 separator Exp ",";
 
 Evar.        Lexp ::= Pident;
 Indirection. Lexp ::= "*"Exp ;
-Arraysel.    Lexp ::= Pident [Index] ;
+Arraysel.    Lexp ::= Pident "{"Exp"}" ;
 PreInc.      Lexp ::= "++" Lexp ;
 PreDecr.     Lexp ::= "--" Lexp ;
 PostInc.     Lexp ::= Lexp "++" ;
 PostDecr.    Lexp ::= Lexp "--" ;
 
 --Arraysel1.   Lexp::= Pident "@" Pint;
-Arraysel.   Index::= "{" Exp "}";
 
-Address.    Unary_operator::= "&";
-Logicalneg.  Unary_operator ::= "not" ;
+Address.    Unary_operator::= "&"; 
+Logicalneg.  Unary_operator ::= "not" ; 
 Negnum.      Unary_operator ::= "-" ;
 
 
@@ -107,6 +110,9 @@ AssignDiv.    Assignment_op ::= "/=";
 AssignMod.    Assignment_op ::= "%=" ;
 AssignAdd.    Assignment_op ::= "+=" ;
 AssignSub.    Assignment_op ::= "-=" ;
+AssgnPow.     Assignment_op ::= "^="; 
+AssgnAnd.     Assignment_op ::= "&=" ;
+AssgnOr.      Assignment_op ::= "|=" ;
 comment "--" ;
  
 --token definitions
@@ -114,8 +120,8 @@ comment "--" ;
 position token Pident letter (letter | digit | '_' | '\'')* ;
 position token Pint digit+;
 position token Pbool ({"true"}|{"false"});
---position token Pstring  '"' ((char - ["\"\\"]) | ('\\' ["\"\\nt"]))* '"';
---position token Preal digit+ '.' digit+ ('e' '-'? digit+)? ;
---position token Pchar '\'' ((char - ["'\\"]) | ('\\' ["'\\nt"])) '\'';
+position token Pstring  '"' ((char - ["\"\\"]) | ('\\' ["\"\\nt"]))* '"';
+position token Preal digit+ '.' digit+ ('e' '-'? digit+)? ;
+position token Pchar '\'' ((char - ["'\\"]) | ('\\' ["'\\nt"])) '\'';
 
 
