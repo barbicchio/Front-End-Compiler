@@ -39,22 +39,25 @@ transType_specifier :: Type_specifier -> Result
 transType_specifier x = case x of
   Typespec basictype -> failure x
   Typecompl complextype -> failure x
-transBasicType :: BasicType -> Result
-transBasicType x = case x of
-  BasicType_boolean -> failure x
-  BasicType_character -> failure x
-  BasicType_float -> failure x
-  BasicType_integer -> failure x
-  BasicType_string -> failure x
-  BasicType_void -> failure x
-transComplexType :: ComplexType -> Result
-transComplexType x = case x of
   Tarray typespecifier -> failure x
   Tarraydef integer typespecifier -> failure x
+transBasicType :: BasicType -> Result
+transBasicType x = case x of
+  Tinteger -> failure x
+  Tboolean -> failure x
+  Tfloat -> failure x
+  Tchar -> failure x
+  Tstring -> failure x
+  Tvoid -> failure x
+transComplexType :: ComplexType -> Result
+transComplexType x = case x of
   Tpointer typespecifier -> failure x
 transFunction_def :: Function_def -> Result
 transFunction_def x = case x of
   Func typespecifier pident arguments chunkstm -> failure x
+transArguments :: Arguments -> Result
+transArguments x = case x of
+  Parameters arguments -> failure x
 transArgument :: Argument -> Result
 transArgument x = case x of
   ParamInt modality typespecifier pident -> failure x

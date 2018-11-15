@@ -28,25 +28,24 @@ data Dec
     | InitDeclarI Type_specifier Pident Exp
   deriving (Eq, Ord, Show, Read)
 
-data Type_specifier = Typespec BasicType | Typecompl ComplexType
+data Type_specifier
+    = Typespec BasicType
+    | Typecompl ComplexType
+    | Tarray Type_specifier
+    | Tarraydef Integer Type_specifier
   deriving (Eq, Ord, Show, Read)
 
 data BasicType
-    = BasicType_boolean
-    | BasicType_character
-    | BasicType_float
-    | BasicType_integer
-    | BasicType_string
-    | BasicType_void
+    = Tinteger | Tboolean | Tfloat | Tchar | Tstring | Tvoid
   deriving (Eq, Ord, Show, Read)
 
-data ComplexType
-    = Tarray Type_specifier
-    | Tarraydef Integer Type_specifier
-    | Tpointer Type_specifier
+data ComplexType = Tpointer Type_specifier
   deriving (Eq, Ord, Show, Read)
 
-data Function_def = Func Type_specifier Pident [Argument] Chunk_stm
+data Function_def = Func Type_specifier Pident Arguments Chunk_stm
+  deriving (Eq, Ord, Show, Read)
+
+data Arguments = Parameters [Argument]
   deriving (Eq, Ord, Show, Read)
 
 data Argument = ParamInt Modality Type_specifier Pident

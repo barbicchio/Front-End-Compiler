@@ -4,30 +4,30 @@ Progr.  Program ::= [Dec] ;
 separator Dec "" ;
 
 DecFunction.   Dec ::= Function_def; --dich. funzioni
---InitDeclarArr. Dec ::= Pident "{" Type_specifier "}" "=" ArrayInit; --dich. array (Controllare come gestire gli array multidim)
 VarDeclar.     Dec ::= Type_specifier Pident;
 InitDeclarI.   Dec ::= Type_specifier Pident  "=" Exp;
 
 Typespec.      Type_specifier ::= BasicType;
+rules BasicType ::= "boolean" | "character" | "float" | "integer" | "string"|"void" ;
 Typecompl.	   Type_specifier ::= ComplexType;
 
-Tinteger.      BasicType ::= "integer";
-Tboolean.      BasicType ::= "boolean";
-Tfloat.        BasicType ::= "float";
-Tchar.         BasicType ::= "character";
-Tstring.       BasicType ::= "string";
-Tvoid. 		   BasicType ::= {-empty-};
-Tarray.		   Type_specifier ::= "{" "}" Type_specifier;
-Tarraydef.	   Type_specifier ::= "{"Integer"}" Type_specifier;
+--Tinteger.      BasicType ::= "integer";
+--Tboolean.      BasicType ::= "boolean";
+--Tfloat.        BasicType ::= "float";
+--Tchar.         BasicType ::= "character";
+--Tstring.       BasicType ::= "string";
+--Tvoid. 		   BasicType ::= {-empty-};
+Tarray.		   ComplexType ::= "{" "}" Type_specifier;
+Tarraydef.	   ComplexType ::= "{"Integer"}" Type_specifier;
 Tpointer.	   ComplexType ::= "pointer" Type_specifier;
 
 
 --ArrayDef.      ArrayInit::= da controllare
 
-Func.          Function_def ::= "function" Type_specifier Pident "(" Arguments ")" Chunk_stm "end";
-Parameters.    Arguments::= "("[Argument]")";
---ParamArrayV.   Argument ::= Type_specifier Pident "[""]";
---ParamArray.    Argument ::= Type_specifier Pident "["Pint"]";
+Func.          Function_def ::= "function" Type_specifier Pident "("[Argument]")" Chunk_stm "end";
+--Parameters.     Arguments::= "("[Argument]")";
+--ParamArrayV.  Argument ::= Type_specifier Pident "[""]";
+--ParamArray.   Argument ::= Type_specifier Pident "["Pint"]";
 ParamInt.       Argument ::= Modality Type_specifier Pident;
 rules Modality	::={-empty-}|"val"|"res"|"valres"|"name"|"const"|"ref";
 separator Argument ",";
