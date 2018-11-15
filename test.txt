@@ -1,0 +1,34 @@
+--Test per i tipi base e i tipi composti
+integer num_uno = 1
+integer num_test = 5
+
+boolean prova
+float num_float
+character c = 'c'
+string s = "pippo"
+
+--Test tipi composti
+{} integer array_unidim
+{}{} integer array_bidim
+{}{}{} integer array_tridim
+{} integer array_unidim = {1}
+{} integer array_unidim = {1,2}
+{}{} integer array_bidim = {{1,2,3,4},{1,2,3,4,5}}
+pointer integer pointer_es = 7
+integer prova_punt = 5 + &pointer_es
+--Test funzioni
+function integer prova (integer num_due )
+++num_test
+num_test--
+if num_uno==1 then num_due=2 end
+if num_uno==2 then num_uno=1 else end
+while num_uno==1 do num_uno++ end
+repeat num_test = 5 until (num_uno==1 and num_due==2)
+return 5
+end
+integer numero_fun = prova(1)
+integer prova_due = num_test--
+function integer prova_tre (integer num_due , integer num_cinque)
+prova(1+5,34)
+end
+integer s =prova_tre(1+4,7)
