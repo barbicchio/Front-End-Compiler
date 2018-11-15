@@ -41,8 +41,9 @@ If.          	Cond_stm ::= "if" Exp "then" Chunk_stm "end";
 IfThenElse.     Cond_stm ::= "if" Exp "then" Chunk_stm "else" Chunk_stm "end";
 --if else if da fare dopo
 While.          Cond_stm ::= "while" Exp "do" Chunk_stm "end";
---For.            Cond_stm ::= "for" Exp "do" Chunk_stm "end";
-Cunkstm.	    Chunk_stm::=[Dec][Stm];
+DoWhile.		Cond_stm ::="repeat" Chunk_stm "until" Exp;
+--For.          Cond_stm ::= "for" Exp "do" Chunk_stm "end";
+Chunkstm.	    Chunk_stm::=[Dec][Stm];
 ReturnStm.		Return_stm::="return" Exp;
 separator Stm "";
 
@@ -62,34 +63,37 @@ Eminus.      Exp11 ::= Exp11 "-" Exp12;
 Etimes.      Exp12 ::= Exp12 "*" Exp13;
 Ediv.        Exp13 ::= Exp13 "/" Exp14;
 Emod.        Exp14 ::= Exp14 "%" Exp15;
+EPow.        Exp15 ::= Exp15 "^" Exp16;
 --Epreinc.     Exp15 ::= "++" Exp15;
 --Epredec.     Exp15 ::= "--" Exp15;
 --Epostinc.    Exp16 ::= Exp16 "++";
 --Epostdec.    Exp16 ::= Exp16 "--";
-Epreop.      Exp15 ::= Unary_operator Exp14;--controllare numeri
+Epreop.      Exp16 ::= Unary_operator Exp14;--controllare numeri
 
 
-Efloat.      Exp16 ::= Preal;
-Einteger.    Exp16 ::= Pint;  
-Eboolean.	 Exp16 ::= Pbool;
-Estring.	 Exp16 ::= Pstring;
-Echar.	  	 Exp16 ::= Pchar;
-Lexp.		 Exp16 ::= Lexp;
-
+Efloat.      Exp17 ::= Preal;
+Einteger.    Exp17 ::= Pint;  
+Eboolean.	 Exp17 ::= Pbool;
+Estring.	 Exp17 ::= Pstring;
+Echar.	  	 Exp17 ::= Pchar;
+Lexp.		 Exp17 ::= Lexp;
+coercions Exp 16;
 ActParam.    ActPar::=[Exp];
 
 separator Exp ",";
 
 Evar.        Lexp ::= Pident;
---Indirection. Lexp::= "*"Exp14 ;
+Indirection. Lexp ::= "*"Exp ;
 Arraysel.    Lexp ::= Pident [Index] ;
+PreInc.      Lexp ::= "++" Lexp ;
+PreDecr.     Lexp ::= "--" Lexp ;
+PostInc.     Lexp ::= Lexp "++" ;
+PostDecr.    Lexp ::= Lexp "--" ;
+
 --Arraysel1.   Lexp::= Pident "@" Pint;
 Arraysel.   Index::= "{" Exp "}";
 
 Address.    Unary_operator::= "&";
-
-coercions Exp 16;
-
 Logicalneg.  Unary_operator ::= "not" ;
 Negnum.      Unary_operator ::= "-" ;
 
