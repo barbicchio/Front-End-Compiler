@@ -1,7 +1,6 @@
---Test per i tipi base e i tipi composti
+--Test per i tipi base 
 integer num_uno = 1
 integer num_test = 5
-
 boolean prova
 float num_float
 character c = 'c'
@@ -19,7 +18,8 @@ integer prova_punt = 5 + &pointer_es
 --Test funzioni
 function integer prova (integer num_due )
 ++num_test
-num_test--
+num_test-- 
+--num_test --lo considera un commento e non viene stampato
 if num_uno==1 then num_due=2 end
 if num_uno==2 then num_uno=1 else end
 while num_uno==1 do num_uno++ end
