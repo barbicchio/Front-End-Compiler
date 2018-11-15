@@ -65,9 +65,9 @@ import ErrM
   'until' { PT _ (TS _ 47) }
   'val' { PT _ (TS _ 48) }
   'valres' { PT _ (TS _ 49) }
-  'void' { PT _ (TS _ 50) }
-  'while' { PT _ (TS _ 51) }
-  '{' { PT _ (TS _ 52) }
+  'while' { PT _ (TS _ 50) }
+  '{' { PT _ (TS _ 51) }
+  '{}' { PT _ (TS _ 52) }
   '|=' { PT _ (TS _ 53) }
   '}' { PT _ (TS _ 54) }
   '~=' { PT _ (TS _ 55) }
@@ -108,8 +108,8 @@ Program : ListDec {Progr $1}
 ListDec :: { [Dec] }
 ListDec : {- empty -} { [] } | ListDec Dec { flip (:) $1 $2 }
 Dec :: { Dec }
-Dec : 'function' Type_specifier Pident '('ListArgument')'ListDecStm 'end' { Func $2 $3 $5 (length $5) $7 }
-    |'function' Pident '('ListArgument')'ListDecStm 'end' { Func Tvoid $2 $4 (length $4) $6 }
+Dec : 'function' Type_specifier Pident '('ListArgument')'ListDecStm 'end' { Func $2 $3 $5 (length $5)  (reverse $7) }
+    |'function' Pident '('ListArgument')'ListDecStm 'end' { Func Tvoid $2 $4 (length $4) (reverse $6) }
     | Type_specifier Pident {VarDeclar $1 $2 Nothing}
     | Type_specifier Pident '=' Exp { VarDeclar $1 $2 (Just $4) }
 Type_specifier :: { Type_specifier }
@@ -118,10 +118,9 @@ Type_specifier :'boolean' { Tbool }
           | 'float' { Tfloat }
           | 'integer' { Tint }
           | 'string' { Tstring }
-          | 'void' { Tvoid }
           | 'pointer' Type_specifier { Tpointer $2 }
-          | '{' '}' Type_specifier { Tarray Nothing $3 }
-          | '{' Integer '}' Type_specifier { Tarray (Just $2) $4 } 
+          | '{}' Type_specifier { Tarray Nothing $2 }
+          | '{'Integer'}' Type_specifier { Tarray (Just $2) $4 } 
 Argument :: { Argument }
 Argument : Modality Type_specifier Pident { FormPar $1 $2 $3 }
 ListArgument :: { [Argument] }
