@@ -84,11 +84,11 @@ data Exp
 
 data InfixOp = ArithOp ArithOp| RelOp RelOp | BoolOp BoolOp
  deriving (Eq, Ord, Show, Read)
-data ArithOp= Add|Sub|Mul|Div|Divint|Mod|Pow
+data ArithOp = Add|Sub|Mul|Div|Divint|Mod|Pow
  deriving (Eq, Ord, Show, Read)
-data RelOp=Eq|Neq|Lt|LtE|Gt|GtE
+data RelOp = Eq|Neq|Lt|LtE|Gt|GtE
   deriving (Eq, Ord, Show, Read)
-data BoolOp=And|Or
+data BoolOp = And|Or
   deriving (Eq, Ord, Show, Read)
 data Unary_Op = Neg | Logneg
   deriving (Eq, Ord, Show, Read)
