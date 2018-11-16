@@ -1,7 +1,9 @@
 function boolean p (integer r,res string peppa)
     --{}{} integer p={{1},{2,3}}
-   i=2^2+4*3^2
-   -- *r
+   pointer integer p
+   integer c=4-5 
+   c=i*3+_r
+   _r=21
    -- while (i>10) do
    -- end
     --p={{1,2}}
@@ -21,8 +23,11 @@ function boolean p (integer r,res string peppa)
 	 -- end
 	--end
 	--return 32
-	--while(i++)do
+while(i++)do
+_r=32
 	--j+1
 	--(*r)
-
+end
+end
+function string f()
 end
