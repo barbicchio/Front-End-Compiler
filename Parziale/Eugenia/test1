@@ -1,28 +1,10 @@
 function boolean p (integer r,res string peppa)
     --{}{} integer p={{1},{2,3}}
    pointer integer p
-   integer c=4-5 
+   integer c=1-4 
+   _t=4
    c=i*3+_r
    _r=21
-   -- while (i>10) do
-   -- end
-    --p={{1,2}}
-    --pointer integer pippo
-	--repeat c=c+3
-	--until (r<32)
-    --i++=(j++) + r
-   --k= (-i)-100
-	--if (k>0)
-	--	then 4
-	--	else 32
-	--end
-	--if (i>10)
-	--	then 3
-	 -- if j>10
-	 -- 	then 21
-	 -- end
-	--end
-	--return 32
 while(i++)do
 _r=32
 	--j+1

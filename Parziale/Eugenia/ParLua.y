@@ -66,7 +66,6 @@ import ErrM
   'until' { PT _ (TS _ 48) }
   'val' { PT _ (TS _ 49) }
   'valres' { PT _ (TS _ 50) }
-  'void' { PT _ (TS _ 51) }
   'while' { PT _ (TS _ 52) }
   '{' { PT _ (TS _ 53) }
   '{}' { PT _ (TS _ 54) }
