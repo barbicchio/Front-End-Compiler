@@ -17,7 +17,7 @@ Typecompl.	   Type_specifier ::= ComplexType;
 --Tchar.         BasicType ::= "character";
 --Tstring.       BasicType ::= "string";
 --Tvoid. 		 BasicType ::= {-empty-};
-Tarray.		   ComplexType ::= "{" "}" Type_specifier;
+Tarray.		   ComplexType ::= "{}" Type_specifier;
 Tarraydef.	   ComplexType ::= "{"Integer"}" Type_specifier;
 Tpointer.	   ComplexType ::= "pointer" Type_specifier;
 
@@ -87,14 +87,12 @@ ActParam.    ActPar::=[Exp];
 separator Exp ",";
 
 Evar.        Lexp ::= Pident;
-Indirection. Lexp ::= "*"Exp ;
+Indirection. Lexp ::= "_"Exp ;
 Arraysel.    Lexp ::= Pident "{"Exp"}" ;
 PreInc.      Lexp ::= "++" Lexp ;
 PreDecr.     Lexp ::= "--" Lexp ;
 PostInc.     Lexp ::= Lexp "++" ;
 PostDecr.    Lexp ::= Lexp "--" ;
-
---Arraysel1.   Lexp::= Pident "@" Pint;
 
 Address.    Unary_operator::= "&"; 
 Logicalneg.  Unary_operator ::= "not" ; 

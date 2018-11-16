@@ -133,7 +133,7 @@ instance Print BasicType where
 
 instance Print ComplexType where
   prt i e = case e of
-    Tarray typespecifier -> prPrec i 0 (concatD [doc (showString "{"), doc (showString "}"), prt 0 typespecifier])
+    Tarray typespecifier -> prPrec i 0 (concatD [doc (showString "{}"), prt 0 typespecifier])
     Tarraydef n typespecifier -> prPrec i 0 (concatD [doc (showString "{"), prt 0 n, doc (showString "}"), prt 0 typespecifier])
     Tpointer typespecifier -> prPrec i 0 (concatD [doc (showString "pointer"), prt 0 typespecifier])
 
@@ -218,7 +218,7 @@ instance Print ActPar where
 instance Print Lexp where
   prt i e = case e of
     Evar pident -> prPrec i 0 (concatD [prt 0 pident])
-    Indirection exp -> prPrec i 0 (concatD [doc (showString "*"), prt 0 exp])
+    Indirection exp -> prPrec i 0 (concatD [doc (showString "_"), prt 0 exp])
     Arraysel pident exp -> prPrec i 0 (concatD [prt 0 pident, doc (showString "{"), prt 0 exp, doc (showString "}")])
     PreInc lexp -> prPrec i 0 (concatD [doc (showString "++"), prt 0 lexp])
     PreDecr lexp -> prPrec i 0 (concatD [doc (showString "--"), prt 0 lexp])

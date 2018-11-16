@@ -41,36 +41,38 @@ import ErrM
   '>=' { PT _ (TS _ 23) }
   '^' { PT _ (TS _ 24) }
   '^=' { PT _ (TS _ 25) }
-  'and' { PT _ (TS _ 26) }
-  'boolean' { PT _ (TS _ 27) }
-  'character' { PT _ (TS _ 28) }
-  'const' { PT _ (TS _ 29) }
-  'do' { PT _ (TS _ 30) }
-  'else' { PT _ (TS _ 31) }
-  'end' { PT _ (TS _ 32) }
-  'float' { PT _ (TS _ 33) }
-  'function' { PT _ (TS _ 34) }
-  'if' { PT _ (TS _ 35) }
-  'integer' { PT _ (TS _ 36) }
-  'name' { PT _ (TS _ 37) }
-  'not' { PT _ (TS _ 38) }
-  'or' { PT _ (TS _ 39) }
-  'pointer' { PT _ (TS _ 40) }
-  'ref' { PT _ (TS _ 41) }
-  'repeat' { PT _ (TS _ 42) }
-  'res' { PT _ (TS _ 43) }
-  'return' { PT _ (TS _ 44) }
-  'string' { PT _ (TS _ 45) }
-  'then' { PT _ (TS _ 46) }
-  'until' { PT _ (TS _ 47) }
-  'val' { PT _ (TS _ 48) }
-  'valres' { PT _ (TS _ 49) }
-  'void' { PT _ (TS _ 50) }
-  'while' { PT _ (TS _ 51) }
-  '{' { PT _ (TS _ 52) }
-  '|=' { PT _ (TS _ 53) }
-  '}' { PT _ (TS _ 54) }
-  '~=' { PT _ (TS _ 55) }
+  '_' { PT _ (TS _ 26) }
+  'and' { PT _ (TS _ 27) }
+  'boolean' { PT _ (TS _ 28) }
+  'character' { PT _ (TS _ 29) }
+  'const' { PT _ (TS _ 30) }
+  'do' { PT _ (TS _ 31) }
+  'else' { PT _ (TS _ 32) }
+  'end' { PT _ (TS _ 33) }
+  'float' { PT _ (TS _ 34) }
+  'function' { PT _ (TS _ 35) }
+  'if' { PT _ (TS _ 36) }
+  'integer' { PT _ (TS _ 37) }
+  'name' { PT _ (TS _ 38) }
+  'not' { PT _ (TS _ 39) }
+  'or' { PT _ (TS _ 40) }
+  'pointer' { PT _ (TS _ 41) }
+  'ref' { PT _ (TS _ 42) }
+  'repeat' { PT _ (TS _ 43) }
+  'res' { PT _ (TS _ 44) }
+  'return' { PT _ (TS _ 45) }
+  'string' { PT _ (TS _ 46) }
+  'then' { PT _ (TS _ 47) }
+  'until' { PT _ (TS _ 48) }
+  'val' { PT _ (TS _ 49) }
+  'valres' { PT _ (TS _ 50) }
+  'void' { PT _ (TS _ 51) }
+  'while' { PT _ (TS _ 52) }
+  '{' { PT _ (TS _ 53) }
+  '{}' { PT _ (TS _ 54) }
+  '|=' { PT _ (TS _ 55) }
+  '}' { PT _ (TS _ 56) }
+  '~=' { PT _ (TS _ 57) }
 
 L_integ  { PT _ (TI $$) }
 L_Pident { PT _ (T_Pident _) }
@@ -113,7 +115,7 @@ BasicType : 'boolean' { AbsLua.BasicType_boolean }
           | 'string' { AbsLua.BasicType_string }
           | 'void' { AbsLua.BasicType_void }
 ComplexType :: { ComplexType }
-ComplexType : '{' '}' Type_specifier { AbsLua.Tarray $3 }
+ComplexType : '{}' Type_specifier { AbsLua.Tarray $2 }
             | '{' Integer '}' Type_specifier { AbsLua.Tarraydef $2 $4 }
             | 'pointer' Type_specifier { AbsLua.Tpointer $2 }
 Function_def :: { Function_def }
@@ -203,7 +205,7 @@ ActPar :: { ActPar }
 ActPar : ListExp { AbsLua.ActParam $1 }
 Lexp :: { Lexp }
 Lexp : Pident { AbsLua.Evar $1 }
-     | '*' Exp { AbsLua.Indirection $2 }
+     | '_' Exp { AbsLua.Indirection $2 }
      | Pident '{' Exp '}' { AbsLua.Arraysel $1 $3 }
      | '++' Lexp { AbsLua.PreInc $2 }
      | '--' Lexp { AbsLua.PreDecr $2 }

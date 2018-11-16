@@ -54,14 +54,14 @@ The reserved words used in Lua are the following:
   | ``void`` | ``while`` |  | 
 
 The symbols used in Lua are the following:
-  | = | { | } | (
-  | ) | , | == | ~=
-  | < | > | <= | >=
-  | + | - | * | /
-  | % | ^ | ++ | --
-  | & | *= | /= | %=
-  | += | -= | ^= | &=
-  | |= |  |  | 
+  | = | {} | { | }
+  | ( | ) | , | ==
+  | ~= | < | > | <=
+  | >= | + | - | *
+  | / | % | ^ | _
+  | ++ | -- | & | *=
+  | /= | %= | += | -=
+  | ^= | &= | |= | 
 
 ===Comments===
 Single-line comments begin with --.There are no multiple-line comments in the grammar.
@@ -88,7 +88,7 @@ All other symbols are terminals.
   |  |  **|**  | ``integer`` 
   |  |  **|**  | ``string`` 
   |  |  **|**  | ``void`` 
-  | //ComplexType// | -> | ``{`` ``}`` //Type_specifier// 
+  | //ComplexType// | -> | ``{}`` //Type_specifier// 
   |  |  **|**  | ``{`` //Integer// ``}`` //Type_specifier// 
   |  |  **|**  | ``pointer`` //Type_specifier// 
   | //Function_def// | -> | ``function`` //Type_specifier// //Pident// ``(`` //[Argument]// ``)`` //Chunk_stm// ``end`` 
@@ -165,7 +165,7 @@ All other symbols are terminals.
   |  |  **|**  | ``(`` //Exp// ``)`` 
   | //ActPar// | -> | //[Exp]// 
   | //Lexp// | -> | //Pident// 
-  |  |  **|**  | ``*`` //Exp// 
+  |  |  **|**  | ``_`` //Exp// 
   |  |  **|**  | //Pident// ``{`` //Exp// ``}`` 
   |  |  **|**  | ``++`` //Lexp// 
   |  |  **|**  | ``--`` //Lexp// 

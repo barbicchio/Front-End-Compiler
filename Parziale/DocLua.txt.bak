@@ -51,7 +51,7 @@ The reserved words used in Lua are the following:
   | ``not`` | ``or`` | ``pointer`` | ``ref``
   | ``repeat`` | ``res`` | ``return`` | ``string``
   | ``then`` | ``until`` | ``val`` | ``valres``
-  | ``while`` |  |  | 
+  | ``void`` | ``while`` |  | 
 
 The symbols used in Lua are the following:
   | = | { | } | (
@@ -82,17 +82,16 @@ All other symbols are terminals.
   |  |  **|**  | //Type_specifier// //Pident// ``=`` //Exp// 
   | //Type_specifier// | -> | //BasicType// 
   |  |  **|**  | //ComplexType// 
-  |  |  **|**  | ``{`` ``}`` //Type_specifier// 
-  |  |  **|**  | ``{`` //Integer// ``}`` //Type_specifier// 
-  | //BasicType// | -> | ``integer`` 
-  |  |  **|**  | ``boolean`` 
-  |  |  **|**  | ``float`` 
+  | //BasicType// | -> | ``boolean`` 
   |  |  **|**  | ``character`` 
+  |  |  **|**  | ``float`` 
+  |  |  **|**  | ``integer`` 
   |  |  **|**  | ``string`` 
-  |  |  **|**  | **eps**
-  | //ComplexType// | -> | ``pointer`` //Type_specifier// 
-  | //Function_def// | -> | ``function`` //Type_specifier// //Pident// ``(`` //Arguments// ``)`` //Chunk_stm// ``end`` 
-  | //Arguments// | -> | ``(`` //[Argument]// ``)`` 
+  |  |  **|**  | ``void`` 
+  | //ComplexType// | -> | ``{`` ``}`` //Type_specifier// 
+  |  |  **|**  | ``{`` //Integer// ``}`` //Type_specifier// 
+  |  |  **|**  | ``pointer`` //Type_specifier// 
+  | //Function_def// | -> | ``function`` //Type_specifier// //Pident// ``(`` //[Argument]// ``)`` //Chunk_stm// ``end`` 
   | //Argument// | -> | //Modality// //Type_specifier// //Pident// 
   | //Modality// | -> | **eps**
   |  |  **|**  | ``val`` 
