@@ -80,16 +80,16 @@ L_Pstring { PT _ (T_Pstring _) }
 L_Preal { PT _ (T_Preal _) }
 L_Pchar { PT _ (T_Pchar _) }
 
-%right POINT '&'
+%right REF 
+%right '&'
 %left 'or'
 %left 'and'
 %left 'not'
 %nonassoc '==' '~=' '<' '<=' '>' '>=' '='
-%left '['
-%left '^' 
-%left '++' '--'
+%nonassoc '++' '--'
 %left '+' '-'
 %left '*' '/' '%'
+%left '^' 
 %left NEG
 
 
@@ -186,7 +186,7 @@ ListExp : {- empty -} { [] }
 
 Lexp :: { Exp }
 Lexp : Pident { Evar $1 }
-     | '*' Exp %prec POINT  { Indirection $2 } 
+     | '*' Exp %prec REF  { Indirection $2 } 
      | Pident '{' Exp '}' { Arraysel $1 $3 }
      | '++'Exp {PreIncr $2} 
      | '--'Exp {PreDecr $2} 

@@ -1,21 +1,28 @@
 function boolean p (integer r,res string peppa)
-    {}{} integer p={{1},{2,3}}
-    while (i>10) do
-    end
-    p={{1,2}}
-    pointer integer pippo
-	repeat c=c+3
-	until (r<32)
-	i++
-	if (k>0)
-		then 4
-		else 32
-	end
-	if (i>10)
-		then 3
-	  if j>10
-	  	then 21
-	  end
-	end
-	return 32
+    --{}{} integer p={{1},{2,3}}
+   i=2^2+4*3^2
+   -- *r
+   -- while (i>10) do
+   -- end
+    --p={{1,2}}
+    --pointer integer pippo
+	--repeat c=c+3
+	--until (r<32)
+    --i++=(j++) + r
+   --k= (-i)-100
+	--if (k>0)
+	--	then 4
+	--	else 32
+	--end
+	--if (i>10)
+	--	then 3
+	 -- if j>10
+	 -- 	then 21
+	 -- end
+	--end
+	--return 32
+	--while(i++)do
+	--j+1
+	--(*r)
+
 end
