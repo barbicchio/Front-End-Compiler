@@ -41,12 +41,12 @@ transType_specifier x = case x of
   Typecompl complextype -> failure x
 transBasicType :: BasicType -> Result
 transBasicType x = case x of
-  BasicType_boolean -> failure x
-  BasicType_character -> failure x
-  BasicType_float -> failure x
-  BasicType_integer -> failure x
-  BasicType_string -> failure x
-  BasicType_void -> failure x
+  Tinteger -> failure x
+  Tboolean -> failure x
+  Tfloat -> failure x
+  Tchar -> failure x
+  Tstring -> failure x
+  Tvoid -> failure x
 transComplexType :: ComplexType -> Result
 transComplexType x = case x of
   Tarray typespecifier -> failure x

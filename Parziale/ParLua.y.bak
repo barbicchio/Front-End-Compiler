@@ -104,8 +104,6 @@ Dec : Function_def { AbsLua.DecFunction $1 }
 Type_specifier :: { Type_specifier }
 Type_specifier : BasicType { AbsLua.Typespec $1 }
                | ComplexType { AbsLua.Typecompl $1 }
-               | '{' '}' Type_specifier { AbsLua.Tarray $3 }
-               | '{' Integer '}' Type_specifier { AbsLua.Tarraydef $2 $4 }
 BasicType :: { BasicType }
 BasicType : 'integer' { AbsLua.Tinteger }
           | 'boolean' { AbsLua.Tboolean }
@@ -114,11 +112,11 @@ BasicType : 'integer' { AbsLua.Tinteger }
           | 'string' { AbsLua.Tstring }
           | {- empty -} { AbsLua.Tvoid }
 ComplexType :: { ComplexType }
-ComplexType : 'pointer' Type_specifier { AbsLua.Tpointer $2 }
+ComplexType : '{' '}' Type_specifier { AbsLua.Tarray $3 }
+            | '{' Integer '}' Type_specifier { AbsLua.Tarraydef $2 $4 }
+            | 'pointer' Type_specifier { AbsLua.Tpointer $2 }
 Function_def :: { Function_def }
-Function_def : 'function' Type_specifier Pident '(' Arguments ')' Chunk_stm 'end' { AbsLua.Func $2 $3 $5 $7 }
-Arguments :: { Arguments }
-Arguments : '(' ListArgument ')' { AbsLua.Parameters $2 }
+Function_def : 'function' Type_specifier Pident '(' ListArgument ')' Chunk_stm 'end' { AbsLua.Func $2 $3 $5 $7 }
 Argument :: { Argument }
 Argument : Modality Type_specifier Pident { AbsLua.ParamInt $1 $2 $3 }
 Modality :: { Modality }

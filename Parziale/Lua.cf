@@ -8,16 +8,16 @@ VarDeclar.     Dec ::= Type_specifier Pident;
 InitDeclarI.   Dec ::= Type_specifier Pident  "=" Exp;
 
 Typespec.      Type_specifier ::= BasicType;
-rules BasicType ::= "boolean" | "character" | "float" | "integer" | "string"|"void" ;
+--rules BasicType ::= "boolean" | "character" | "float" | "integer" | "string"|"void" ;
 Typecompl.	   Type_specifier ::= ComplexType;
 
---Tinteger.      BasicType ::= "integer";
---Tboolean.      BasicType ::= "boolean";
---Tfloat.        BasicType ::= "float";
---Tchar.         BasicType ::= "character";
---Tstring.       BasicType ::= "string";
---Tvoid. 		   BasicType ::= {-empty-};
-Tarray.		   ComplexType ::= "{" "}" Type_specifier;
+Tinteger.      BasicType ::= "integer";
+Tboolean.      BasicType ::= "boolean";
+Tfloat.        BasicType ::= "float";
+Tchar.         BasicType ::= "character";
+Tstring.       BasicType ::= "string";
+Tvoid. 		   BasicType ::= {-empty-};
+Tarray.		   ComplexType ::= "{}" Type_specifier;
 Tarraydef.	   ComplexType ::= "{"Integer"}" Type_specifier;
 Tpointer.	   ComplexType ::= "pointer" Type_specifier;
 

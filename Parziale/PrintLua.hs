@@ -124,16 +124,16 @@ instance Print Type_specifier where
 
 instance Print BasicType where
   prt i e = case e of
-    BasicType_boolean -> prPrec i 0 (concatD [doc (showString "boolean")])
-    BasicType_character -> prPrec i 0 (concatD [doc (showString "character")])
-    BasicType_float -> prPrec i 0 (concatD [doc (showString "float")])
-    BasicType_integer -> prPrec i 0 (concatD [doc (showString "integer")])
-    BasicType_string -> prPrec i 0 (concatD [doc (showString "string")])
-    BasicType_void -> prPrec i 0 (concatD [doc (showString "void")])
+    Tinteger -> prPrec i 0 (concatD [doc (showString "integer")])
+    Tboolean -> prPrec i 0 (concatD [doc (showString "boolean")])
+    Tfloat -> prPrec i 0 (concatD [doc (showString "float")])
+    Tchar -> prPrec i 0 (concatD [doc (showString "character")])
+    Tstring -> prPrec i 0 (concatD [doc (showString "string")])
+    Tvoid -> prPrec i 0 (concatD [])
 
 instance Print ComplexType where
   prt i e = case e of
-    Tarray typespecifier -> prPrec i 0 (concatD [doc (showString "{"), doc (showString "}"), prt 0 typespecifier])
+    Tarray typespecifier -> prPrec i 0 (concatD [doc (showString "{}"), prt 0 typespecifier])
     Tarraydef n typespecifier -> prPrec i 0 (concatD [doc (showString "{"), prt 0 n, doc (showString "}"), prt 0 typespecifier])
     Tpointer typespecifier -> prPrec i 0 (concatD [doc (showString "pointer"), prt 0 typespecifier])
 

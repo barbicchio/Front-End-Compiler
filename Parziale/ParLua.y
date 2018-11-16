@@ -65,9 +65,9 @@ import ErrM
   'until' { PT _ (TS _ 47) }
   'val' { PT _ (TS _ 48) }
   'valres' { PT _ (TS _ 49) }
-  'void' { PT _ (TS _ 50) }
-  'while' { PT _ (TS _ 51) }
-  '{' { PT _ (TS _ 52) }
+  'while' { PT _ (TS _ 50) }
+  '{' { PT _ (TS _ 51) }
+  '{}' { PT _ (TS _ 52) }
   '|=' { PT _ (TS _ 53) }
   '}' { PT _ (TS _ 54) }
   '~=' { PT _ (TS _ 55) }
@@ -106,14 +106,14 @@ Type_specifier :: { Type_specifier }
 Type_specifier : BasicType { AbsLua.Typespec $1 }
                | ComplexType { AbsLua.Typecompl $1 }
 BasicType :: { BasicType }
-BasicType : 'boolean' { AbsLua.BasicType_boolean }
-          | 'character' { AbsLua.BasicType_character }
-          | 'float' { AbsLua.BasicType_float }
-          | 'integer' { AbsLua.BasicType_integer }
-          | 'string' { AbsLua.BasicType_string }
-          | 'void' { AbsLua.BasicType_void }
+BasicType : 'integer' { AbsLua.Tinteger }
+          | 'boolean' { AbsLua.Tboolean }
+          | 'float' { AbsLua.Tfloat }
+          | 'character' { AbsLua.Tchar }
+          | 'string' { AbsLua.Tstring }
+          | {- empty -} { AbsLua.Tvoid }
 ComplexType :: { ComplexType }
-ComplexType : '{' '}' Type_specifier { AbsLua.Tarray $3 }
+ComplexType : '{}' Type_specifier { AbsLua.Tarray $2 }
             | '{' Integer '}' Type_specifier { AbsLua.Tarraydef $2 $4 }
             | 'pointer' Type_specifier { AbsLua.Tpointer $2 }
 Function_def :: { Function_def }

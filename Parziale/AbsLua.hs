@@ -32,12 +32,7 @@ data Type_specifier = Typespec BasicType | Typecompl ComplexType
   deriving (Eq, Ord, Show, Read)
 
 data BasicType
-    = BasicType_boolean
-    | BasicType_character
-    | BasicType_float
-    | BasicType_integer
-    | BasicType_string
-    | BasicType_void
+    = Tinteger | Tboolean | Tfloat | Tchar | Tstring | Tvoid
   deriving (Eq, Ord, Show, Read)
 
 data ComplexType
