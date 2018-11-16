@@ -80,18 +80,18 @@ L_Pstring { PT _ (T_Pstring _) }
 L_Preal { PT _ (T_Preal _) }
 L_Pchar { PT _ (T_Pchar _) }
 
-%right POINT '&'
+%right '&'
 %left 'or'
 %left 'and'
 %left 'not'
-%nonassoc '==' '~=' '<' '<=' '>' '>=' '='
-%left '['
+%nonassoc '~=' '<' '<=' '>' '>=' '='
+%left'=='
 %left '^' 
-%left '++' '--'
+%left POST
+%right PRE
+%nonassoc '++' '--'
 %left '+' '-'
 %left '*' '/' '%'
-%left NEG
-
 
 %%
 
@@ -104,7 +104,7 @@ Preal    :: {Preal} : L_Preal { Preal (mkPosToken $1)}
 Pchar    :: {Pchar} : L_Pchar { Pchar (mkPosToken $1)}
 
 Program :: { Program }
-Program : ListDec {Progr $1}
+Program : ListDec {Progr (reverse $1)}
 ListDec :: { [Dec] }
 ListDec : {- empty -} { [] } | ListDec Dec { flip (:) $1 $2 }
 Dec :: { Dec }
@@ -152,7 +152,7 @@ ListDecStm : {- empty -} { [] }
            | ListDecStm DecStm { flip (:) $1 $2 }
 
 Exp :: { Exp }
-Exp : '('Exp')' {$2}
+Exp :'('Exp')' {$2}
      | Pident '(' ListExp ')' { Fcall $1 $3 (length $3) }
      |Exp 'or' Exp {InfixOp (BoolOp Or) $1 $3 }
      |Exp 'and' Exp { InfixOp (BoolOp And) $1 $3 }
@@ -169,7 +169,7 @@ Exp : '('Exp')' {$2}
      |Exp '^' Exp {InfixOp (ArithOp Pow) $1 $3 }
      |Exp '%' Exp {InfixOp (ArithOp Mod)$1 $3 }
      |'&' Exp  { Addr $2 }
-     | '-' Exp %prec NEG { Unary_Op Neg $2}
+     | '-' Exp { Unary_Op Neg $2}
      | 'not' Exp { Unary_Op Logneg $2 }
      |'{' ListExp '}' { Arr $2 }
      | Lexp { $1 }
@@ -186,12 +186,12 @@ ListExp : {- empty -} { [] }
 
 Lexp :: { Exp }
 Lexp : Pident { Evar $1 }
-     | '*' Exp %prec POINT  { Indirection $2 } 
+     | '*' Exp { Indirection $2 } 
      | Pident '{' Exp '}' { Arraysel $1 $3 }
-     | '++'Exp {PreIncr $2} 
-     | '--'Exp {PreDecr $2} 
-     | Exp '++' {PostIncr $1} 
-     | Exp '--' {PostDecr $1} 
+     | '++'Exp %prec PRE {PreIncr $2} 
+     | '--'Exp %prec PRE {PreDecr $2} 
+     | Exp '++' %prec POST {PostIncr $1} 
+     | Exp '--' %prec POST {PostDecr $1} 
 Assignment_Op :: { Assignment_Op }
 Assignment_Op : '=' { Assign }
               | '*=' { AssgnArith Mul }

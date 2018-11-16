@@ -1,5 +1,7 @@
 function boolean p (integer r,res string peppa)
     {}{} integer p={{1},{2,3}}
+    c=(4*3)
+    *r
     while (i>10)
     do
     end
@@ -19,4 +21,8 @@ function boolean p (integer r,res string peppa)
 	  end
 	end
 	return 32
+end
+
+function integer p(character a)
+
 end
