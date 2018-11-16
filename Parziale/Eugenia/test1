@@ -1,7 +1,6 @@
 function boolean p (integer r,res string peppa)
     {}{} integer p={{1},{2,3}}
-    while (i>10)
-    do
+    while (i>10) do
     end
     p={{1,2}}
     pointer integer pippo

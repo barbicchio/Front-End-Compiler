@@ -21,10 +21,11 @@ render d = rend 0 (map ($ "") $ d []) "" where
   rend i ss = case ss of
     "["      :ts -> showChar '[' . rend i ts
     "("      :ts -> showChar '(' . rend i ts
-    --"{"      :ts -> showChar '{' . new (i+1) . rend (i+1) ts
+    "do"     :ts -> showString "do" . new (i+1) . rend (i+1) ts
+    "then"   :ts -> showString "then" . new (i+1) . rend (i+1) ts
     --"}" : ";":ts -> new (i-1) . space "}" . showChar ';' . new (i-1) . rend (i-1) ts
-    --"}"      :ts -> new (i-1) . showChar '}' . new (i-1) . rend (i-1) ts
-    --";"      :ts -> showChar ';' . new i . rend i ts
+    "end"    :ts -> new (i-1) . showString "end" . new (i-1) . rend (i-1) ts
+    '\n'     :ts -> showChar '\n' . new i . rend i ts
     t  : "," :ts -> showString t . space "," . rend i ts
     t  : ")" :ts -> showString t . showChar ')' . rend i ts
     t  : "]" :ts -> showString t . showChar ']' . rend i ts
