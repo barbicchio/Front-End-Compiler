@@ -150,7 +150,7 @@ instance Print Stm where
     SimpleIf exp chunkstm -> prPrec i 0 (concatD [doc (showString "if"), prt 0 exp, doc (showString "then"), prt 0 chunkstm, doc (showString "end")])
     IfThElse exp chunkstm1 chunkstm2 -> prPrec i 0 (concatD [doc (showString "if"), prt 0 exp, doc (showString "then"), prt 0 chunkstm1, doc (showString "else"), prt 0 chunkstm2, doc (showString "end")])
     While exp chunkstm -> prPrec i 0 (concatD [doc (showString "while"), prt 0 exp, doc (showString "do"), prt 0 chunkstm, doc (showString "end")])
-    DoWhile chunkstm exp -> prPrec i 0 (concatD [doc (showString "repeat"), prt 0 chunkstm, doc (showString "until"), prt 0 exp])
+    DoWhile chunkstm exp -> prPrec i 0 (concatD [doc (showString "repeat\n"), prt 0 chunkstm, doc (showString "until"), prt 0 exp, doc (showString "\n")])
     Valreturn returnstm -> prPrec i 0 (concatD [prt 0 returnstm])
     SExp exp -> prPrec i 0 (concatD [prt 0 exp])
   prtList _ [] = (concatD [])
