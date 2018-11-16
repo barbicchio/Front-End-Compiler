@@ -118,6 +118,7 @@ instance Print Dec where
        where prex=case exp of Nothing -> [] ; (Just exp) -> [doc (showString "="),doc (showString "("),prt 0 exp,doc (showString ")")]
   prtList _ [] = (concatD [])
   prtList _ (x:xs) = (concatD [prt 0 x,nl, prt 0 xs])
+  
 instance Print Type_specifier where
   prt i e = case e of
     Tchar -> prPrec i 0 (concatD [doc (showString "character")])
@@ -176,7 +177,7 @@ instance Print Exp where
     Lexp lexp -> prPrec i 17 (concatD [prt 0 lexp])
     Addr exp-> prPrec i 0 (concatD [doc (showString "&"), prt 14 exp])
     Evar pident -> prPrec i 0 (concatD [prt 0 pident])
-    Indirection exp -> prPrec i 0 (concatD [doc (showString "*"), prt 0 exp])
+    Indirection exp -> prPrec i 0 (concatD [doc (showString "_"), prt 0 exp])
     Arr exps->prPrec i 0 (concatD [doc (showString "{"),prt 0 exps,doc (showString "}")])
     Arraysel pident exp -> prPrec i 0 (concatD [prt 0 pident, doc (showString "{"), prt 0 exp, doc (showString "}")])
     PreIncr lexp -> prPrec i 0 (concatD [doc (showString "++"), prt 0 lexp])
@@ -225,5 +226,3 @@ instance Print BoolOp where
   prt i e = case e of
     Or->prPrec i 0 (concatD [doc (showString "or")])
     And->prPrec i 0 (concatD [doc (showString "and")])
-
-

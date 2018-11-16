@@ -41,6 +41,38 @@ import ErrM
   '>=' { PT _ (TS _ 23) }
   '^' { PT _ (TS _ 24) }
   '^=' { PT _ (TS _ 25) }
+<<<<<<< HEAD
+  'and' { PT _ (TS _ 26) }
+  'boolean' { PT _ (TS _ 27) }
+  'character' { PT _ (TS _ 28) }
+  'const' { PT _ (TS _ 29) }
+  'do' { PT _ (TS _ 30) }
+  'else' { PT _ (TS _ 31) }
+  'end' { PT _ (TS _ 32) }
+  'float' { PT _ (TS _ 33) }
+  'function' { PT _ (TS _ 34) }
+  'if' { PT _ (TS _ 35) }
+  'integer' { PT _ (TS _ 36) }
+  'name' { PT _ (TS _ 37) }
+  'not' { PT _ (TS _ 38) }
+  'or' { PT _ (TS _ 39) }
+  'pointer' { PT _ (TS _ 40) }
+  'ref' { PT _ (TS _ 41) }
+  'repeat' { PT _ (TS _ 42) }
+  'res' { PT _ (TS _ 43) }
+  'return' { PT _ (TS _ 44) }
+  'string' { PT _ (TS _ 45) }
+  'then' { PT _ (TS _ 46) }
+  'until' { PT _ (TS _ 47) }
+  'val' { PT _ (TS _ 48) }
+  'valres' { PT _ (TS _ 49) }
+  'while' { PT _ (TS _ 50) }
+  '{' { PT _ (TS _ 51) }
+  '{}' { PT _ (TS _ 52) }
+  '|=' { PT _ (TS _ 53) }
+  '}' { PT _ (TS _ 54) }
+  '~=' { PT _ (TS _ 55) }
+=======
   '_' { PT _ (TS _ 26) }
   'and' { PT _ (TS _ 27) }
   'boolean' { PT _ (TS _ 28) }
@@ -72,6 +104,7 @@ import ErrM
   '|=' { PT _ (TS _ 55) }
   '}' { PT _ (TS _ 56) }
   '~=' { PT _ (TS _ 57) }
+>>>>>>> eeebe93a285db7e76b3fa0818c5651496f578915
 
 L_integ  { PT _ (TI $$) }
 L_Pident { PT _ (T_Pident _) }
@@ -105,7 +138,7 @@ Preal    :: {Preal} : L_Preal { Preal (mkPosToken $1)}
 Pchar    :: {Pchar} : L_Pchar { Pchar (mkPosToken $1)}
 
 Program :: { Program }
-Program : ListDec {Progr (reverse $1)}
+Program : ListDec {Progr $1}
 ListDec :: { [Dec] }
 ListDec : {- empty -} { [] } | ListDec Dec { flip (:) $1 $2 }
 Dec :: { Dec }
@@ -187,8 +220,7 @@ ListExp : {- empty -} { [] }
 
 Lexp :: { Exp }
 Lexp : Pident { Evar $1 }
-     | '('Lexp')' {$2}
-     | '_' Exp %prec REF { Indirection $2 } 
+     | '*' Exp %prec REF  { Indirection $2 } 
      | Pident '{' Exp '}' { Arraysel $1 $3 }
      | '++'Exp {PreIncr $2} 
      | '--'Exp {PreDecr $2} 
