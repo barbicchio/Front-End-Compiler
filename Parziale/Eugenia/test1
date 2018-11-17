@@ -1,15 +1,7 @@
 function boolean p (integer r,res string peppa)
-    --{}{} integer p={{1},{2,3}}
-   pointer integer p
-   integer c=1-4 
-   _t=4
-   c=i*3+_r
-   _r=21
-while(i++)do
-_r=32
-	--j+1
-	--(*r)
-end
+repeat t
+until (c)
+++j=k
 end
 function string f()
 end

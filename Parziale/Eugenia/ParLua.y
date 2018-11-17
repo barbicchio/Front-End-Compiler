@@ -83,15 +83,20 @@ L_Pchar { PT _ (T_Pchar _) }
 
 %right REF 
 %right '&'
+%left ASS
 %left 'or'
 %left 'and'
 %left 'not'
+%left EXP
+%right PRE
+%right POST
 %nonassoc '==' '~=' '<' '<=' '>' '>=' '='
-%nonassoc '++' '--'
+%left '++' '--'
 %left '+' '-'
 %left '*' '/' '%'
 %left '^' 
 %left NEG
+%right RET
 
 
 %%
@@ -137,9 +142,9 @@ Modality : {- empty -} {  Modality_VAL }
          | 'const' { Modality_CONST }
          | 'ref' { Modality_REF }
 Stm :: { Stm }
-Stm : Lexp Assignment_Op Exp {Assgn $2 $1 $3 }
-    | 'return' Exp { Valreturn $2 }
-    |  Exp { SExp $1 }
+Stm : Lexp Assignment_Op Exp %prec ASS {Assgn $2 $1 $3 }
+    | 'return' Exp %prec RET { Valreturn $2 }
+    |  Exp %prec EXP { SExp $1 }
     | 'if' Exp 'then' ListDecStm 'end' {SimpleIf $2 $4 }
     | 'if' Exp 'then' ListDecStm 'else' ListDecStm 'end' { IfThElse $2 $4 $6 }
     | 'while' Exp 'do' ListDecStm 'end' { While $2 $4 }
@@ -189,10 +194,10 @@ Lexp :: { Exp }
 Lexp : Pident { Evar $1 }
      | '_' Exp %prec REF  { Indirection $2 } 
      | Pident '{' Exp '}' { Arraysel $1 $3 }
-     | '++'Exp {PreIncr $2} 
-     | '--'Exp {PreDecr $2} 
-     | Exp '++' {PostIncr $1} 
-     | Exp '--' {PostDecr $1} 
+     | '++'Exp  %prec PRE {PreIncr $2} 
+     | '--'Exp  %prec PRE{PreDecr $2} 
+     | Exp '++' %prec POST{PostIncr $1} 
+     | Exp '--' %prec POST {PostDecr $1} 
 Assignment_Op :: { Assignment_Op }
 Assignment_Op : '=' { Assign }
               | '*=' { AssgnArith Mul }
