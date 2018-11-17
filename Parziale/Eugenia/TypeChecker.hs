@@ -130,6 +130,14 @@ createInitialEnv (Env (current:stack)) = do
   newBlockEnv <- addFuncDec newBlockEnv "readString" (-1,-1)  Tstring [] [] 0
 
   return (Env ((emptyBlockEnv BTdecs):newBlockEnv:stack))
+  
+--Controllo se si tratta di una L-expr restituendo un Bool
+isLexpr::Exp->Bool
+isLexpr expr = case expr of
+  Evar _ -> True
+  Indirection _ -> True
+  Arraysel _ _ -> True
+  otherwise -> False
 
 getVarFromArraySelection :: Exp -> IO Pident
 getVarFromArraySelection expr = case expr of
