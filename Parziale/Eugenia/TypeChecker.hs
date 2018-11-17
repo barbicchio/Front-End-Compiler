@@ -130,6 +130,13 @@ createInitialEnv (Env (current:stack)) = do
   newBlockEnv <- addFuncDec newBlockEnv "readString" (-1,-1)  Tstring [] [] 0
 
   return (Env ((emptyBlockEnv BTdecs):newBlockEnv:stack))
+
+--Controllo se la Modality richiede una L-expr, se sì restituisco True, altrimenti False
+modalityRequiresLexpr::Modality->Bool
+modalityRequiresLexpr modal =
+  if modal==Modality_RES || modal==Modality_VALRES || modal==Modality_REF
+    then True
+    else False
   
 --Controllo se si tratta di una L-expr restituendo un Bool
 isLexpr::Exp->Bool
