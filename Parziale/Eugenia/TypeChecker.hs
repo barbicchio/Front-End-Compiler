@@ -131,6 +131,10 @@ createInitialEnv (Env (current:stack)) = do
 
   return (Env ((emptyBlockEnv BTdecs):newBlockEnv:stack))
 
+--Generalizzazione dei tipi
+generalize::Typ->Typ->Err Typ
+generalize from to = Ok to --generalizzazione dal tipo from al tipo to
+
 --Controllo se la Modality richiede una L-expr, se sì restituisco True, altrimenti False
 modalityRequiresLexpr::Modality->Bool
 modalityRequiresLexpr modal =
