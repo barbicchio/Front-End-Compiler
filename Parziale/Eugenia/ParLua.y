@@ -81,23 +81,25 @@ L_Pstring { PT _ (T_Pstring _) }
 L_Preal { PT _ (T_Preal _) }
 L_Pchar { PT _ (T_Pchar _) }
 
-%right REF 
-%right '&'
-%left ASS
-%left 'or'
-%left 'and'
-%left 'not'
+%left '(' '{'
+%right ')'
+%right REF  '&'
 %left EXP
-%right PRE
-%right POST
+%left EXPINLEXP
+%left IDLEXP
+%left 'not'
+%left 'or' 'and'
+--%left POST
 %nonassoc '==' '~=' '<' '<=' '>' '>=' '='
-%left '++' '--'
 %left '+' '-'
 %left '*' '/' '%'
 %left '^' 
+--%right PRE
 %left NEG
-%right RET
-
+%nonassoc '++' '--'
+%nonassoc UNTIL RET
+%left ASS
+%left PARLEXP
 
 %%
 
@@ -148,7 +150,7 @@ Stm : Lexp Assignment_Op Exp %prec ASS {Assgn $2 $1 $3 }
     | 'if' Exp 'then' ListDecStm 'end' {SimpleIf $2 $4 }
     | 'if' Exp 'then' ListDecStm 'else' ListDecStm 'end' { IfThElse $2 $4 $6 }
     | 'while' Exp 'do' ListDecStm 'end' { While $2 $4 }
-    | 'repeat' ListDecStm 'until' Exp { DoWhile $2 $4 } 
+    | 'repeat' ListDecStm 'until' Exp %prec UNTIL { DoWhile $2 $4 } 
 
 DecStm :: { DecStm }
 DecStm : Dec { Dec $1 } | Stm { Stmt $1 }
@@ -178,7 +180,7 @@ Exp : '('Exp')' {$2}
      | '-' Exp %prec NEG { Unary_Op Neg $2}
      | 'not' Exp { Unary_Op Logneg $2 }
      |'{' ListExp '}' { Arr $2 }
-     | Lexp { $1 }
+     | Lexp %prec EXPINLEXP { $1 }
      | Preal { Efloat $1 }
      | Pint  { Eint $1 }
      | Pbool { Ebool $1 }
@@ -191,13 +193,14 @@ ListExp : {- empty -} { [] }
          | Exp ',' ListExp { (:) $1 $3 }
 
 Lexp :: { Exp }
-Lexp : Pident { Evar $1 }
+Lexp : Pident %prec IDLEXP { Evar $1 }
+     | '('Lexp')' %prec PARLEXP {$2}
      | '_' Exp %prec REF  { Indirection $2 } 
      | Pident '{' Exp '}' { Arraysel $1 $3 }
-     | '++'Exp  %prec PRE {PreIncr $2} 
-     | '--'Exp  %prec PRE{PreDecr $2} 
-     | Exp '++' %prec POST{PostIncr $1} 
-     | Exp '--' %prec POST {PostDecr $1} 
+     | '++'Exp  {PreIncr $2} 
+     | '--'Exp  {PreDecr $2} 
+     | Exp '++'{PostIncr $1} 
+     | Exp '--'  {PostDecr $1} 
 Assignment_Op :: { Assignment_Op }
 Assignment_Op : '=' { Assign }
               | '*=' { AssgnArith Mul }
