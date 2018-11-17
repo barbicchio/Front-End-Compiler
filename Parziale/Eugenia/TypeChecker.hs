@@ -104,7 +104,14 @@ addFuncDec curr@(BlockEnv sigs context blockTyp)  ident pos@(line,col) returnTyp
     Just (pos',_) -> do
       putStrLn $ (show pos) ++ ": function "++ ident ++ " already declared in " ++ (show pos')
       return curr
-
+      
+--aggiunta di parametri/argomenti all'environment
+addParams::Env->[Argument]->IO Env
+addParams env arguments = foldM addArg env arguments where
+  addParam::Env->Argument->IO Env
+  addParam (Env (current:stack)) (DefParam modal (Pident (pos,ident)) typ) = do
+    newBlockEnv<-addVarDec current ident pos typ (Just modal)
+    return (Env (newBlockEnv:stack))
 ---------------
 ----HELPERS----
 ---------------
