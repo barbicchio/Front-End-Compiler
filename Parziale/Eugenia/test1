@@ -1,7 +1,8 @@
-function boolean p (integer r,res string peppa)
-return (c++)
-i=(32+p+q)
-++p=i
+function boolean p (integer r,res {}{} string peppa)
+{}integer p={1,2,3}
+repeat (c++)
+until (c)
+p=i
 end
 function string f()
 end

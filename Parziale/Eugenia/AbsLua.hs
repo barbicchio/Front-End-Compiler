@@ -15,7 +15,6 @@ newtype Preal = Preal ((Int,Int),String)
 newtype Pchar = Pchar ((Int,Int),String)
   deriving (Eq, Ord, Show, Read)
 
-
 data Program = Progr [Dec]
   deriving (Eq, Ord, Show, Read)
 
