@@ -104,7 +104,14 @@ addFuncDec curr@(BlockEnv sigs context blockTyp)  ident pos@(line,col) returnTyp
     Just (pos',_) -> do
       putStrLn $ (show pos) ++ ": function "++ ident ++ " already declared in " ++ (show pos')
       return curr
-
+      
+--aggiunta di parametri/argomenti all'environment
+addParams::Env->[Argument]->IO Env
+addParams env arguments = foldM addArg env arguments where
+  addParam::Env->Argument->IO Env
+  addParam (Env (current:stack)) (DefParam modal (Pident (pos,ident)) typ) = do
+    newBlockEnv<-addVarDec current ident pos typ (Just modal)
+    return (Env (newBlockEnv:stack))
 ---------------
 ----HELPERS----
 ---------------
@@ -130,6 +137,25 @@ createInitialEnv (Env (current:stack)) = do
   newBlockEnv <- addFuncDec newBlockEnv "readString" (-1,-1)  Tstring [] [] 0
 
   return (Env ((emptyBlockEnv BTdecs):newBlockEnv:stack))
+
+--Generalizzazione dei tipi
+generalize::Typ->Typ->Err Typ
+generalize from to = Ok to --generalizzazione dal tipo from al tipo to
+
+--Controllo se la Modality richiede una L-expr, se sì restituisco True, altrimenti False
+modalityRequiresLexpr::Modality->Bool
+modalityRequiresLexpr modal =
+  if modal==Modality_RES || modal==Modality_VALRES || modal==Modality_REF
+    then True
+    else False
+  
+--Controllo se si tratta di una L-expr restituendo un Bool
+isLexpr::Exp->Bool
+isLexpr expr = case expr of
+  Evar _ -> True
+  Indirection _ -> True
+  Arraysel _ _ -> True
+  otherwise -> False
 
 getVarFromArraySelection :: Exp -> IO Pident
 getVarFromArraySelection expr = case expr of
