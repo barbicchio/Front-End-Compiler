@@ -124,28 +124,28 @@ checkStm env stm = case stm of
   SExp expr -> do
     inferExpr env expr
     return env
-  SimpleIf expr decsStms -> do
+  SimpleIf expr decs -> do
     pushEnv<-Ok $ pushNewBlocktoEnv env BTifEls
     checkExpr env Tbool expr
-    checkDecStms pushEnv decsStms
+    checkDec pushEnv decs
     return env
-  IfThElse expr decsStmsIf decsStmsElse -> do
+  IfThElse expr decsIf decsElse -> do
     pushEnvIf<-Ok $ pushNewBlocktoEnv env BTifEls
     pushEnvElse<-Ok $ pushNewBlocktoEnv env BTifEls
     checkExpr env Tbool expr
-    checkDecStms pushEnvIf decsStmsIf
-    checkDecStms pushEnvElse decsStmsElse
+    checkDec pushEnvIf decsIf
+    checkDec pushEnvElse decsElse
     return env
-  While decsStmsIni expr decsStms -> do
+  While decsIni expr decs -> do
     pushEnv<-Ok $ pushNewBlocktoEnv env BTloop
-    initializationEnv<-checkDecStms pushEnv decsStmsIni
+    initializationEnv<-checkDec pushEnv decsIni
     checkExpr initializationEnv Tbool expr
-    checkDecStms initializationEnv decsStms
+    checkDec initializationEnv decs
     return env
-  DoWhile decsStms expr -> do
+  DoWhile decs expr -> do
     checkExpr env Tbool expr
     pushEnv<-Ok $ pushNewBlocktoEnv env BTloop
-    checkDecStms pushEnv decsStms
+    checkDec pushEnv decs
     return env
   Valreturn expr -> do
     (pos,typ)<-inferExpr env expr
