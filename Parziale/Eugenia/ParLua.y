@@ -41,7 +41,7 @@ import ErrM
   '>=' { PT _ (TS _ 23) }
   '^' { PT _ (TS _ 24) }
   '^=' { PT _ (TS _ 25) }
-  '_' { PT _ (TS _ 26) }
+ -- '_' { PT _ (TS _ 26) }
   'and' { PT _ (TS _ 27) }
   'boolean' { PT _ (TS _ 28) }
   'character' { PT _ (TS _ 29) }
@@ -83,18 +83,16 @@ L_Pchar { PT _ (T_Pchar _) }
 
 %left '(' '{'
 %right ')'
-%right REF  '&'
 %left EXP
 %left EXPINLEXP
 %left IDLEXP
 %left 'not'
 %left 'or' 'and'
---%left POST
 %nonassoc '==' '~=' '<' '<=' '>' '>=' '='
 %left '+' '-'
 %left '*' '/' '%'
 %left '^' 
---%right PRE
+%right REF  '&'
 %left NEG
 %nonassoc '++' '--'
 %nonassoc UNTIL RET
@@ -195,7 +193,7 @@ ListExp : {- empty -} { [] }
 Lexp :: { Exp }
 Lexp : Pident %prec IDLEXP { Evar $1 }
      | '('Lexp')' %prec PARLEXP {$2}
-     | '_' Exp %prec REF  { Indirection $2 } 
+     | '*' Exp %prec REF  { Indirection $2 } 
      | Pident '{' Exp '}' { Arraysel $1 $3 }
      | '++'Exp  {PreIncr $2} 
      | '--'Exp  {PreDecr $2} 
