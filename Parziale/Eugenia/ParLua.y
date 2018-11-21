@@ -194,7 +194,7 @@ Lexp :: { Exp }
 Lexp : Pident %prec IDLEXP { Evar $1 }
      | '('Lexp')' %prec PARLEXP {$2}
      | '*' Exp %prec REF  { Indirection $2 } 
-     | Pident '{' Exp '}' { Arraysel $1 $3 }
+     | Exp '{' Exp '}' { Arraysel $1 $3 }
      | '++'Exp  {PreIncr $2} 
      | '--'Exp  {PreDecr $2} 
      | Exp '++'{PostIncr $1} 
