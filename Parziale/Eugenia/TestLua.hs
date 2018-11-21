@@ -11,6 +11,7 @@ import ParLua
 --import SkelLua
 import PrintLua
 import AbsLua
+import TypeChecker
 
 
 
@@ -69,6 +70,17 @@ main = do
     fs -> mapM_ (runFile 2 pProgram) fs
 
 
-
+check :: String -> IO ()
+check s = case pProgram (myLexer s) of
+            Bad err  -> do
+                        putStrLn "Parse Failed...\n"
+                        putStrLn err
+                        exitFailure
+            Ok tree -> do
+              putStrLn "Parse Successful!\n"
+              putStrLn $ show tree
+              putStrLn ""
+              putStrLn $ printTree tree
+              typecheck tree 
 
 
