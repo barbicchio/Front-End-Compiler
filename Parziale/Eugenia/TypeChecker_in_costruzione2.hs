@@ -62,108 +62,68 @@ filterdecs (dec:decs) = case dec of
 
 
 checkDecStm::Env->DecStm->IO Env
-checkDecStm env decStm = case decStm of
-  Dec dec -> do
-    newEnv<-checkDec env dec
-    return newEnv
-  Stmt stm ->do
-    checkStm env stm
-    return env
+checkDecStm env decStm = do
+					newEnv <- foldM addDec env fundecs
+					case decStm of
+  						Dec dec -> do
+  						newEnv<-foldM checkDec newEnv decsstats
+    					return newEnv
+  						Stmt stm -> do
+    					checkStm env stm
+    					return env
 
 checkDec::Env->Dec->IO Env
 checkDec env dec = do
   newEnv<- addDec env dec
   case dec of
-    VarDeclar pident typ expr -> case expr of
-      Nothing -> return newEnv
-      Just expr->checkExpr newEnv typ expr
-
-    Func pident@(Pident (pos,ident)) params _ retTyp  decsStms-> do
-      pushEnv<-addParams (pushNewBlocktoEnv newEnv (BTfun retTyp)) params-- env con il nuovo layer e i parametri della funzione inseriti
-      checkDecs pushEnv decsStms
-      --se ha un tipo di ritorno controlla l'esistenza di un return ( il controllo di tipo viene fatto dopo)
+    VarDeclar typ pident expr -> case expr of
+      Nothing -> do 
+      	newEnv <- addDec env dec
+      	return newEnv
+      Just expr->do 
+      	newEnv <- addDec env dec
+        checkExpr newEnv typ expr
+        return newEnv
+    
+    Func retTyp pident@(Pident (pos,ident)) params _  decs stms-> do
+      newblock<-(pushNewBlocktoEnv newEnv (BTfun retTyp))
+      pushEnv<-addParams newblock params-- env con il nuovo layer e i parametri della funzione inseriti
+      pushEnv<-checkDecs pushEnv decs
+      checkStms pushEnv stms
+   --se ha un tipo di ritorno controlla l'esistenza di un return (il controllo di tipo viene fatto dopo)
       if retTyp/=Tvoid
       then do
-        ret<-findReturnInDecsStms decsStms
+        ret<-findReturnInStms stms
         case ret of
-          False ->fail $ (show pos) ++ ": Missing return statement for function" ++ (show ident)
+          False -> do 
+                putStrLn $ (show pos) ++ ": Missing return statement for function" ++ (show ident)
+                return env 
           True -> return newEnv
       --se non ha un tipo di ritorno anche l'assenza di un return è accettata
       else return newEnv
 
-findReturnInDecsStms::[DecStm]->IO Bool
-findReturnInDecsStms decsStms = do
-  stms<-Ok (foldr filterStm [] decsStms)
-  returns<- mapM findReturnInStm stms
+findReturnInStms::[Stm]->IO Bool
+findReturnInStms stms = do
+  returns<-mapM findReturnInStm stms
+  return $ or returns  
 
-  return $ or returns where
-    filterStm::DecStm->[Stm]->[Stm]
-    filterStm (Stmt stm) ls = stm:ls
-    filterStm (Dec _) ls= ls
-
-    findReturnInStm::Stm->IO Bool
-    findReturnInStm stm = case stm of
-      Valreturn _ ->do return True
-      CompS decsStms-> findReturnInDecsStms decsStms
-      SimpleIf _ decsStms-> findReturnInDecsStms decsStms
-      IfThElse _ decsIf decsElse -> do
-        reIf<-findReturnInDecsStms decsIf
-        reElse<-findReturnInDecsStms decsElse
-        return (reIf || reElse)
-      DoWhile decsStms _ -> findReturnInDecsStms decsStms
-      While _ _ decsStms-> findReturnInDecsStms decsStms
-      _ ->return False
+findReturnInStm::Stm->IO Bool
+findReturnInStm stm = case stm of
+    Valreturn _ -> return True
+    SimpleIf _ stms -> findReturnInStms stms
+    IfThElse _ stmsIf stmsElse -> do
+    	returnIf <- findReturnInStms stmsIf
+    	returnElse <- findReturnInStms stmsElse
+    	return (returnIf || returnElse)
+    While _ _ stms -> findReturnInStms stms
+    DoWhile stms _ -> findReturnInStms stms
+    _ -> return False
 
 
-
---smista i tipi di dichiarazione da aggiungere all'env e aggiunge nel contesto corrente
-addDec :: Env -> Dec -> IO Env
-addDec env@(Env (current:stack)) dec = case dec of
-  InitDeclarI typ pident@(Pident (pos,ident)) _ -> do
-    newBlockEnv <- addVarDec current ident pos typ
-    return (Env (newBlockEnv:stack))
-  Func typ pident@(Pident (pos,ident)) params nParams _ _ -> do
-    newBlockEnv <- addFuncDec current ident pos typ (getParamsTyp params) nParams
-    return (Env (newBlockEnv:stack))
-  InitDeclarArr typ pident@(Pident (pos,ident)) _ -> do
-    newBlockEnv <- addVarDec current ident pos (Tarray typ)
-    return (Env (newBlockEnv:stack))
-
---aggiunge una variabile a un contesto
-addVarDec :: BlockEnv -> Ident -> Pos -> Typ -> IO BlockEnv
-addVarDec curr@(BlockEnv sigs context blockTyp) ident pos@(line,col) typ = do
-  record <- lookVarInContext ident context
-  case record of
-    Nothing -> return (BlockEnv sigs (Map.insert ident (pos,typ) context ) blockTyp)
-    Just (pos',_) -> do
-      putStrLn $ (show pos) ++ ": variable "++ ident ++ " already declared in " ++ (show pos')
-      return curr
-
---aggiunge una funzione a un contesto
-addFuncDec :: BlockEnv -> Ident -> Pos -> Typ -> [Typ] -> Int -> IO BlockEnv
-addFuncDec curr@(BlockEnv sigs context blockTyp)  ident pos@(line,col) returnTyp paramsTyps nParams = do
-  record <- lookFuncInSigs ident sigs
-  case record of
-    Nothing -> return (BlockEnv (Map.insert ident (pos,(returnTyp,paramsTyps,nParams)) sigs) context  blockTyp)
-    Just (pos',_) -> do
-      putStrLn $ (show pos) ++ ": function "++ ident ++ " already declared in " ++ (show pos')
-      return curr
-      
---aggiunge parametri/argomenti all'environment
-addParams::Env->[Argument]->IO Env
-addParams env arguments = foldM addArg env arguments where
-  addParam::Env->Argument->IO Env
-  addParam (Env (current:stack)) (DefParam modal (Pident (pos,ident)) typ) = do
-    newBlockEnv<-addVarDec current ident pos typ (Just modal)
-    return (Env (newBlockEnv:stack))
 
 --controlla gli statement
 checkStm::Env->Stm->IO Env
 checkStm env stm = case stm of
-  CompS decsStms -> do
-    pushEnv<-Ok $ pushNewBlocktoEnv env BTcomp
-    checkDecs pushEnv decsStms
-    return env
   Assgn _ lexp  expr -> do
     (pos,typ)<-inferExpr env lexp
     checkExpr env typ expr
@@ -483,6 +443,48 @@ newBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp
 pushNewBlocktoEnv :: Env -> BlockTyp -> IO Env
 pushNewBlocktoEnv (Env blocks) blocktyp = return $ Env ((newBlockEnv blocktyp):blocks)
 
+--smista i tipi di dichiarazione da aggiungere all'env e aggiunge nel contesto corrente
+addDec :: Env -> Dec -> IO Env
+addDec env@(Env (current:stack)) dec = case dec of
+  VarDeclar typ pident@(Pident (pos,ident)) _ -> do
+    newBlockEnv <- addVarDec current ident pos typ
+    return (Env (newBlockEnv:stack))
+ Func typ pident@(Pident (pos,ident)) params nParams _ _ -> do
+    newBlockEnv <- addFuncDec current ident pos typ (getParamsTyp params) nParams
+    return (Env (newBlockEnv:stack))
+  
+--aggiunge una variabile a un contesto
+addVarDec :: BlockEnv -> Ident -> Pos -> Typ -> IO BlockEnv
+addVarDec curr@(BlockEnv sigs context blockTyp) ident pos@(line,col) typ = do
+  record <- lookVarInContext ident context
+  case record of
+    Nothing -> return (BlockEnv sigs (Map.insert ident (pos,typ) context ) blockTyp)
+    Just (pos',_) -> do
+      putStrLn $ (show pos) ++ ": variable "++ ident ++ " already declared in " ++ (show pos')
+      return curr
+
+--aggiunge una funzione a un contesto
+addFuncDec :: BlockEnv -> Ident -> Pos -> Typ -> [Typ] -> Int -> IO BlockEnv
+addFuncDec curr@(BlockEnv sigs context blockTyp)  ident pos@(line,col) returnTyp paramsTyps nParams = do
+  record <- lookFuncInSigs ident sigs
+  case record of
+    Nothing -> return (BlockEnv (Map.insert ident (pos,(returnTyp,paramsTyps,nParams)) sigs) context  blockTyp)
+    Just (pos',_) -> do
+      putStrLn $ (show pos) ++ ": function "++ ident ++ " already declared in " ++ (show pos')
+      return curr
+      
+--aggiunge parametri/argomenti all'environment
+addParams::Env->[Argument]->IO Env
+addParams env parameters = foldM addParam env parameters
+ 
+addParam::Env->Argument->IO Env
+addParam (Env (current:stack)) pars = case pars of
+    Param typ (Pident (pos,ident)) -> do
+      newBlockEnv<-addVarDec current ident pos typ
+      return (Env (newBlockEnv:stack))
+    ParamArr typ (Pident (pos,ident)) _ -> do
+      newBlockEnv<-addVarDec current ident pos (Tarray typ)
+      return (Env (newBlockEnv:stack))
 
 ---------------
 ----HELPERS----
@@ -492,6 +494,10 @@ getParamsTyp :: [Argument] -> [Typ]
 getParamsTyp (par:params) = case par of
     Param typ _ -> typ:getParamsTyp params
     ParamArr typ _ _ -> (Tarray typ):getParamsTyp params
+
+
+getParamsTyp::[Argument]->[Typ]
+getParamsTyp params = map (\(Param typ _)->typ) params
 
 getParamsMod::[Parameter]->[Mod]
 getParamsMod params = map (\(DefParam modal _ _ )->Just modal) params
