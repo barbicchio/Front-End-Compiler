@@ -75,7 +75,7 @@ data Exp
     | Evar Pident
     | Indirection Exp
     | Arraysel Pident Exp
-    | PreIncr Exp
+    | PreIncr Exp --se possibile mettere tutto in un unica exp--> IncrDecr IncrDecrOp exp
     | PreDecr Exp
     | PostIncr Exp
     | PostDecr Exp

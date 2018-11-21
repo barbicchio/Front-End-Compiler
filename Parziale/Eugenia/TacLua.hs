@@ -31,14 +31,14 @@ data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ
 
 type Ident = String
 type Typ = Type_specifier
-type Addr= String
-type Label = String
+type Addr= Int
+type Label = Int
 type Mod = Maybe Modality
 
 type Sigs =Map.Map Ident PosSig
 type Context = Map.Map Ident PosTypMod
 
-type Sig = (Typ,[TypMod],Maybe Label)
+type Sig = (Typ,[TypMod],Maybe Label) --cambiare ordine di typmod e typ
 type Pos = (Int,Int)
 type PosTyp=(Pos,Typ)
 type PosTypMod = (Pos,TypMod,Maybe Addr)
@@ -46,17 +46,24 @@ type TypMod = (Typ,Mod)
 type PosSig = (Pos,Sig)
 
 data TAC= TACAssign String String
-	| TACBinaryOp String String String String
-	| TACUnaryOp String String String
+	| TACBinaryOp Int Int InfixOp Int
+	| TACBinaryArithOp Int Int ArithOp Int
+	| TACUnaryOp Int Unary_Op Int
 	| TACWhile String String String
 	| TACIf TAC String String
 	| TACCondition String String String
 	| TACReturn String
 	| TACCall String String String
-	| TACLabel String
+	| TACLabel Label
 	| TACParam String
 	| TACPreamble String
 	| TACGoto String
+	| TACInit Ident Exp
+	| TACInt Int
+	| TACBool Bool
+	| TACChar Char
+	| TACString String
+	| TACFloat Float
  deriving(Show)
 
 --TODO:riscrivere funzioni per la dichiarazione di funzione,
@@ -65,19 +72,30 @@ data TAC= TACAssign String String
 -------------------------------
 --funzioni ausiliarie per ENV--
 -------------------------------
-addDec::Env->Dec->Maybe String->State TacM(Env)  --TODO:quando faccio codeFunc DEVO ricordarmi di aggiungere i temporanei per i parametri!!!
-addDec env@(Env (current:stack)) dec tol  = case dec of
-  VarDeclar typ pident@(Pident (pos,ident)) exp -> do
-    --tmp<-newtemp
-    newBlockEnv<-addVarDec current ident pos typ Nothing tol
-    return (Env (newBlockEnv:stack))
+addDec::Env->Dec->State TacM(Env)  --TODO:quando faccio codeFunc DEVO ricordarmi di aggiungere i temporanei per i parametri!!!
+addDec env@(Env (current:stack)) dec = case dec of
+  VarDeclar typ pident@(Pident (pos,ident)) exp ->
+  	case exp of 
+        Just exp-> do
+            isexpsimp<-issimple exp
+            case isexpsimp of
+               True->do
+                newBlockEnv<-addVarDec current ident pos typ Nothing Nothing
+                return (Env (newBlockEnv:stack))
+               False->do
+                tmp<-newtemp
+                newBlockEnv<-addVarDec current ident pos typ Nothing (Just tmp)
+                return (Env (newBlockEnv:stack))
+        Nothing -> do
+            newBlockEnv<-addVarDec current ident pos typ Nothing Nothing
+            return (Env (newBlockEnv:stack))
   Func typ pident@(Pident (pos,ident)) params nparams _  -> do
-    --label<-newlabel
-    newBlockEnv<-addFuncDec current ident pos typ (getParamsModTyp params) tol
+    label<-newlabel
+    newBlockEnv<-addFuncDec current ident pos typ (getParamsModTyp params) (Just label)
     return (Env (newBlockEnv:stack))
 --aggiunge una variabile a un contesto
 addVarDec::BlockEnv->Ident->Pos->Typ->Mod->Maybe Addr->State TacM(BlockEnv)
-addVarDec (BlockEnv sigs context blockTyp) ident pos@(line,col) typ mod tmp = do
+addVarDec (BlockEnv sigs context blockTyp) ident pos@(line,col) typ mod tmp= do
   record<-lookVarInContext ident context
   case record of
     Nothing -> return (BlockEnv sigs (Map.insert ident (pos,(typ,mod),tmp) context) blockTyp)
@@ -148,11 +166,27 @@ lookFuncInSigs ident sigs= do
 
 createInitialEnv::Env->State TacM(Env)
 createInitialEnv (Env (current:stack)) = do
-  label <- newlabel
-  newBlockEnv<-addFuncDec current "writeInt" (-1,-1) Tvoid [(Tint,Just Modality_VAL)] (Just label)
-  label1 <- newlabel
-  newBlockEnv<-addFuncDec newBlockEnv "readInt" (-1,-1)  Tint [] (Just label)
+  --label <- newlabel
+  newBlockEnv<-addFuncDec current "writeInt" (-1,-1) Tvoid [(Tint,Just Modality_VAL)] Nothing
+  --label1 <- newlabel
+  newBlockEnv<-addFuncDec newBlockEnv "readInt" (-1,-1)  Tint [] Nothing
   return (Env ((emptyBlockEnv BTdecs):newBlockEnv:stack))
+
+filterdecs::[Dec]->[Dec]
+filterdecs []=[]
+
+filterdecs (dec:decs)= case dec of
+  Func _ _ _ _ _ ->dec: filterdecs decs
+  otherwise->filterdecs decs
+
+issimple::Exp->State TacM(Bool)
+issimple exp= case exp of
+	Eint _-> return True
+	Ebool _-> return True
+	Estring _-> return True
+	Efloat _-> return True
+	Echar _-> return True
+	otherwise->return False
 
 --generatori di temporanei e label--
 
@@ -160,71 +194,72 @@ newtemp ::State TacM (Addr)
 newtemp = do
           c<-gets kaddr
           modify $ \s->s{kaddr=c+1}
-          return $ "t@"++ show c
+          return c
 
 newlabel ::State TacM (Label)
 newlabel = do 
           l<-gets klab
           modify $ \s->s{klab=l+1}
-          return $ "lab" ++ show l
+          return l
 -------------------------------------
 ------funzioni per gestione TAC------
 -------------------------------------
 {--addCode :: String -> State TacM()
 addCode newCode = modify (\attr -> attr{code = (code attr) ++ newCode ++ "\n"})
 --}
-addTAC :: TAC -> State TacM()
+addTAC :: [TAC] -> State TacM()
 addTAC nxtinst = do
-    modify (\attr -> attr{tac = (tac attr) ++ [nxtinst]})
+    modify (\attr -> attr{code = (code attr) ++ nxtinst})
     return ()
---}
+addTAC1 :: TAC -> State TacM() --da eliminare ma lo usiamo per il momento
+addTAC1 nxtinst = do
+    modify (\attr -> attr{code = (code attr) ++ [nxtinst]})
+    return ()
 
-tacGenerator program = execState (code_Program program) startState
+tacGenerator program = execState (codeProgram program) startState
 
-code_Program :: Program -> State TacM ()
-code_Program (Progr decls) = do
+codeProgram :: Program -> State TacM ()
+codeProgram (Progr decls) = do
     label <- newlabel
     env<-createInitialEnv emptyEnv
-    --code_PredefinedFuncs predefinedFuncs   --per il momento non genero codice per le funzioni predefinite,
-                         --capire se bisogna farlo o meno
-    code_Decls env decls      --mi porto dietro l'env
-    --addCode $ label ++ ":halt"
-    --addTAC $ TACLabel label
-    --addTAC $ TACPreamble "halt"
+    codeDecls env decls
+    {--addCode $ label ++ ":halt"
+    addTAC $ TACLabel label
+    addTAC $ TACPreamble "halt"--}
     return ()
 
-code_Decls :: Env->[Dec] -> State TacM(Env)
-code_Decls env decs = foldM code_Decl env decs
+codeDecls :: Env->[Dec] -> State TacM(Env)
+codeDecls env decs = do 
+		newEnv<-foldM addDec env fundecs
+		foldM codeDecl env decs
+			where fundecs=filterdecs decs
 
-code_Decl :: Env->Dec-> State TacM (Env)
-code_Decl env dec = case dec of
+codeDecl :: Env->Dec-> State TacM (Env)
+codeDecl env dec = case dec of
       VarDeclar typ (Pident(_,id)) exp -> 
         case exp of 
             Just exp-> do
-              tmp<-newtemp
-              (addr,codexp)<-code_exp env exp   --controllare,dovrebbe andare bene
-              newEnv <- addDec env dec (Just tmp)     
+              newEnv <- addDec env dec 
+              (addr,codexp)<-codeexp env exp   --controllare,dovrebbe andare bene   
               --addr_RExpr <- gets addr
-              --pushVarToEnv (name,tmp)   NO
               --addTAC $ TACAssign (show id) addr
               --addCode $ tmp ++ "=" ++ (show id)
               --addTAC $ TACAssign tmp (show id)
               return (newEnv)
-           {-- Nothing-> do
-              --tmp<-newtemp
-              newEnv <- addDec env dec Nothing
+            Nothing-> do
+              newEnv <- addDec env dec
               --addCode $ tmp ++ "=" ++ (show id)  --aggiungere codice di dichiarazione semplice???
               --addTAC $ TACAssign tmp (show id)
               return newEnv
               --pushTempType (tmp,(getBasicType basTyp)) --perchè mi interessa il tipo del temp?
-                                 --controllato già dal tc?--}
+                                 --controllato già dal tc?
       Func retTyp ident params _ decstmts -> do
           label <- newlabel
-          newEnv<-addDec env dec (Just label)
+          newEnv<-addDec env dec
           pushEnv<-(pushNewBlocktoEnv newEnv (BTfun retTyp))
           pushEnv<-addParams pushEnv params --porto dentro i parametri
           --addCode $ label ++ ":"
-          addTAC $ TACLabel label
+          addTAC1 $ TACLabel label
           --addCode "BeginFunc"
           --addTAC $ TACPreamble "BeginFunc"
           --pushEnv<-code_Decls pushEnv decs --qui bisogna mettere a posto,se c'è altra def di funzione,questa va fatta dopo la fine di quella precedente
@@ -234,5 +269,30 @@ code_Decl env dec = case dec of
         --setOldEnv  --non dovrebbe essere necessario
           return newEnv
           --}
-code_exp :: Env->Exp -> State TacM (Addr,[TAC])
-code_exp env exp = return ("t0",[])
+codeexp :: Env->Exp -> State TacM (Addr,[TAC])
+codeexp env exp = case exp of 
+	InfixOp op exp1 exp2  -> case op of
+		ArithOp subop->codeArithOp env exp1 exp2 subop
+	Unary_Op subop exp->codeUnaryOp env subop exp
+	{--Eint (Pint(_,int)) -> return (int,TACInt int)--}
+	RelOp subop exp1 exp2->codeRelOp env subop exp1 exp2
+               
+
+codeArithOp::Env->Exp->Exp->ArithOp->State TacM (Addr,[TAC])
+codeArithOp env exp1 exp2 op=do
+        (addr1,code1)<-codeexp env exp1
+        (addr2,code2)<-codeexp env exp2
+        addr<-newtemp
+        let code=code1++code2++[TACBinaryArithOp addr addr1 op addr2]
+        return(addr,code)
+codeUnaryOp :: Env->Unary_Op->Exp-> State TacM (Addr,[TAC])
+codeUnaryOp env op exp = do   --forse devo gestire LogNeg diversamente
+    (addr1,code1)<-codeexp env exp
+    addr <- newtemp
+    let code=code1++[TACUnaryOp addr op addr1]
+    return (addr,code)
+codeRelOp::Env->BoolOp->Exp->State TacM(Addr,[TAC])
+codeRelOp env op exp1 exp2= case op of
+     Or->do
+      (addr1,code1)<-codeexp env exp1
+      (addr2,code2)<-codeexp env exp2
