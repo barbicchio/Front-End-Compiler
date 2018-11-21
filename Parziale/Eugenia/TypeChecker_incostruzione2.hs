@@ -464,25 +464,25 @@ pushNewBlocktoEnv (Env blocks) blocktyp = return $ Env ((newBlockEnv blocktyp):b
 addDec :: Env -> Dec -> IO Env
 addDec env@(Env (current:stack)) dec = case dec of
   VarDeclar typ pident@(Pident (pos,ident)) _ -> do
-    newBlockEnv <- addVarDec current ident pos typ
+    newBlockEnv <- addVarDec current ident pos (typ,Nothing)
     return (Env (newBlockEnv:stack))
   Func typ pident@(Pident (pos,ident)) params nParams _  -> do
     newBlockEnv <- addFuncDec current ident pos typ (getParamsModTyp params) nParams
     return (Env (newBlockEnv:stack))
   
 --aggiunge una variabile a un contesto
-addVarDec :: BlockEnv -> Ident -> Pos -> Typ -> IO BlockEnv
-addVarDec curr@(BlockEnv sigs context blockTyp) ident pos@(line,col) typ = do
+addVarDec :: BlockEnv -> Ident -> Pos -> (Typ,Maybe Modality) -> IO BlockEnv
+addVarDec curr@(BlockEnv sigs context blockTyp) ident pos@(line,col) modtyp = do
   record <- lookVarInContext ident context
   case record of
-    Nothing -> return (BlockEnv sigs (Map.insert ident (pos,(typ,Nothing)) context ) blockTyp) --confrontare con eiffel
+    Nothing -> return (BlockEnv sigs (Map.insert ident (pos,modtyp) context ) blockTyp) --confrontare con eiffel
     Just (pos',_) -> do
       putStrLn $ (show pos) ++ ": variable "++ ident ++ " already declared in " ++ (show pos')
       return curr
 
 --aggiunge una funzione a un contesto
 addFuncDec :: BlockEnv -> Ident -> Pos -> Typ -> [(Typ, Mod)] -> Int -> IO BlockEnv
-addFuncDec curr@(BlockEnv sigs context blockTyp)  ident pos@(line,col) returnTyp paramsTyps nParams = do
+addFuncDec curr@(BlockEnv sigs context blockTyp) ident pos@(line,col) returnTyp paramsTyps nParams = do
   record <- lookFuncInSigs ident sigs
   case record of
     Nothing -> return (BlockEnv (Map.insert ident (pos,(paramsTyps,returnTyp,nParams)) sigs) context  blockTyp)
@@ -507,8 +507,8 @@ addParam (Env (current:stack)) pars = case pars of
 addParams::Env->[Argument]->IO Env
 addParams env arguments = foldM addParam env arguments where
   addParam::Env->Argument->IO Env
-  addParam (Env (current:stack)) (FormPar modal (Pident (pos,ident)) typ) = do
-    newBlockEnv<-addVarDec current ident pos typ (Just modal)
+  addParam (Env (current:stack)) (FormPar modal typ (Pident (pos,ident))) = do
+    newBlockEnv<-addVarDec current ident pos (typ,Just modal)
     return (Env (newBlockEnv:stack))      
 
 ---------------
@@ -522,22 +522,22 @@ addParams env arguments = foldM addParam env arguments where
 
 
 getParamsModTyp::[Argument]->[(Typ,Mod)]
-getParamsModTyp params = map (\(FormPar  mod typ _)->(typ,mod)) params
+getParamsModTyp params = map (\(FormPar  mod typ _)->(typ,(Just mod))) params
 {--
 getParamsMod::[Argument]->[Mod]
 getParamsMod params = map (\(FormPar modal _ _ )->Just modal) params--}
 
 createInitialEnv :: Env -> IO Env
 createInitialEnv (Env (current:stack)) = do
-  newBlockEnv <- addFuncDec current "writeInt" (-1,-1) Tvoid [Tint] [Just Modality_VAL] 1
-  newBlockEnv <- addFuncDec newBlockEnv "writeFloat" (-1,-1) Tvoid [Tfloat] [Just Modality_VAL] 1
-  newBlockEnv <- addFuncDec newBlockEnv "writeChar" (-1,-1) Tvoid [Tchar] [Just Modality_VAL] 1
-  newBlockEnv <- addFuncDec newBlockEnv "writeString" (-1,-1) Tvoid [Tstring] [Just Modality_VAL] 1
+  newBlockEnv <- addFuncDec current "writeInt" (-1,-1) Tvoid [(Tint,Just Modality_VAL)]  1
+  newBlockEnv <- addFuncDec newBlockEnv "writeFloat" (-1,-1) Tvoid [(Tfloat,Just Modality_VAL)] 1
+  newBlockEnv <- addFuncDec newBlockEnv "writeChar" (-1,-1) Tvoid [(Tchar,Just Modality_VAL)] 1
+  newBlockEnv <- addFuncDec newBlockEnv "writeString" (-1,-1) Tvoid [(Tstring,Just Modality_VAL)] 1
 
-  newBlockEnv <- addFuncDec newBlockEnv "readInt" (-1,-1)  Tint [] [] 0
-  newBlockEnv <- addFuncDec newBlockEnv "readFloat" (-1,-1)  Tfloat [] [] 0
-  newBlockEnv <- addFuncDec newBlockEnv "readChar" (-1,-1)  Tchar [] [] 0
-  newBlockEnv <- addFuncDec newBlockEnv "readString" (-1,-1)  Tstring [] [] 0
+  newBlockEnv <- addFuncDec newBlockEnv "readInt" (-1,-1)  Tint [] 0  
+  newBlockEnv <- addFuncDec newBlockEnv "readFloat" (-1,-1)  Tfloat [] 0 
+  newBlockEnv <- addFuncDec newBlockEnv "readChar" (-1,-1)  Tchar [] 0
+  newBlockEnv <- addFuncDec newBlockEnv "readString" (-1,-1)  Tstring [] 0 
 
   return (Env ((emptyBlockEnv BTdecs):newBlockEnv:stack))
 
@@ -548,20 +548,18 @@ createInitialEnv (Env (current:stack)) = do
 --controlla se la modalità della definizione e i parametri attuali della chiamata sono compatibili
 checkModality::Env->Pident->[Exp]->IO ()
 checkModality env pident callExprs = do
-
   --trova la posizione dei parametri
   posTypLs <- mapM (inferExpr env) callExprs --trova la lista di PosTyp
   posLs <- mapM (\(pos,typ) -> do return pos) posTypLs --Ritorna la lista di Pos dal PosTyp
   --trova le modalità dei parametri formali
   (pos,(typModLs,_,_))<-lookFunc pident env
   --struttura dati supporto
-  triples<- Ok (zip3 posLs callExprs typModLs)
+  --triples<- (zip3 posLs callExprs typModLs) --sostituito con riga 559
   --controlla che le espressioni siano lexpr in base alla modalità dei parametri
+  let triples=zip3 posLs callExprs typModLs -- sostituisce riga 557 (triples<- etc.)
   mapM checkLexpr triples
-
   --controlla che non vengano passate costanti in una modalità che assegna un valore
   mapM (checkConstCall env) triples
-
   return ()
 
 --controlla se il parametro attuale è una Lexpr se la modalità lo richiede
