@@ -60,10 +60,22 @@ filterdecs (dec:decs) = case dec of
   Func _ _ _ _ _ _ -> dec: filterdecs decs
   otherwise -> filterdecs decs
 
+filterdecstmts :: [DecStm] -> [Dec]
+filterdecstmts  [] = []
+
+filterdecstmts  (decstm:decstmts) = case decstm of
+  Func _ _ _ _ _ _ -> decstm: filterdecstmts  decstmts
+  otherwise -> filterdecstmts  decstmts
+
+
+checkDecStms::Env->[DecStm]->IO Env
+checkDecStms env decsstms = do
+	newEnv <- foldM addDec env fundecs
+	foldM checkDecStm newEnv decsstms 
+	 where fundecs = filterdecs decsstms
 
 checkDecStm::Env->DecStm->IO Env
 checkDecStm env decStm = do
-					newEnv <- foldM addDec env fundecs
 					case decStm of
   						Dec dec -> do
   						newEnv<-foldM checkDec newEnv decsstats
@@ -74,7 +86,7 @@ checkDecStm env decStm = do
 
 checkDec::Env->Dec->IO Env
 checkDec env dec = do
-  newEnv<- addDec env dec
+ --newEnv<- addDec env dec
   case dec of
     VarDeclar typ pident expr -> case expr of
       Nothing -> do 
@@ -85,15 +97,14 @@ checkDec env dec = do
         checkExpr newEnv typ expr
         return newEnv
     
-    Func retTyp pident@(Pident (pos,ident)) params _  decs stms-> do
+    Func retTyp pident@(Pident (pos,ident)) params _  decStm-> do
       newblock<-(pushNewBlocktoEnv newEnv (BTfun retTyp))
       pushEnv<-addParams newblock params-- env con il nuovo layer e i parametri della funzione inseriti
-      pushEnv<-checkDecs pushEnv decs
-      checkStms pushEnv stms
+      pushEnv<-checkDecStm pushEnv decStm
    --se ha un tipo di ritorno controlla l'esistenza di un return (il controllo di tipo viene fatto dopo)
       if retTyp/=Tvoid
       then do
-        ret<-findReturnInStms stms
+        ret<-findReturnInDecStms decStm
         case ret of
           False -> do 
                 putStrLn $ (show pos) ++ ": Missing return statement for function" ++ (show ident)
@@ -102,29 +113,30 @@ checkDec env dec = do
       --se non ha un tipo di ritorno anche l'assenza di un return è accettata
       else return newEnv
 
-findReturnInStms::[Stm]->IO Bool
-findReturnInStms stms = do
-  returns<-mapM findReturnInStm stms
+findReturnInDecStms::[DecStm]->IO Bool
+findReturnInStms decStm = do
+  returns<-mapM findReturnInDecStm decStm
   return $ or returns  
 
-findReturnInStm::Stm->IO Bool
-findReturnInStm stm = case stm of
+findReturnInDecStm::DecStm->IO Bool
+findReturnInDecStm decStm = case decStm of
     Valreturn _ -> return True
-    SimpleIf _ stms -> findReturnInStms stms
-    IfThElse _ stmsIf stmsElse -> do
-    	returnIf <- findReturnInStms stmsIf
-    	returnElse <- findReturnInStms stmsElse
+    SimpleIf _ decstmts -> findReturnInDecStms decstmts
+    IfThElse _ decstmsIf decstmsElse -> do
+    	returnIf <- findReturnInDecStms decstmsIf
+    	returnElse <- findReturnInDecStms decstmsElse
     	return (returnIf || returnElse)
-    While _ _ stms -> findReturnInStms stms
-    DoWhile stms _ -> findReturnInStms stms
+    While _ _ decstmts -> findReturnInDecStms decstmts
+    DoWhile decstmts _ -> findReturnInDecStms decstmts
     _ -> return False
 
-
+{--checkStms::Env->[Stm]->IO Env
+checkStms env stm = foldM checkStm env --}
 
 --controlla gli statement
 checkStm::Env->Stm->IO Env
 checkStm env stm = case stm of
-  Assgn _ lexp  expr -> do
+  Assgn _ lexp expr -> do
     (pos,typ)<-inferExpr env lexp
     checkExpr env typ expr
     checkConstVar env lexp
@@ -167,21 +179,22 @@ checkReturn (Env ((BlockEnv _ _ blockTyp):stack)) pos returnTyp= case blockTyp o
   BTfun decTyp -> do
     genTyp<-generalize returnTyp decTyp
     if genTyp/=decTyp
-    then fail $ (show pos) ++ ": Type mismatch in return statement.Expected type->" ++ (show decTyp) ++ ". Actual type->" ++ (show returnTyp)
+    then putStrLn $ (show pos) ++ ": Type mismatch in return statement.Expected type->" ++ (show decTyp) ++ ". Actual type->" ++ (show returnTyp)
     else return ()
   otherwise->checkReturn (Env stack) pos returnTyp
 
 
---controlla l'expression  
-checkExpr::Env->Typ->Exp->IO Env
+--controlla l'expression. 
+checkExpr::Env->Typ->Exp->IO (Bool, Env)
 checkExpr env typ expr= do
   (pos,exprTyp)<-inferExpr env expr
   genTyp<-generalize exprTyp typ
   if typ==genTyp
     then
-      return env
+      return (True, env)
     else
-      fail $ (show pos) ++ ": Type mismatch.Expected type->" ++ (show typ) ++ ". Actual type->" ++ (show exprTyp)
+      putStrLn $ (show pos) ++ ": Type mismatch.Expected type->" ++ (show typ) ++ ". Actual type->" ++ (show exprTyp)
+      return (False, env)
 
 
 checkDefaultStm::Env->Maybe Stm->IO ()
@@ -193,8 +206,11 @@ checkDefaultStm env defaultStm = case defaultStm of
 
 --Generalizzazione dei tipi
 generalize::Typ->Typ->IO Typ
-generalize from to = Ok to --generalizzazione dal tipo from al tipo to
-return to
+generalize Tint Tfloat = do
+ return Tfloat
+generalize from to = do
+ return to --generalizzazione dal tipo from al tipo to
+
 
 genericType::Typ->Typ->IO Typ
 genericType typ1 typ2 = do
@@ -206,9 +222,9 @@ genericType typ1 typ2 = do
 inferExpr::Env->Exp->IO PosTyp
 inferExpr env expr = case expr of
 
-  Ls (expr:exprs)-> do
+  Arr (expr:exprs)-> do
     (pos,typ)<-inferExpr env expr
-    checkLs env pos typ exprs
+    checkArr env pos typ exprs
     return (pos,TArray typ)
 
   InfixOp infixOp expr1 expr2 -> do
@@ -233,7 +249,7 @@ inferExpr env expr = case expr of
     arrayPosTyp<-inferExpr env exprArray
     case arrayPosTyp of
       (pos,TArray typ) -> return (pos,typ)
-      (pos,_)->fail $ (show pos) ++ ": " ++ "Cannot use array selection operand in non-array types"
+      (pos,_)->putStrLn $ (show pos) ++ ": " ++ "Cannot use array selection operand in non-array types"
 
 
   Fcall pident@(Pident (pos,ident)) callExprs callNParams ->do
@@ -245,7 +261,7 @@ inferExpr env expr = case expr of
     checkModality env pident callExprs -- controllo sulla modalità dei parametri attuali rispetto alla definizione di funzione
     return (pos,retTyp)
 
-  Efloat (Pfloat (pos,val)) -> do
+  Efloat (Preal (pos,val)) -> do
     return (pos,Tfloat)
   Eint (Pint (pos,val)) -> do
     return (pos,Tint)
@@ -259,14 +275,12 @@ inferExpr env expr = case expr of
     (_,(typ,modal))<-lookVar pident env
     return (pos,typ)
 
-checkLs::Env->Pos->Typ->[Exp]->IO Env
-checkLs env pos typ exprs = case exprs of
-  []->return env
-  (expr:expss)->case (checkExpr env typ expr) of
-    Ok _ -> do
-      checkLs env pos typ expss
-      return env
-    Bad _ -> fail $ (show pos) ++ ": Multiple different types in the same array definition"
+checkArr::Env->Pos->Typ->[Exp]->IO ()
+checkArr env pos typ exprs = case exprs of
+  []->return ()
+  (expr:expss)-> do
+  	checkExpr env typ expr
+  	checkArr env pos typ expss
 
 inferUnaryExp::Env->Unary_Op->Exp->IO PosTyp
 inferUnaryExp env op expr = case op of
@@ -353,25 +367,25 @@ inferInfixExpr env infixOp expr1 expr2 = do
 
 checkIfIsEq::Pos->Typ->IO ()
 checkIfIsEq pos typ = case typ of
-  TArray _ -> do fail $ (show pos) ++ ": " ++ "Cannot use operand in non-comparable types"
+  TArray _ -> do putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-comparable types"
   otherwise -> do return ()
 
 checkIfIsNumeric::Pos->Typ->IO ()
 checkIfIsNumeric pos typ = do
   if typ/=Tint && typ/=Tfloat
-  then fail $ (show pos) ++ ": " ++ "Cannot use operand in non-numeric types"
+  then putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-numeric types"
   else return ()
 
 checkIfBoolean::Pos->Typ->IO ()
 checkIfBoolean pos typ = do
   if typ/=Tbool
-  then fail $ (show pos) ++ ": " ++ "Cannot use operand in non-boolean types"
+  then putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-boolean types"
   else return ()  
 
 checkIfIsOrd::Pos->Typ->IO ()
 checkIfIsOrd pos typ = do
   if typ/=Tint && typ/=Tfloat
-  then fail $ (show pos) ++ ": " ++ "Cannot use operand in non-ordered types"
+  then putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-ordered types"
   else return ()
 
 --controlla se il typo passato è un pointer, nel caso lo sia torna il tipo di array,
@@ -379,13 +393,13 @@ checkIfIsOrd pos typ = do
 checkIfIsPointerAndReturnType::Pos->Typ->IO PosTyp
 checkIfIsPointerAndReturnType pos typ = case typ of
   Tpointer ptyp -> return (pos,ptyp)
-  _ -> fail $ (show pos) ++ ": " ++ "Cannot use operand in non-pointer types"
+  _ -> putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-pointer types"
 
 --controlla numero e tipo dei parametri di una chiamata a funzione
 checkParams::Pos->[Typ]->Int->[Typ]->Int->IO ()
 checkParams pos callParams callNParams defParams defNParams = do
   if callNParams /= defNParams
-  then fail $ (show pos) ++ ": " ++ (show defNParams) ++ " parameters expected, but " ++ (show callNParams) ++ " found"
+  then putStrLn $ (show pos) ++ ": " ++ (show defNParams) ++ " parameters expected, but " ++ (show callNParams) ++ " found"
   else do
     checkParamsTyps pos (zip (zip callParams defParams) [1,2..])
     return ()
@@ -396,7 +410,7 @@ checkParamsTyps pos list = case list of
   (((typCall,typDef),paramN):params) -> do
     genTyp<-generalize typCall typDef
     if genTyp/=typDef
-    then fail $ (show pos) ++ ": Type mismatch in parameter "++ (show paramN) ++".Expected type->" ++ (show typDef) ++ ". Actual type->" ++ (show typCall)
+    then putStrLn $ (show pos) ++ ": Type mismatch in parameter "++ (show paramN) ++".Expected type->" ++ (show typDef) ++ ". Actual type->" ++ (show typCall)
     else do
       checkParamsTyps pos params
 
@@ -406,7 +420,7 @@ checkParamsTyps pos list = case list of
 
 lookVar::Pident->Env->IO PosTypMod
 lookVar pident@(Pident (pos,ident)) (Env stack) = case stack of
-  [] -> fail $ (show pos) ++ ": variable " ++ (show ident) ++ " out of scope"
+  [] -> putStrLn $ (show pos) ++ ": variable " ++ (show ident) ++ " out of scope"
   (current@(BlockEnv _ context _ ):parent) -> do
     maybePosTypMod <- lookVarInContext ident context
     case maybePosTypMod of
@@ -415,7 +429,7 @@ lookVar pident@(Pident (pos,ident)) (Env stack) = case stack of
 
 lookFunc::Pident->Env->IO PosSig
 lookFunc pident@(Pident (pos,ident)) (Env stack) = case stack of
-  [] -> fail $ (show pos) ++ ": function " ++ (show ident) ++ " out of scope"
+  [] -> putStrLn $ (show pos) ++ ": function " ++ (show ident) ++ " out of scope"
   (current@(BlockEnv sigs _ _ ):parent) -> do
     maybePosTyp <- lookFuncInSigs ident sigs
     case maybePosTyp of
@@ -546,7 +560,7 @@ checkLexpr (pos,expr,(typ,Just modal)) = do
   then
     if isLexpr expr
     then return ()
-    else fail $ (show pos) ++ ":" ++ "Parameter Modality requires an L-Expression"
+    else putStrLn $ (show pos) ++ ":" ++ "Parameter Modality requires an L-Expression"
   else return ()
 
 --controlla se la Modality richiede una L-expr, se sì restituisco True, altrimenti False
@@ -573,7 +587,7 @@ checkConstCall env (_,expr,(typ,Just modal)) = do
         (_,(_,(Just varmodal)))->do
           if (varmodal==Modality_CONST) && modalityRequiresLexpr modal
             then
-              fail $ (show pos) ++ ":" ++ "Cannot pass parameter by constant when Modality requires an L-Expression"
+              putStrLn $ (show pos) ++ ":" ++ "Cannot pass parameter by constant when Modality requires an L-Expression"
             else
               return ()
         otherwise->return ()
@@ -583,7 +597,7 @@ checkConstCall env (_,expr,(typ,Just modal)) = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST && modalityRequiresLexpr modal
-            then  fail $ (show pos) ++ ":" ++ "Cannot pass an index of constant array when Modality requires an L-Expression"
+            then  putStrLn $ (show pos) ++ ":" ++ "Cannot pass an index of constant array when Modality requires an L-Expression"
             else return ()
         otherwise->return ()
     otherwise->return ()
@@ -596,7 +610,7 @@ checkConstVar env expr = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST
-            then  fail $ (show pos) ++ ":" ++ "Cannot assign a value to a CONST variable"
+            then  putStrLn $ (show pos) ++ ":" ++ "Cannot assign a value to a CONST variable"
             else return ()
         otherwise->return ()
     Arraysel exprArray _ -> do
@@ -605,7 +619,7 @@ checkConstVar env expr = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST
-            then  fail $ (show pos) ++ ":" ++ "Cannot assign a value to an index of a CONST array"
+            then  putStrLn $ (show pos) ++ ":" ++ "Cannot assign a value to an index of a CONST array"
             else return ()
         otherwise->return ()
     otherwise->return ()
