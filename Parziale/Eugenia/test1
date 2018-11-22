@@ -1,7 +1,3 @@
-boolean p=true
---[[
-commento
-commento
-commento
-commento
---]]
+integer g=3
+integer k=4+g
+integer p=g+k

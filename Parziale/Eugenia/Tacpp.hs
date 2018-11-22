@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 
-module TacppLua where
+module Tacpp where
 
 import TacLua
 import Text.PrettyPrint
@@ -19,9 +19,9 @@ instance TacPP TAC where
       prettyPrint (TACInit typ id pos typexp exp)= case (typexp,exp) of
         (Nothing,Nothing)-> nest tab $ text(show typ)<+>text id <>text"_"<> text (show pos)
         (Just exptyp,Just exp)->nest tab $ text id<>text("_"++(show pos)) <+> text "="<+> text exptyp<+>text exp 
-      prettyPrint(TACTmp id pos typ addr)              = nest tab $ text id <>text"_"<> text (show pos)<+>text"="<+>text (show typ)<+>text addr
-      prettyPrint (TACUnaryOp addr op addr1)           = nest tab $ text addr <+> text "=" <+> text (show op) <+> text addr1
-      prettyPrint (TACNewTemp addr typ id pos)         =nest tab$ text addr<+> text "="<+>text (show typ)<+>text id<>text"_"<>text (show pos)
+      prettyPrint(TACTmp id pos addr)              = nest tab $ text id <>text"_"<> text (show pos)<+>text"="<+>text addr
+      prettyPrint (TACUnaryOp addr op addr1)             = nest tab $ text addr <+> text "=" <+> text (show op) <+> text addr1
+      prettyPrint(TACNewTemp addr typ id pos)         =nest tab$ text addr<+> text "="--<+>text (show typ)<+>text id<>text"_"<>text (show pos)
       --prettyPrint (TACCondition left op right)        = nest tab $ text left <> text op <> text right
       --prettyPrint (TACIf tacCondition l1 l2)          = nest tab $ text "if" <+> prettyPrint tacCondition <+> text "goto" <+> text l1 $$ text "goto" <+> text l2
       --prettyPrint (TACGoto label)                     = nest tab $ text "goto" <+> text label 
