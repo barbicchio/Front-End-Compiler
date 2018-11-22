@@ -111,7 +111,7 @@ Preal    :: {Preal} : L_Preal { Preal (mkPosToken $1)}
 Pchar    :: {Pchar} : L_Pchar { Pchar (mkPosToken $1)}
 
 Program :: { Program }
-Program : ListDec {Progr $1}
+Program : ListDec {Progr (reverse $1)}
 ListDec :: { [Dec] }
 ListDec : {- empty -} { [] } | ListDec Dec { flip (:) $1 $2 }
 Dec :: { Dec }

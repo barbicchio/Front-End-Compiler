@@ -1,4 +1,4 @@
-integer p= "carro"
-function integer p()
---p
+integer p= true
+function integer p ()
+return p
 end

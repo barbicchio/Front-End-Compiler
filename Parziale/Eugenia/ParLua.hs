@@ -316,7 +316,7 @@ happyReduce_11 = happySpecReduce_1  7# happyReduction_11
 happyReduction_11 happy_x_1
 	 =  case happyOut15 happy_x_1 of { happy_var_1 -> 
 	happyIn14
-		 (Progr happy_var_1
+		 (Progr (reverse happy_var_1)
 	)}
 
 happyReduce_12 = happySpecReduce_0  8# happyReduction_12
