@@ -41,7 +41,7 @@ type Mod = Maybe Modality
 
 type Sigs =Map.Map Ident PosSig
 type Context = Map.Map Ident PosTypMod
-type TacContext = Map.Map Ident Addr
+type TacContext = Map.Map (Ident,Pos) Addr
 
 type Sig = (Typ,[TypMod],Maybe Label) --cambiare ordine di typmod e typ
 type Pos = (Int,Int)
@@ -54,9 +54,9 @@ data TAC= TACAssign Addr Addr {--modificare tutto con le posizioni
 	| TACBinaryOp Int Int InfixOp Int--}
 	| TACBinaryArithOp Addr Addr ArithOp Addr
 	| TACLabel Label
-	-- | TACTmp Ident Pos Addr
-	{--| TACUnaryOp Int Unary_Op Int
-	--| TACWhile String String String
+	| TACTmp Ident Pos Addr
+	| TACUnaryOp Addr Unary_Op Addr
+	{--| TACWhile String String String
 	--| TACIf TAC String String
 	--| TACCondition String String String
 	--| TACReturn String
@@ -64,7 +64,7 @@ data TAC= TACAssign Addr Addr {--modificare tutto con le posizioni
 	--| TACParam String
 	--| TACPreamble String
 	--| TACGoto String --}
-	| TACInit Ident Pos (Maybe String) (Maybe String)
+	| TACInit Typ Ident Pos (Maybe String) (Maybe String)
 	{--| TACInt Int
 	--| TACBool Bool
 	--| TACChar Char
@@ -94,6 +94,17 @@ addVarDec (BlockEnv sigs context blockTyp tacmap) ident pos@(line,col) typ mod= 
   case record of
     Nothing -> return (BlockEnv sigs (Map.insert ident (pos,(typ,mod)) context) blockTyp tacmap)
     --Just (pos',_) -> fail $ (show pos) ++ ": variable "++ ident ++ " already declared in " ++ (show pos')
+--aggungo la coppia ident-temporaneo all'ambiente
+addTmp::Env->(Ident,Pos)->Addr->State TacM (Env)
+addTmp (Env (current:stack)) idpos addr= do
+	newBlockEnv<-addTmpAddr current idpos addr
+	return (Env(newBlockEnv:stack))
+addTmpAddr::BlockEnv->(Ident,Pos)->Addr->State TacM(BlockEnv)
+addTmpAddr (BlockEnv sigs context blockTyp tacmap) idpos addr= do
+    record<-lookTmpInContext idpos tacmap
+    case record of
+     Nothing->return (BlockEnv sigs context blockTyp (Map.insert idpos addr tacmap))
+
 
 --aggiunge una funzione a un contesto
 addFuncDec::BlockEnv->Ident->Pos->Typ->[(Typ,Mod)]->Maybe Label->State TacM(BlockEnv)
@@ -147,6 +158,17 @@ lookFunc pident@(Pident (pos,ident)) (Env stack) = case stack of
       Nothing -> lookFunc pident (Env parent)
       Just posTyp-> return posTyp
 
+lookTmp::Pident->Env->State TacM(Addr)
+lookTmp pident@(Pident (pos,ident)) (Env stack) = case stack of
+  (current@(BlockEnv _ _ _ tacmap):parent) -> do
+   maybeaddr<-lookTmpInContext (ident,pos) tacmap
+   case maybeaddr of
+    Nothing->lookTmp pident (Env parent)
+    Just addr->return addr
+
+lookTmpInContext::(Ident,Pos)->TacContext->State TacM(Maybe Addr)
+lookTmpInContext ident taccontext= do
+  return (Map.lookup ident taccontext)
 
 lookVarInContext::Ident->Context->State TacM(Maybe PosTypMod)
 lookVarInContext ident context= do
@@ -238,18 +260,18 @@ codeDecl env dec = case dec of
             Just exp-> do
               newEnv <- addDec env dec 
               simplexp<-issimple exp
-              --addrexp<-codeexp env exp
-              case exp of 
-               Nothing->do
-               	(typ,exp)<-gettypid exp
-                addTAC $ [TACInit id pos (Just typ) (Just exp)]
+              case simplexp of --caso inizializzazione con semplice valore,no temporaneo. 
+               True->do
+               	(typexp,exp)<-gettypid exp
+                addTAC $ [TACInit typ id pos (Just typexp) (Just exp)]
                 return newEnv  
-               Just addr->do
-               	(typ,exp)<-gettypid exp
-                --addTAC $ [TACTmp addr addrexp] [TACInit id pos Nothing Nothing]--}
-              return newEnv
-            Nothing-> do
-              addTAC $ [TACInit id pos Nothing Nothing]
+               False->do --se inizializzazione complessa,allora temporaneo. 
+               	addr<-codeexp env exp
+                addTAC $ [TACTmp id pos addr]
+                newEnv<-addTmp newEnv (id,pos) addr --aggiungo alla mappa la coppia (id,pos)-indirizzo
+                return newEnv
+            Nothing-> do --caso dichiarazione senza
+              addTAC $ [TACInit typ id pos Nothing Nothing] --se possibile migliorare il tipo che viene stampato (soprattutto per gli array)
               newEnv <- addDec env dec
               return newEnv
       Func retTyp ident params _ decstmts -> do
@@ -272,7 +294,7 @@ codeexp :: Env->Exp -> State TacM (Addr)
 codeexp env exp = case exp of 
 	InfixOp op exp1 exp2  -> case op of
 		ArithOp subop->codeArithOp env exp1 exp2 subop
-	{--Unary_Op subop exp->codeUnaryOp env subop exp--}
+	Unary_Op subop exp->codeUnaryOp env subop exp
 	Eint (Pint(_,int)) -> return (show int)
 	{--RelOp subop exp1 exp2->codeRelOp env subop exp1 exp2--}
 
@@ -283,13 +305,13 @@ codeArithOp env exp1 exp2 op=do
         addr<-newtemp
         addTAC $ [TACBinaryArithOp addr addr1 op addr2]
         return(addr)
-{--codeUnaryOp :: Env->Unary_Op->Exp-> State TacM (Addr,[TAC])
+codeUnaryOp :: Env->Unary_Op->Exp-> State TacM (Addr)
 codeUnaryOp env op exp = do   --forse devo gestire LogNeg diversamente
-    (addr1,code1)<-codeexp env exp
+    addr1<-codeexp env exp
     addr <- newtemp
-    let code=code1++[TACUnaryOp addr op addr1]
-    return (addr,code)
-  --}
+    addTAC $[TACUnaryOp addr op addr1]
+    return addr
+
 {--codeRelOp::Env->BoolOp->Exp->State TacM(Addr,[TAC])
 codeRelOp env op exp1 exp2= case op of
      Or->do

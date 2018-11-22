@@ -16,10 +16,11 @@ instance TacPP TAC where
       prettyPrint (TACAssign id var)                  = nest tab $ text id <+> text "=" <+> text var
       prettyPrint (TACBinaryArithOp adr adr1 op adr2) = nest tab $ text adr<+>text"="<+>text adr1<+>text(show op)<+> text adr2
       --prettyPrint (TACInt num)                        = nest tab $ text (show num)
-      prettyPrint (TACInit id pos typ exp)= case (typ,exp) of
-        (Nothing,Nothing)-> nest tab $ text id <>text"_"<> text (show pos)
-        (Just typ,Just exp)->nest tab $ text id<>text("_"++(show pos)) <+> text "="<+> text typ<+>text exp 
-      --prettyPrint (TACUnaryOp id op var)              = nest tab $ text id <+> text "=" <+> text op <+> text var
+      prettyPrint (TACInit typ id pos typexp exp)= case (typexp,exp) of
+        (Nothing,Nothing)-> nest tab $ text(show typ)<+>text id <>text"_"<> text (show pos)
+        (Just exptyp,Just exp)->nest tab $ text id<>text("_"++(show pos)) <+> text "="<+> text exptyp<+>text exp 
+      prettyPrint(TACTmp id pos addr)              = nest tab $ text id <>text"_"<> text (show pos)<+>text"="<+>text addr
+      prettyPrint (TACUnaryOp addr op addr1)             = nest tab $ text addr <+> text "=" <+> text (show op) <+> text addr1
       --prettyPrint (TACCondition left op right)        = nest tab $ text left <> text op <> text right
       --prettyPrint (TACIf tacCondition l1 l2)          = nest tab $ text "if" <+> prettyPrint tacCondition <+> text "goto" <+> text l1 $$ text "goto" <+> text l2
       --prettyPrint (TACGoto label)                     = nest tab $ text "goto" <+> text label 

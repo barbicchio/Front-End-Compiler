@@ -1,6 +1,3 @@
-integer k=p(3)
-function integer p (integer r)
-return k
-end
-
+integer p
+integer k=-3
 --[integer k
