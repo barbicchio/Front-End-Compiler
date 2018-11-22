@@ -11,7 +11,7 @@ import ParLua
 --import SkelLua
 import PrintLua
 import AbsLua
-import TypeChecker_incostruzione2
+import TypeChecker
 import TacLua
 
 
