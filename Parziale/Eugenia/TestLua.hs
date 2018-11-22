@@ -84,6 +84,7 @@ check s = case pProgram (myLexer s) of
               putStrLn $ printTree tree
               typecheck tree
               putStrLn "-----------------------\n TAC \n-----------------------"
-              putStrLn $ code tacAttr
+              {--putStrLn $ code tacAttr
               print tacAttr
                where tacAttr = tacGenerator tree
+               --}
