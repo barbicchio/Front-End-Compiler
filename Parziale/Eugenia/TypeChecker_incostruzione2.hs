@@ -1,4 +1,4 @@
-module TypeChecker where
+module TypeChecker_incostruzione2 where
 
 import System.IO
 import qualified Data.Map as Map
@@ -619,7 +619,7 @@ checkConstVar env expr = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST
-            then  putStrLn $ (show pos) ++ ":" ++ "Cannot assign a value to a CONST variable"
+            then putStrLn $ (show pos) ++ ":" ++ "Cannot assign a value to a CONST variable"
             else return ()
         otherwise->return ()
     Arraysel exprArray _ -> do

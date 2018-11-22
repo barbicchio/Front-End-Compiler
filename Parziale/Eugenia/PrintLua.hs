@@ -121,6 +121,7 @@ instance Print Dec where
   
 instance Print Type_specifier where
   prt i e = case e of
+    Tvoid->prPrec i 0 (concatD [doc (showString "void")])
     Tchar -> prPrec i 0 (concatD [doc (showString "character")])
     Tint -> prPrec i 0 (concatD [doc (showString "integer")])
     Tbool -> prPrec i 0 (concatD [doc (showString "boolean")])

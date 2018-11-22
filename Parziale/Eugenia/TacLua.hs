@@ -45,7 +45,7 @@ type PosTypMod = (Pos,TypMod,Maybe Addr)
 type TypMod = (Typ,Mod)
 type PosSig = (Pos,Sig)
 
-data TAC= TACAssign String String
+data TAC= TACAssign Int Int --modificare tutto con le posizioni
 	| TACBinaryOp Int Int InfixOp Int
 	| TACBinaryArithOp Int Int ArithOp Int
 	| TACUnaryOp Int Unary_Op Int
@@ -58,7 +58,7 @@ data TAC= TACAssign String String
 	| TACParam String
 	| TACPreamble String
 	| TACGoto String
-	| TACInit Ident Exp
+	| TACInit Ident Pos (Maybe Exp)
 	| TACInt Int
 	| TACBool Bool
 	| TACChar Char
@@ -207,59 +207,55 @@ newlabel = do
 {--addCode :: String -> State TacM()
 addCode newCode = modify (\attr -> attr{code = (code attr) ++ newCode ++ "\n"})
 --}
-addTAC :: [TAC] -> State TacM()
+addTAC :: TAC -> State TacM()
 addTAC nxtinst = do
-    modify (\attr -> attr{code = (code attr) ++ nxtinst})
-    return ()
-addTAC1 :: TAC -> State TacM() --da eliminare ma lo usiamo per il momento
-addTAC1 nxtinst = do
     modify (\attr -> attr{code = (code attr) ++ [nxtinst]})
     return ()
 
 tacGenerator program = execState (codeProgram program) startState
 
-codeProgram :: Program -> State TacM ()
+codeProgram :: Program -> State TacM ([TAC])
 codeProgram (Progr decls) = do
     label <- newlabel
     env<-createInitialEnv emptyEnv
-    codeDecls env decls
+    codeprogram<-codeDecls env decls
     {--addCode $ label ++ ":halt"
     addTAC $ TACLabel label
     addTAC $ TACPreamble "halt"--}
-    return ()
+    return codeprogram
 
 codeDecls :: Env->[Dec] -> State TacM(Env)
 codeDecls env decs = do 
 		newEnv<-foldM addDec env fundecs
-		foldM codeDecl env decs
+		foldM codeDecl newEnv decs
 			where fundecs=filterdecs decs
 
-codeDecl :: Env->Dec-> State TacM (Env)
+codeDecl :: (Env)->Dec-> State TacM (Env,[TAC])
 codeDecl env dec = case dec of
-      VarDeclar typ (Pident(_,id)) exp -> 
+      VarDeclar typ ident@(Pident(_,id)) exp -> 
         case exp of 
             Just exp-> do
               newEnv <- addDec env dec 
-              (addr,codexp)<-codeexp env exp   --controllare,dovrebbe andare bene   
-              --addr_RExpr <- gets addr
-              --addTAC $ TACAssign (show id) addr
-              --addCode $ tmp ++ "=" ++ (show id)
-              --addTAC $ TACAssign tmp (show id)
-              return (newEnv)
+              (pos,_,tmp)<-lookVar ident newEnv
+              addrexp<-codeexp env exp
+              case tmp of 
+               Nothing->do
+               addTAC $ TACInit id pos (Just exp)
+               return newEnv   --controllare,dovrebbe andare bene   
+               {--Just addr->do
+               let code=TACAssign addr addrexp
+               return (newEnv,code)--}
             Nothing-> do
+              addTAC $ TACInit id pos Nothing
               newEnv <- addDec env dec
-              --addCode $ tmp ++ "=" ++ (show id)  --aggiungere codice di dichiarazione semplice???
-              --addTAC $ TACAssign tmp (show id)
               return newEnv
-              --pushTempType (tmp,(getBasicType basTyp)) --perchè mi interessa il tipo del temp?
-                                 --controllato già dal tc?
       Func retTyp ident params _ decstmts -> do
           label <- newlabel
           newEnv<-addDec env dec
           pushEnv<-(pushNewBlocktoEnv newEnv (BTfun retTyp))
           pushEnv<-addParams pushEnv params --porto dentro i parametri
           --addCode $ label ++ ":"
-          addTAC1 $ TACLabel label
+          addTAC $ TACLabel label
           --addCode "BeginFunc"
           --addTAC $ TACPreamble "BeginFunc"
           --pushEnv<-code_Decls pushEnv decs --qui bisogna mettere a posto,se c'è altra def di funzione,questa va fatta dopo la fine di quella precedente
@@ -269,15 +265,15 @@ codeDecl env dec = case dec of
         --setOldEnv  --non dovrebbe essere necessario
           return newEnv
           --}
-codeexp :: Env->Exp -> State TacM (Addr,[TAC])
-codeexp env exp = case exp of 
+codeexp :: Env->Exp -> State TacM (Addr)
+codeexp env exp = return(0){--case exp of 
 	InfixOp op exp1 exp2  -> case op of
 		ArithOp subop->codeArithOp env exp1 exp2 subop
 	Unary_Op subop exp->codeUnaryOp env subop exp
 	{--Eint (Pint(_,int)) -> return (int,TACInt int)--}
 	RelOp subop exp1 exp2->codeRelOp env subop exp1 exp2
-               
-
+	--}          
+{--
 codeArithOp::Env->Exp->Exp->ArithOp->State TacM (Addr,[TAC])
 codeArithOp env exp1 exp2 op=do
         (addr1,code1)<-codeexp env exp1
@@ -296,3 +292,4 @@ codeRelOp env op exp1 exp2= case op of
      Or->do
       (addr1,code1)<-codeexp env exp1
       (addr2,code2)<-codeexp env exp2
+--}
