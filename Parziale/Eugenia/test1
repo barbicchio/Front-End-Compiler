@@ -1,4 +1,6 @@
-integer p= true
-function integer p ()
-return p
+integer k=p(3)
+function integer p (integer r)
+return k
 end
+
+--[integer k
