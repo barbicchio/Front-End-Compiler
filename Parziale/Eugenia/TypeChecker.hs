@@ -204,7 +204,7 @@ generalize::Typ->Typ->IO Typ
 generalize Tint Tfloat = do
  return Tfloat
 generalize from to = do
- return to --generalizzazione dal tipo from al tipo to
+ return from --nel caso non si possa generalizzare
 
 
 genericType::Typ->Typ->IO Typ
