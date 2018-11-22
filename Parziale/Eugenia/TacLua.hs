@@ -14,6 +14,7 @@ data TacM = TacM{
 				kaddr::Int,
 				klab::Int,
 				code::TacInst}
+	deriving (Show)			
 
 startState = TacM 0 0 []
 
@@ -31,8 +32,8 @@ data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ
 
 type Ident = String
 type Typ = Type_specifier
-type Addr= Int
-type Label = Int
+type Addr= String
+type Label = String
 type Mod = Maybe Modality
 
 type Sigs =Map.Map Ident PosSig
@@ -45,25 +46,25 @@ type PosTypMod = (Pos,TypMod,Maybe Addr)
 type TypMod = (Typ,Mod)
 type PosSig = (Pos,Sig)
 
-data TAC= TACAssign Int Int --modificare tutto con le posizioni
-	| TACBinaryOp Int Int InfixOp Int
-	| TACBinaryArithOp Int Int ArithOp Int
-	| TACUnaryOp Int Unary_Op Int
-	| TACWhile String String String
-	| TACIf TAC String String
-	| TACCondition String String String
-	| TACReturn String
-	| TACCall String String String
+data TAC= TACAssign Addr Addr {--modificare tutto con le posizioni
+	| TACBinaryOp Int Int InfixOp Int--}
+	| TACBinaryArithOp Addr Addr ArithOp Addr
 	| TACLabel Label
-	| TACParam String
-	| TACPreamble String
-	| TACGoto String
+	{--| TACUnaryOp Int Unary_Op Int
+	--| TACWhile String String String
+	--| TACIf TAC String String
+	--| TACCondition String String String
+	--| TACReturn String
+	--| TACCall String String String
+	--| TACParam String
+	--| TACPreamble String
+	--| TACGoto String --}
 	| TACInit Ident Pos (Maybe Exp)
 	| TACInt Int
-	| TACBool Bool
-	| TACChar Char
-	| TACString String
-	| TACFloat Float
+	{--| TACBool Bool
+	--| TACChar Char
+	--| TACString String
+	--| TACFloat Float --}
  deriving(Show)
 
 --TODO:riscrivere funzioni per la dichiarazione di funzione,
@@ -194,13 +195,13 @@ newtemp ::State TacM (Addr)
 newtemp = do
           c<-gets kaddr
           modify $ \s->s{kaddr=c+1}
-          return c
+          return $'t':(show c)
 
 newlabel ::State TacM (Label)
 newlabel = do 
           l<-gets klab
           modify $ \s->s{klab=l+1}
-          return l
+          return $"label"++ (show l)
 -------------------------------------
 ------funzioni per gestione TAC------
 -------------------------------------
@@ -214,15 +215,15 @@ addTAC nxtinst = do
 
 tacGenerator program = execState (codeProgram program) startState
 
-codeProgram :: Program -> State TacM ([TAC])
+codeProgram :: Program -> State TacM ()
 codeProgram (Progr decls) = do
     label <- newlabel
     env<-createInitialEnv emptyEnv
-    codeprogram<-codeDecls env decls
+    codeDecls env decls
     {--addCode $ label ++ ":halt"
     addTAC $ TACLabel label
     addTAC $ TACPreamble "halt"--}
-    return codeprogram
+    return ()
 
 codeDecls :: Env->[Dec] -> State TacM(Env)
 codeDecls env decs = do 
@@ -230,21 +231,21 @@ codeDecls env decs = do
 		foldM codeDecl newEnv decs
 			where fundecs=filterdecs decs
 
-codeDecl :: (Env)->Dec-> State TacM (Env,[TAC])
+codeDecl :: (Env)->Dec-> State TacM (Env)
 codeDecl env dec = case dec of
-      VarDeclar typ ident@(Pident(_,id)) exp -> 
+      VarDeclar typ ident@(Pident(pos,id)) exp -> 
         case exp of 
             Just exp-> do
               newEnv <- addDec env dec 
-              (pos,_,tmp)<-lookVar ident newEnv
+              (_,_,tmp)<-lookVar ident newEnv
               addrexp<-codeexp env exp
               case tmp of 
                Nothing->do
-               addTAC $ TACInit id pos (Just exp)
-               return newEnv   --controllare,dovrebbe andare bene   
-               {--Just addr->do
-               let code=TACAssign addr addrexp
-               return (newEnv,code)--}
+                addTAC $ TACInit id pos (Just exp)
+                return newEnv   --controllare,dovrebbe andare bene   
+               Just addr->do
+                let code=TACAssign addr addrexp
+                return newEnv
             Nothing-> do
               addTAC $ TACInit id pos Nothing
               newEnv <- addDec env dec
@@ -266,7 +267,7 @@ codeDecl env dec = case dec of
           return newEnv
           --}
 codeexp :: Env->Exp -> State TacM (Addr)
-codeexp env exp = return(0){--case exp of 
+codeexp env exp = return("t-1"){--case exp of 
 	InfixOp op exp1 exp2  -> case op of
 		ArithOp subop->codeArithOp env exp1 exp2 subop
 	Unary_Op subop exp->codeUnaryOp env subop exp

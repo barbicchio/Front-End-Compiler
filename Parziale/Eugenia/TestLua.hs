@@ -12,6 +12,7 @@ import ParLua
 import PrintLua
 import AbsLua
 import TypeChecker_incostruzione2
+import TacLua
 
 
 
@@ -82,5 +83,7 @@ check s = case pProgram (myLexer s) of
               putStrLn ""
               putStrLn $ printTree tree
               typecheck tree
-              --print tacAttr
               putStrLn "-----------------------\n TAC \n-----------------------"
+              putStrLn $ code tacAttr
+              print tacAttr
+               where tacAttr = tacGenerator tree
