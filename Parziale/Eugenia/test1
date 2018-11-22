@@ -1,3 +1,7 @@
-integer p
-integer k=-3
---[integer k
+boolean p=true
+--[[
+commento
+commento
+commento
+commento
+--]]

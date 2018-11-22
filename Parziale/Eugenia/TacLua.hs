@@ -13,20 +13,18 @@ type TacInst=[TAC]
 data TacM = TacM{
 				kaddr::Int,
 				klab::Int,
-				code::TacInst}
+				code::TacInst,
+			    tacmap::TacContext}
 	deriving (Show)			
 
-startState = TacM 0 0 []
+startState = TacM 0 0 [] (Map.empty)
 
 data Env =Env [BlockEnv]  deriving (Eq, Ord, Show, Read)
-
-
 
 data BlockEnv = BlockEnv {
   funDefs::Sigs,
   varDefs::Context,
-  blockTyp::BlockTyp,
-  tacContext::TacContext
+  blockTyp::BlockTyp
 }
  deriving (Eq, Ord, Show, Read)
 
@@ -89,13 +87,13 @@ addDec env@(Env (current:stack)) dec = case dec of
     return (Env (newBlockEnv:stack))
 --aggiunge una variabile a un contesto
 addVarDec::BlockEnv->Ident->Pos->Typ->Mod->State TacM(BlockEnv)
-addVarDec (BlockEnv sigs context blockTyp tacmap) ident pos@(line,col) typ mod= do
+addVarDec (BlockEnv sigs context blockTyp) ident pos@(line,col) typ mod= do
   record<-lookVarInContext ident context
   case record of
-    Nothing -> return (BlockEnv sigs (Map.insert ident (pos,(typ,mod)) context) blockTyp tacmap)
+    Nothing -> return (BlockEnv sigs (Map.insert ident (pos,(typ,mod)) context) blockTyp)
     --Just (pos',_) -> fail $ (show pos) ++ ": variable "++ ident ++ " already declared in " ++ (show pos')
 --aggungo la coppia ident-temporaneo all'ambiente
-addTmp::Env->(Ident,Pos)->Addr->State TacM (Env)
+{--addTmp::Env->(Ident,Pos)->Addr->State TacM (Env)
 addTmp (Env (current:stack)) idpos addr= do
 	newBlockEnv<-addTmpAddr current idpos addr
 	return (Env(newBlockEnv:stack))
@@ -104,15 +102,15 @@ addTmpAddr (BlockEnv sigs context blockTyp tacmap) idpos addr= do
     record<-lookTmpInContext idpos tacmap
     case record of
      Nothing->return (BlockEnv sigs context blockTyp (Map.insert idpos addr tacmap))
-
+   --}
 
 --aggiunge una funzione a un contesto
 addFuncDec::BlockEnv->Ident->Pos->Typ->[(Typ,Mod)]->Maybe Label->State TacM(BlockEnv)
-addFuncDec (BlockEnv sigs context blockTyp tacmap)  ident pos@(line,col) returnTyp paramsTyp label = do
+addFuncDec (BlockEnv sigs context blockTyp)  ident pos@(line,col) returnTyp paramsTyp label = do
   record<-lookFuncInSigs ident sigs
   --tmps<-take (length paramsTyp) tmp
   case record of
-    Nothing -> return (BlockEnv (Map.insert ident (pos,(returnTyp,paramsTyp,label)) sigs) context  blockTyp tacmap)
+    Nothing -> return (BlockEnv (Map.insert ident (pos,(returnTyp,paramsTyp,label)) sigs) context blockTyp)
     --Just (pos',_) -> fail $ (show pos) ++ ": function "++ ident ++ " already declared in " ++ (show pos')
 
 addParams::Env->[Argument]->State TacM(Env)
@@ -128,9 +126,9 @@ addParam (Env (current:stack)) pars = case pars of
 
 
 emptyEnv = Env [emptyBlockEnv BTroot]
-emptyBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp Map.empty
+emptyBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp 
 newBlockEnv::BlockTyp->BlockEnv
-newBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp Map.empty
+newBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp 
 
 pushNewBlocktoEnv::Env->BlockTyp->State TacM(Env)
 pushNewBlocktoEnv (Env blocks) blocktyp= return $ Env ((newBlockEnv blocktyp):blocks)
@@ -143,7 +141,7 @@ getParamsModTyp params = map (\(FormPar mod typ _)->(typ,Just mod)) params
 lookVar::Pident->Env->State TacM(PosTypMod)
 lookVar pident@(Pident (pos,ident)) (Env stack) = case stack of
   --[] -> fail $ (show pos) ++ ": variable " ++ (show ident) ++ " out of scope"
-  (current@(BlockEnv _ context _ _):parent) -> do
+  (current@(BlockEnv _ context _ ):parent) -> do
     maybePosTyp <- lookVarInContext ident context
     case maybePosTyp of
       Nothing -> lookVar pident (Env parent)
@@ -152,13 +150,13 @@ lookVar pident@(Pident (pos,ident)) (Env stack) = case stack of
 lookFunc::Pident->Env->State TacM(PosSig)
 lookFunc pident@(Pident (pos,ident)) (Env stack) = case stack of
   --[] -> fail $ (show pos) ++ ": function " ++ (show ident) ++ " out of scope"
-  (current@(BlockEnv sigs _ _ _):parent) -> do
+  (current@(BlockEnv sigs _ _ ):parent) -> do
     maybePosTyp <- lookFuncInSigs ident sigs
     case maybePosTyp of
       Nothing -> lookFunc pident (Env parent)
       Just posTyp-> return posTyp
 
-lookTmp::Pident->Env->State TacM(Addr)
+{--lookTmp::Pident->Env->State TacM(Addr)
 lookTmp pident@(Pident (pos,ident)) (Env stack) = case stack of
   (current@(BlockEnv _ _ _ tacmap):parent) -> do
    maybeaddr<-lookTmpInContext (ident,pos) tacmap
@@ -169,6 +167,7 @@ lookTmp pident@(Pident (pos,ident)) (Env stack) = case stack of
 lookTmpInContext::(Ident,Pos)->TacContext->State TacM(Maybe Addr)
 lookTmpInContext ident taccontext= do
   return (Map.lookup ident taccontext)
+  --}
 
 lookVarInContext::Ident->Context->State TacM(Maybe PosTypMod)
 lookVarInContext ident context= do
@@ -234,7 +233,10 @@ addTAC :: [TAC] -> State TacM()
 addTAC nxtinst = do
     modify (\attr -> attr{code = (code attr) ++ nxtinst})
     return ()
-
+addTmp::(Ident,Pos)->Addr->State TacM()
+addTmp idpos addr= do
+    modify (\s@TacM{tacmap=m} -> s{ tacmap=Map.insert idpos addr m})
+    return ()
 tacGenerator program = execState (codeProgram program) startState
 
 codeProgram :: Program -> State TacM ()
@@ -268,7 +270,7 @@ codeDecl env dec = case dec of
                False->do --se inizializzazione complessa,allora temporaneo. 
                	addr<-codeexp env exp
                 addTAC $ [TACTmp id pos addr]
-                newEnv<-addTmp newEnv (id,pos) addr --aggiungo alla mappa la coppia (id,pos)-indirizzo
+                addTmp (id,pos) addr --aggiungo alla mappa la coppia (id,pos)-indirizzo
                 return newEnv
             Nothing-> do --caso dichiarazione senza
               addTAC $ [TACInit typ id pos Nothing Nothing] --se possibile migliorare il tipo che viene stampato (soprattutto per gli array)

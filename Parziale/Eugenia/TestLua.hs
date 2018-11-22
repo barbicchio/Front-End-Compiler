@@ -11,9 +11,9 @@ import ParLua
 --import SkelLua
 import PrintLua
 import AbsLua
-import TypeChecker
+import TypeCheckerLua
 import TacLua
-import Tacpp
+import TacppLua
 
 
 

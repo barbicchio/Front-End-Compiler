@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 
-module Tacpp where
+module TacppLua where
 
 import TacLua
 import Text.PrettyPrint

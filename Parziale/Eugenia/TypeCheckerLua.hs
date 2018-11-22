@@ -1,4 +1,4 @@
-module TypeChecker where
+module TypeCheckerLua where
 
 import System.IO
 import qualified Data.Map as Map
