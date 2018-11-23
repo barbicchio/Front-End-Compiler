@@ -246,11 +246,30 @@ inferExpr env expr = case expr of
       (pos,Tarray _ typ) -> return (pos,typ)
       (pos,_)->do
         putStrLn $ (show pos) ++ ": " ++ "Cannot use array selection operand in non-array types"
-        return((-1,-1),Tvoid) --sostituire con Terror
-  PrePost _ expr-> do
+        return((-1,-1),Terror) --sostituire con Terror
+  
+
+  --TODO:aggiungere pre-post incrementi
+  PreIncr expr-> do
     (pos,typ)<-inferExpr env expr
     checkIfIsInt pos typ
     return (pos,typ)
+
+  PreDecr expr-> do
+    (pos,typ)<-inferExpr env expr
+    checkIfIsInt pos typ
+    return (pos,typ)
+
+  PostIncr expr-> do
+    (pos,typ)<-inferExpr env expr
+    checkIfIsInt pos typ
+    return (pos,typ)
+
+  PostDecr expr-> do
+    (pos,typ)<-inferExpr env expr
+    posTyp<-checkIfIsInt pos typ
+    return (pos,typ)
+
   Fcall pident@(Pident (pos,ident)) callExprs callNParams ->do
     posTypLs <- mapM (inferExpr env) callExprs --trova la lista di PosTyp
     callParams <- mapM (\(pos,typ) -> do return typ) posTypLs --Ritorna la lista di Typ dal PosTyp
@@ -400,7 +419,7 @@ checkIfIsPointerAndReturnType pos typ = case typ of
   Tpointer ptyp -> return (pos,ptyp)
   _ -> do
     putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-pointer types"
-    return ((-1,-1),Tvoid) --sostituire con Terror
+    return ((-1,-1),Terror) --sostituire con Terror
 
 --controlla numero e tipo dei parametri di una chiamata a funzione
 checkParams::Pos->[Typ]->Int->[Typ]->Int->IO ()
@@ -429,7 +448,7 @@ lookVar::Pident->Env->IO PosTypMod
 lookVar pident@(Pident (pos,ident)) (Env stack) = case stack of
   [] -> do
    putStrLn $ (show pos) ++ ": variable " ++ (show ident) ++ " out of scope"
-   return((-1,-1),(Tvoid,Nothing))--sostituire con Terror
+   return((-1,-1),(Terror,Nothing))--sostituire con Terror
   (current@(BlockEnv _ context _ ):parent) -> do
     maybePosTypMod <- lookVarInContext ident context
     case maybePosTypMod of
@@ -440,7 +459,7 @@ lookFunc::Pident->Env->IO PosSig
 lookFunc pident@(Pident (pos,ident)) (Env stack) = case stack of
   [] -> do
     putStrLn $ (show pos) ++ ": function " ++ (show ident) ++ " out of scope"
-    return ((-1,-1),([],Tvoid,0)) --sostituire con Terror
+    return ((-1,-1),([],Terror,0)) --sostituire con Terror
   (current@(BlockEnv sigs _ _ ):parent) -> do
     maybePosTyp <- lookFuncInSigs ident sigs
     case maybePosTyp of

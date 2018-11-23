@@ -16,8 +16,8 @@ Typecompl.	   Type_specifier ::= ComplexType;
 --Tfloat.        BasicType ::= "float";
 --Tchar.         BasicType ::= "character";
 --Tstring.       BasicType ::= "string";
---Tvoid. 		 BasicType ::= {-empty-};
-Tarray.		   ComplexType ::= "{}" Type_specifier;
+--Tvoid. 		   BasicType ::= {-empty-};
+Tarray.		   ComplexType ::= "{" "}" Type_specifier;
 Tarraydef.	   ComplexType ::= "{"Integer"}" Type_specifier;
 Tpointer.	   ComplexType ::= "pointer" Type_specifier;
 
@@ -94,6 +94,8 @@ PreDecr.     Lexp ::= "--" Lexp ;
 PostInc.     Lexp ::= Lexp "++" ;
 PostDecr.    Lexp ::= Lexp "--" ;
 
+--Arraysel1.   Lexp::= Pident "@" Pint;
+
 Address.    Unary_operator::= "&"; 
 Logicalneg.  Unary_operator ::= "not" ; 
 Negnum.      Unary_operator ::= "-" ;
@@ -111,14 +113,13 @@ AssignSub.    Assignment_op ::= "-=" ;
 AssgnPow.     Assignment_op ::= "^="; 
 AssgnAnd.     Assignment_op ::= "&=" ;
 AssgnOr.      Assignment_op ::= "|=" ;
-comment "--[" ;
-comment "--[[" "--]]" ;
+comment "--" ;
  
 --token definitions
 --position token Ploop ({"break"}|{"continue"});
-position token Pbool ({"true"}|{"false"});
 position token Pident letter (letter | digit | '_' | '\'')* ;
 position token Pint digit+;
+position token Pbool ({"true"}|{"false"});
 position token Pstring  '"' ((char - ["\"\\"]) | ('\\' ["\"\\nt"]))* '"';
 position token Preal digit+ '.' digit+ ('e' '-'? digit+)? ;
 position token Pchar '\'' ((char - ["'\\"]) | ('\\' ["'\\nt"])) '\'';
