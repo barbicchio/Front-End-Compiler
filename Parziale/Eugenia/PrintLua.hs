@@ -179,10 +179,11 @@ instance Print Exp where
     Indirection exp -> prPrec i 0 (concatD [doc (showString "*"), prt 0 exp])
     Arr exps->prPrec i 0 (concatD [doc (showString "{"),prt 0 exps,doc (showString "}")])
     Arraysel pident exp -> prPrec i 0 (concatD [prt 0 pident, doc (showString "{"), prt 0 exp, doc (showString "}")])
-    PreIncr lexp -> prPrec i 0 (concatD [doc (showString "++"), prt 0 lexp])
-    PreDecr lexp -> prPrec i 0 (concatD [doc (showString "--"), prt 0 lexp])
-    PostIncr lexp -> prPrec i 0 (concatD [prt 0 lexp, doc (showString "++")])
-    PostDecr lexp -> prPrec i 0 (concatD [prt 0 lexp, doc (showString "--")])
+    PrePost prepost lexp -> case prepost of
+      Pre op-> prPrec i 0 (concatD [prt 0 op, prt 0 lexp])
+      Post op -> prPrec i 0 (concatD [prt 0 lexp,prt 0 op])
+
+      
   prtList _ [] = (concatD [])
   prtList _ [x] = (concatD [prt 0 x])
   prtList _ (x:xs) = (concatD [prt 0 x, doc (showString ","), prt 0 xs])
@@ -220,6 +221,15 @@ instance Print RelOp where
     LtE->prPrec i 0 (concatD [doc (showString "<=")])
     Gt->prPrec i 0 (concatD [doc (showString ">")])
     GtE->prPrec i 0 (concatD [doc (showString ">=")])
+instance Print PrePost where
+  prt i e = case e of
+    Pre incrdecr->prPrec i 0 (concatD [prt 0 incrdecr])
+    Post incrdecr->prPrec i 0 (concatD [prt 0 incrdecr])
+instance Print IncrDecr where
+  prt i e = case e of
+    Incr->prPrec i 0 (concatD [doc (showString "++")])
+    Decr->prPrec i 0 (concatD [doc (showString "--")])
+    
 
 instance Print BoolOp where
   prt i e = case e of

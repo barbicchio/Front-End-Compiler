@@ -72,10 +72,7 @@ data Exp
     | Echar Pchar
     | Addr Exp
     | Arr [Exp]
-    | PreIncr Exp
-    | PreDecr Exp
-    | PostIncr Exp
-    | PostDecr Exp
+    | PrePost PrePost Exp
     --L expression
     | Evar Pident
     | Indirection Exp
@@ -83,6 +80,10 @@ data Exp
   deriving (Eq, Ord, Show, Read)
 
 data InfixOp = ArithOp ArithOp| RelOp RelOp | BoolOp BoolOp
+ deriving (Eq, Ord, Show, Read)
+data PrePost= Pre IncrDecr|Post IncrDecr
+ deriving (Eq, Ord, Show, Read)
+data IncrDecr= Incr|Decr
  deriving (Eq, Ord, Show, Read)
 data ArithOp = Add|Sub|Mul|Div|Divint|Mod|Pow
  deriving (Eq, Ord, Show, Read)

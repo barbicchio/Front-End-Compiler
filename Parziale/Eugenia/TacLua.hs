@@ -55,6 +55,7 @@ data TAC= TACAssign Addr Addr {--modificare tutto con le posizioni
 	| TACTmp Ident Pos Typ Addr
 	| TACUnaryOp Addr Unary_Op Addr
 	| TACNewTemp Addr Typ Ident Pos
+	| TACIncrDecr Addr Addr IncrDecr
 	{--| TACWhile String String String
 	--| TACIf TAC String String
 	--| TACCondition String String String
@@ -110,7 +111,6 @@ addParam (Env (current:stack)) pars = case pars of
       --addCode $ tmp ++ " = " ++ ident --idealmente questo va separato
       --addTAC $ TACAssign tmp ident
       return (Env (newBlockEnv:stack))
-
 
 emptyEnv = Env [emptyBlockEnv BTroot]
 emptyBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp 
@@ -269,11 +269,27 @@ codeexp env exp = case exp of
 	InfixOp op exp1 exp2  -> case op of
 		ArithOp subop->codeArithOp env exp1 exp2 subop
 	Unary_Op subop exp->codeUnaryOp env subop exp
+	PrePost prepost exp->case prepost of
+		Pre op->do
+			tmp<-newtemp
+			addrlexp<-codelexp env exp
+			addTAC $ [TACAssign tmp addrlexp]++[TACIncrDecr addrlexp tmp op]
+			return addrlexp
+		Post op->do
+			addrlexp<-codelexp env exp
+			addTAC $ [TACIncrDecr addrlexp addrlexp op]
+			return addrlexp
 	Eint (Pint(_,num)) -> return num
 	Efloat (Preal(_,num)) -> return num
 	Ebool (Pbool(_,val))->return val
 	Estring (Pstring(_,string))->return string
 	Echar (Pchar(_,char))->return char
+	Evar ident@(Pident(_,id))->do
+		(pos,(typ,_))<-lookVar ident env
+		addr<-newtemp
+		addTmp (id,pos) addr
+		addTAC $ [TACNewTemp addr typ id pos]
+		return(addr)
 	otherwise->codelexp env exp
 		{--tm<-gets tacmap
 		let tmp=Map.lookup (id,pos) tm
@@ -289,20 +305,14 @@ codeexp env exp = case exp of
 codelexp::Env->Exp->State TacM(Addr)
 codelexp env exp= case exp of
 	Evar ident@(Pident(_,id))->do
-		(pos,(typ,_))<-lookVar ident env
-		addr<-newtemp
-		addTmp (id,pos) addr
-		addTAC $ [TACNewTemp addr typ id pos]
-		return(addr)
+		(pos,_)<-lookVar ident env
+		let idpos=id++"_"++(show pos)
+		--addTmp (id,pos) addr
+		--addTAC $ [TACNewTemp addr typ id pos]
+		return(idpos)
 	{--Arraysel id exp->do
 		(pos,(typ,_))<-lookVar id  env
-	Indirection exp->do}--}
-
-    
-
-
-
-
+--}
 
 codeArithOp::Env->Exp->Exp->ArithOp->State TacM (Addr)
 codeArithOp env exp1 exp2 op=do

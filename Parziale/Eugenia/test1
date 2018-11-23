@@ -1,7 +1,4 @@
-integer g=3
-integer k=4+g
-integer t=g+k
-{3}integer p
-function void f()
-p{k++}=3
-end
+integer k
+integer p=(k++)+k
+--[function void f()
+--[end

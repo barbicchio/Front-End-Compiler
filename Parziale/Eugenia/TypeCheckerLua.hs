@@ -248,28 +248,11 @@ inferExpr env expr = case expr of
         putStrLn $ (show pos) ++ ": " ++ "Cannot use array selection operand in non-array types"
         return((-1,-1),Tvoid) --sostituire con Terror
   
-
-  --TODO:aggiungere pre-post incrementi
-  PreIncr expr-> do
+  PrePost _ expr-> do
     (pos,typ)<-inferExpr env expr
     checkIfIsNumeric pos typ
     return (pos,typ)
-
-  PreDecr expr-> do
-    (pos,typ)<-inferExpr env expr
-    checkIfIsNumeric pos typ
-    return (pos,typ)
-
-  PostIncr expr-> do
-    (pos,typ)<-inferExpr env expr
-    checkIfIsNumeric pos typ
-    return (pos,typ)
-
-  PostDecr expr-> do
-    (pos,typ)<-inferExpr env expr
-    posTyp<-checkIfIsNumeric pos typ
-    return (pos,typ)
-
+    
   Fcall pident@(Pident (pos,ident)) callExprs callNParams ->do
     posTypLs <- mapM (inferExpr env) callExprs --trova la lista di PosTyp
     callParams <- mapM (\(pos,typ) -> do return typ) posTypLs --Ritorna la lista di Typ dal PosTyp

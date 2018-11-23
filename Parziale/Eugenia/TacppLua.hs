@@ -22,6 +22,7 @@ instance TacPP TAC where
       prettyPrint(TACTmp id pos typ addr)              = nest tab $ text id <>text"_"<> text (show pos)<+>text"="<+>text (show typ)<+>text addr
       prettyPrint (TACUnaryOp addr op addr1)           = nest tab $ text addr <+> text "=" <+> text (show op) <+> text addr1
       prettyPrint (TACNewTemp addr typ id pos)         =nest tab$ text addr<+> text "="<+>text (show typ)<+>text id<>text"_"<>text (show pos)
+      prettyPrint(TACIncrDecr addr1 addr2 prepostincr)= nest tab $ text addr1<+>text"="<+>text addr2<+>text(show prepostincr)<+> text"1"
       --prettyPrint (TACCondition left op right)        = nest tab $ text left <> text op <> text right
       --prettyPrint (TACIf tacCondition l1 l2)          = nest tab $ text "if" <+> prettyPrint tacCondition <+> text "goto" <+> text l1 $$ text "goto" <+> text l2
       --prettyPrint (TACGoto label)                     = nest tab $ text "goto" <+> text label 

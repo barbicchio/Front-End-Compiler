@@ -188,10 +188,10 @@ Exp : Pident '(' ListExp ')' %prec CALL { Fcall $1 $3 (length $3) }
      | Pbool { Ebool $1 }
      | Pstring {Estring $1 }
      | Pchar { Echar $1 }
-     | '++'Exp  {PreIncr $2} 
-     | '--'Exp  {PreDecr $2} 
-     | Exp '++'{PostIncr $1} 
-     | Exp '--'  {PostDecr $1} 
+     | '++' Lexp  {PrePost (Pre Incr) $2} 
+     | '--'Lexp  {PrePost (Pre Decr) $2} 
+     | Lexp '++'{PrePost (Post Incr) $1} 
+     | Lexp '--'  {PrePost (Post Decr) $1} 
 
 ListExp :: { [Exp] }
 ListExp : {- empty -} { [] }
