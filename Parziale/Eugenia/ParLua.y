@@ -126,6 +126,7 @@ Type_specifier :'boolean' { Tbool }
           | 'float' { Tfloat }
           | 'integer' { Tint }
           | 'string' { Tstring }
+          | 'void'{ Tvoid }
           | 'pointer' Type_specifier { Tpointer $2 }
           | '{}' Type_specifier { Tarray Nothing $2 }
           | '{'Integer'}' Type_specifier { Tarray (Just $2) $4 } 

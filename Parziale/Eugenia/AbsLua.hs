@@ -30,6 +30,7 @@ data Type_specifier
     | Tint
     | Tstring
     | Tvoid
+    | Terror
     | Tarray (Maybe Integer) Type_specifier
     | Tpointer Type_specifier
   deriving (Eq, Ord, Show, Read)

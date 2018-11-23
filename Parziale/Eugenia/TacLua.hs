@@ -72,8 +72,8 @@ data TAC= TACAssign Addr Addr {--modificare tutto con le posizioni
  deriving(Show)
 
 --TODO:riscrivere funzioni per la dichiarazione di funzione,
---capire come gestire gli array e capire cosa viene fatto nelle infix operations.Il codice che viene
---scritto in addparam dovrebbe essere spostato in un'altra funzione del tac.
+--capire come gestire gli array e capire cosa viene fatto nelle infix operations.
+--Quando faccio cast devo aggiungere un temporaneo
 -------------------------------
 --funzioni ausiliarie per ENV--
 -------------------------------
@@ -269,7 +269,9 @@ codeexp env exp = case exp of
 	InfixOp op exp1 exp2  -> case op of
 		ArithOp subop->codeArithOp env exp1 exp2 subop
 	Unary_Op subop exp->codeUnaryOp env subop exp
-	Eint (Pint(_,int)) -> return (show int)
+	Eint (Pint(_,num)) -> return ("Int"++num)
+	Efloat (Preal(_,num)) -> return ("Float"++num)
+	Ebool (Pbool(_,val))->return val
 	Evar ident@(Pident(_,id))->do
 		(pos,(typ,_))<-lookVar ident env
 		addr<-newtemp
