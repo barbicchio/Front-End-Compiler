@@ -72,14 +72,14 @@ data Exp
     | Echar Pchar
     | Addr Exp
     | Arr [Exp]
-    --L expression
-    | Evar Pident
-    | Indirection Exp
-    | Arraysel Exp Exp
     | PreIncr Exp
     | PreDecr Exp
     | PostIncr Exp
     | PostDecr Exp
+    --L expression
+    | Evar Pident
+    | Indirection Exp
+    | Arraysel Exp Exp
   deriving (Eq, Ord, Show, Read)
 
 data InfixOp = ArithOp ArithOp| RelOp RelOp | BoolOp BoolOp
