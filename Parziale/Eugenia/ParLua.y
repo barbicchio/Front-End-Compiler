@@ -82,13 +82,13 @@ L_Pstring { PT _ (T_Pstring _) }
 L_Preal { PT _ (T_Preal _) }
 L_Pchar { PT _ (T_Pchar _) }
 
-%right '(' '{'
+%left '(' '{'
 %right ')'
 %left ASS
 %left EXP
 %left EXPINLEXP
 %left IDLEXP
-%nonassoc CALL
+%left CALL
 %left 'not'
 %left 'or' 'and'
 %nonassoc '==' '~=' '<' '<=' '>' '>=' '='
@@ -160,8 +160,8 @@ ListDecStm : {- empty -} { [] }
            | ListDecStm DecStm { flip (:) $1 $2 }
 
 Exp :: { Exp }
-Exp :  Pident '(' ListExp ')' %prec CALL { Fcall $1 $3 (length $3) }
-     | '('Exp')' {$2}
+Exp : Pident '(' ListExp ')' %prec CALL { Fcall $1 $3 (length $3) }
+     |'('Exp')' {$2}
      |Exp 'or' Exp {InfixOp (BoolOp Or) $1 $3 }
      |Exp 'and' Exp { InfixOp (BoolOp And) $1 $3 }
      |Exp '==' Exp { InfixOp (RelOp Eq) $1 $3 }
@@ -180,7 +180,7 @@ Exp :  Pident '(' ListExp ')' %prec CALL { Fcall $1 $3 (length $3) }
      | '-' Exp %prec NEG { Unary_Op Neg $2}
      | 'not' Exp { Unary_Op Logneg $2 }
      |'{' ListExp '}' { Arr $2 }
-     | Lexp { $1 } --%prec EXPINLEXP
+     | Lexp %prec EXPINLEXP { $1 }
      | Preal { Efloat $1 }
      | Pint  { Eint $1 }
      | Pbool { Ebool $1 }
@@ -193,8 +193,8 @@ ListExp : {- empty -} { [] }
          | Exp ',' ListExp { (:) $1 $3 }
 
 Lexp :: { Exp }
-Lexp : Pident { Evar $1 } --%prec IDLEXP
-     | '('Lexp')' %prec PARLEXP {$2}
+Lexp :  Pident { Evar $1 } --%prec IDLEXP
+     | '('Lexp')' %prec PARLEXP {$2} 
      | '*' Exp %prec REF  { Indirection $2 } 
      | Exp '{' Exp '}' { Arraysel $1 $3 }
      | '++'Exp  {PreIncr $2} 
