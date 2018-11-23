@@ -252,22 +252,22 @@ inferExpr env expr = case expr of
   --TODO:aggiungere pre-post incrementi
   PreIncr expr-> do
     (pos,typ)<-inferExpr env expr
-    checkIfIsNumeric pos typ
+    checkIfIsInt pos typ
     return (pos,typ)
 
   PreDecr expr-> do
     (pos,typ)<-inferExpr env expr
-    checkIfIsNumeric pos typ
+    checkIfIsInt pos typ
     return (pos,typ)
 
   PostIncr expr-> do
     (pos,typ)<-inferExpr env expr
-    checkIfIsNumeric pos typ
+    checkIfIsInt pos typ
     return (pos,typ)
 
   PostDecr expr-> do
     (pos,typ)<-inferExpr env expr
-    posTyp<-checkIfIsNumeric pos typ
+    posTyp<-checkIfIsInt pos typ
     return (pos,typ)
 
   Fcall pident@(Pident (pos,ident)) callExprs callNParams ->do
@@ -392,6 +392,12 @@ checkIfIsNumeric::Pos->Typ->IO ()
 checkIfIsNumeric pos typ = do
   if typ/=Tint && typ/=Tfloat
   then putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-numeric types"
+  else return ()
+
+checkIfIsInt::Pos->Typ->IO ()
+checkIfIsInt pos typ = do
+  if typ/=Tint 
+  then putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-int types"
   else return ()
 
 checkIfBoolean::Pos->Typ->IO ()
