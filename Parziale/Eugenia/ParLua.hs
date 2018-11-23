@@ -580,7 +580,7 @@ happyReduction_42 (happy_x_7 `HappyStk`
 	case happyOut23 happy_x_4 of { happy_var_4 -> 
 	case happyOut23 happy_x_6 of { happy_var_6 -> 
 	happyIn21
-		 (IfThElse happy_var_2 happy_var_4 happy_var_6
+		 (IfThElse happy_var_2 (reverse happy_var_4) (reverse happy_var_6)
 	) `HappyStk` happyRest}}}
 
 happyReduce_43 = happyReduce 5# 14# happyReduction_43
@@ -593,7 +593,7 @@ happyReduction_43 (happy_x_5 `HappyStk`
 	 = case happyOut24 happy_x_2 of { happy_var_2 -> 
 	case happyOut23 happy_x_4 of { happy_var_4 -> 
 	happyIn21
-		 (While happy_var_2 happy_var_4
+		 (While happy_var_2 (reverse happy_var_4)
 	) `HappyStk` happyRest}}
 
 happyReduce_44 = happyReduce 4# 14# happyReduction_44
