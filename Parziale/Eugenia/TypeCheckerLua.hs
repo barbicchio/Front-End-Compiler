@@ -388,16 +388,16 @@ checkIfIsEq pos typ = case typ of
   Tarray _ _ -> do putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-comparable types"
   otherwise -> do return ()
 
-checkIfIsNumeric::Pos->Typ->IO ()
-checkIfIsNumeric pos typ = do
-  if typ/=Tint && typ/=Tfloat
-  then putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-numeric types"
-  else return ()
-
 checkIfIsInt::Pos->Typ->IO ()
 checkIfIsInt pos typ = do
   if typ/=Tint 
   then putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-int types"
+  else return ()
+
+checkIfIsNumeric::Pos->Typ->IO ()
+checkIfIsNumeric pos typ = do
+  if typ/=Tint && typ/=Tfloat
+  then putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-numeric types"
   else return ()
 
 checkIfBoolean::Pos->Typ->IO ()
