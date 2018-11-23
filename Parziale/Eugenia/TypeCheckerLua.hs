@@ -247,12 +247,10 @@ inferExpr env expr = case expr of
       (pos,_)->do
         putStrLn $ (show pos) ++ ": " ++ "Cannot use array selection operand in non-array types"
         return((-1,-1),Tvoid) --sostituire con Terror
-  
   PrePost _ expr-> do
     (pos,typ)<-inferExpr env expr
-    checkIfIsNumeric pos typ
+    checkIfIsInt pos typ
     return (pos,typ)
-    
   Fcall pident@(Pident (pos,ident)) callExprs callNParams ->do
     posTypLs <- mapM (inferExpr env) callExprs --trova la lista di PosTyp
     callParams <- mapM (\(pos,typ) -> do return typ) posTypLs --Ritorna la lista di Typ dal PosTyp
@@ -370,6 +368,12 @@ checkIfIsEq::Pos->Typ->IO ()
 checkIfIsEq pos typ = case typ of
   Tarray _ _ -> do putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-comparable types"
   otherwise -> do return ()
+
+checkIfIsInt::Pos->Typ->IO ()
+checkIfIsInt pos typ = do
+  if typ/=Tint 
+  then putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-int types"
+  else return ()
 
 checkIfIsNumeric::Pos->Typ->IO ()
 checkIfIsNumeric pos typ = do
