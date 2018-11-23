@@ -1,3 +1,7 @@
-float g=3.3
+float g=3
 integer k=4+g
-integer p=g+k
+integer t=g+k
+{3}integer p
+function void f()
+p{3}=3
+end

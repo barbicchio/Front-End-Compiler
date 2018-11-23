@@ -31,7 +31,7 @@ data Type_specifier
     | Tstring
     | Tvoid
     | Terror
-    | Tarray (Maybe Integer) Type_specifier
+    | Tarray (Maybe Exp) Type_specifier
     | Tpointer Type_specifier
   deriving (Eq, Ord, Show, Read)
 

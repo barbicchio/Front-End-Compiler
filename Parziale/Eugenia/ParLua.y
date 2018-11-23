@@ -82,8 +82,6 @@ L_Pstring { PT _ (T_Pstring _) }
 L_Preal { PT _ (T_Preal _) }
 L_Pchar { PT _ (T_Pchar _) }
 
-%left '(' '{'
-%right ')'
 %left ASS
 %left EXP
 %left EXPINLEXP
@@ -91,6 +89,9 @@ L_Pchar { PT _ (T_Pchar _) }
 %left CALL
 %left 'not'
 %left 'or' 'and'
+%right '('
+%right ')'
+%right '{'
 %nonassoc '==' '~=' '<' '<=' '>' '>=' '='
 %left '+' '-'
 %left '*' '/' '%'
@@ -129,7 +130,7 @@ Type_specifier :'boolean' { Tbool }
           | 'void'{ Tvoid }
           | 'pointer' Type_specifier { Tpointer $2 }
           | '{}' Type_specifier { Tarray Nothing $2 }
-          | '{'Integer'}' Type_specifier { Tarray (Just $2) $4 } 
+          | '{'Exp'}' Type_specifier { Tarray (Just $2) $4 } 
 Argument :: { Argument }
 Argument : Modality Type_specifier Pident { FormPar $1 $2 $3 }
 ListArgument :: { [Argument] }

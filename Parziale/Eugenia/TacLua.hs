@@ -269,15 +269,12 @@ codeexp env exp = case exp of
 	InfixOp op exp1 exp2  -> case op of
 		ArithOp subop->codeArithOp env exp1 exp2 subop
 	Unary_Op subop exp->codeUnaryOp env subop exp
-	Eint (Pint(_,num)) -> return ("Int"++num)
-	Efloat (Preal(_,num)) -> return ("Float"++num)
+	Eint (Pint(_,num)) -> return num
+	Efloat (Preal(_,num)) -> return num
 	Ebool (Pbool(_,val))->return val
-	Evar ident@(Pident(_,id))->do
-		(pos,(typ,_))<-lookVar ident env
-		addr<-newtemp
-		addTmp (id,pos) addr
-		addTAC $ [TACNewTemp addr typ id pos]
-		return(addr)
+	Estring (Pstring(_,string))->return string
+	Echar (Pchar(_,char))->return char
+	otherwise->codelexp env exp
 		{--tm<-gets tacmap
 		let tmp=Map.lookup (id,pos) tm
 		    tmp of 
@@ -289,6 +286,23 @@ codeexp env exp = case exp of
             addTac
          --}
 	{--RelOp subop exp1 exp2->codeRelOp env subop exp1 exp2--}
+codelexp::Env->Exp->State TacM(Addr)
+codelexp env exp= case exp of
+	Evar ident@(Pident(_,id))->do
+		(pos,(typ,_))<-lookVar ident env
+		addr<-newtemp
+		addTmp (id,pos) addr
+		addTAC $ [TACNewTemp addr typ id pos]
+		return(addr)
+	{--Arraysel id exp->do
+		(pos,(typ,_))<-lookVar id  env
+	Indirection exp->do}--}
+
+    
+
+
+
+
 
 codeArithOp::Env->Exp->Exp->ArithOp->State TacM (Addr)
 codeArithOp env exp1 exp2 op=do
