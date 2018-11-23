@@ -247,25 +247,7 @@ inferExpr env expr = case expr of
       (pos,_)->do
         putStrLn $ (show pos) ++ ": " ++ "Cannot use array selection operand in non-array types"
         return((-1,-1),Terror) --sostituire con Terror
-  
-
-  --TODO:aggiungere pre-post incrementi
-  PreIncr expr-> do
-    (pos,typ)<-inferExpr env expr
-    checkIfIsInt pos typ
-    return (pos,typ)
-
-  PreDecr expr-> do
-    (pos,typ)<-inferExpr env expr
-    checkIfIsInt pos typ
-    return (pos,typ)
-
-  PostIncr expr-> do
-    (pos,typ)<-inferExpr env expr
-    checkIfIsInt pos typ
-    return (pos,typ)
-
-  PostDecr expr-> do
+  PrePost _ exp->do
     (pos,typ)<-inferExpr env expr
     posTyp<-checkIfIsInt pos typ
     return (pos,typ)
