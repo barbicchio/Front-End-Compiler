@@ -75,8 +75,8 @@ filterdecstmts  (decstm:decstmts) = case decstm of
 checkDecStm::Env->DecStm->IO Env
 checkDecStm env decStm = case decStm of
              Dec dec -> do
-              checkDec env dec
-              return env --controllare che ritorni l'ambiente corretto
+              newEnv<-checkDec env dec
+              return newEnv --controllare che ritorni l'ambiente corretto
              Stmt stm -> do
               checkStm env stm
               return env

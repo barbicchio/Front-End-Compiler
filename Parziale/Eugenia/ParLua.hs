@@ -564,7 +564,7 @@ happyReduction_41 (happy_x_5 `HappyStk`
 	 = case happyOut24 happy_x_2 of { happy_var_2 -> 
 	case happyOut23 happy_x_4 of { happy_var_4 -> 
 	happyIn21
-		 (SimpleIf happy_var_2 happy_var_4
+		 (SimpleIf happy_var_2 (reverse happy_var_4)
 	) `HappyStk` happyRest}}
 
 happyReduce_42 = happyReduce 7# 14# happyReduction_42
