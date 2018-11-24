@@ -11,8 +11,9 @@ instance TacPP TacInst where
       prettyPrint tac = vcat . map prettyPrint $ tac
 
 instance TacPP TAC where
-      prettyPrint (TACLabel label)                    = text label <> colon
-      --prettyPrint (TACBinaryOp id left op right)      = nest tab $ text id <+> text "=" <+> text left <+> text op <+> text right
+      prettyPrint (TACSLabel label)                    = text "Start"<+>text label <> colon
+      prettyPrint (TACELabel label)                    = text "End of"<+>text label
+      --prettyPrint (TACBinaryOp id left op right)     = nest tab $ text id <+> text "=" <+> text left <+> text op <+> text right
       prettyPrint (TACAssign id var)                  = nest tab $ text id <+> text "=" <+> text var
       prettyPrint (TACBinaryArithOp adr adr1 op adr2) = nest tab $ text adr<+>text"="<+>text adr1<+>text(show op)<+> text adr2
       --prettyPrint (TACInt num)                        = nest tab $ text (show num)
@@ -27,7 +28,7 @@ instance TacPP TAC where
       --prettyPrint (TACIf tacCondition l1 l2)          = nest tab $ text "if" <+> prettyPrint tacCondition <+> text "goto" <+> text l1 $$ text "goto" <+> text l2
       --prettyPrint (TACGoto label)                     = nest tab $ text "goto" <+> text label 
       --prettyPrint (TACReturn label)                   = nest tab $ text "return" <+> text label
-      --prettyPrint (TACPreamble s)                     = nest tab $ text s
+      prettyPrint (TACPreamble s)                     = nest tab $ text s
       --prettyPrint (TACParam label)                    = nest tab $ text "param" <+> text label
       --prettyPrint (TACCallVoid  id npar)              = nest tab $ text "Call" <+> text id <> text "," <> text npar
       --prettyPrint (TACCall var id npar)               = nest tab $ text var <+> text "=" <+> text "Call" <+> text id <> text "," <> text npar

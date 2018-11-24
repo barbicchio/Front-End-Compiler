@@ -1,7 +1,14 @@
 function integer main ()
-    integer x
+    boolean x
     integer y
-    y=y+x 
+    integer p=2
+    if (x)
+    then
+    y=p+32
+    integer p=100
     function void p()
     end
+    end
+    y++
+  return 50
 end

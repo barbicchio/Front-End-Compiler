@@ -90,8 +90,7 @@ checkDec env dec = case dec of
       Just expr->do 
         newEnv <- addDec env dec
         checkExpr newEnv typ expr
-        return newEnv
-    
+        return newEnv  
     Func retTyp pident@(Pident (pos,ident)) params _  decStm-> do
       newblock<-(pushNewBlocktoEnv env (BTfun retTyp))
       pushEnv<-addParams newblock params-- env con il nuovo layer e i parametri della funzione inseriti
@@ -217,8 +216,8 @@ genericType typ1 typ2 = do
 inferExpr::Env->Exp->IO PosTyp
 inferExpr env expr = case expr of
 
-  Arr (expr:exprs)-> do
-    (pos,typ)<-inferExpr env expr
+  Arr (exp:exprs)-> do
+    (pos,typ)<-inferExpr env exp
     checkArr env pos typ exprs
     return (pos,Tarray Nothing typ) --TODO rivedere come gestire l'intero di array
 
@@ -226,16 +225,16 @@ inferExpr env expr = case expr of
     posTyp<-inferInfixExpr env infixOp expr1 expr2
     return posTyp
 
-  Unary_Op op  expr -> do
-    posTyp<-inferUnaryExp env op expr
+  Unary_Op op  exp -> do
+    posTyp<-inferUnaryExp env op exp
     return posTyp
 
-  Addr expr -> do
-    (pos,typ)<-inferExpr env expr
+  Addr exp -> do
+    (pos,typ)<-inferExpr env exp
     return (pos,(Tpointer typ))
 
-  Indirection expr-> do
-    (pos,typ)<-inferExpr env expr
+  Indirection exp-> do
+    (pos,typ)<-inferExpr env exp
     posTyp<-checkIfIsPointerAndReturnType pos typ
     return posTyp
 
@@ -248,7 +247,7 @@ inferExpr env expr = case expr of
         putStrLn $ (show pos) ++ ": " ++ "Cannot use array selection operand in non-array types"
         return((-1,-1),Terror) --sostituire con Terror
   PrePost _ exp->do
-    (pos,typ)<-inferExpr env expr
+    (pos,typ)<-inferExpr env exp
     posTyp<-checkIfIsInt pos typ
     return (pos,typ)
 

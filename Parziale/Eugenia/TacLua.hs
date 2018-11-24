@@ -51,7 +51,8 @@ type PosSig = (Pos,Sig)
 data TAC= TACAssign Addr Addr {--modificare tutto con le posizioni
 	| TACBinaryOp Int Int InfixOp Int--}
 	| TACBinaryArithOp Addr Addr ArithOp Addr
-	| TACLabel Label
+	| TACSLabel Label
+	| TACELabel Label
 	| TACTmp Ident Pos Typ Addr
 	| TACUnaryOp Addr Unary_Op Addr
 	| TACNewTemp Addr Typ Ident Pos
@@ -151,11 +152,9 @@ lookFuncInSigs ident sigs= do
   return (Map.lookup ident sigs)
 
 
-createInitialEnv::Env->State TacM(Env)
+createInitialEnv::Env->State TacM(Env) --TODO aggiornare con le altre funzioni
 createInitialEnv (Env (current:stack)) = do
-  --label <- newlabel
   newBlockEnv<-addFuncDec current "writeInt" (-1,-1) Tvoid [(Tint,Just Modality_VAL)] Nothing
-  --label1 <- newlabel
   newBlockEnv<-addFuncDec newBlockEnv "readInt" (-1,-1)  Tint [] Nothing
   return (Env ((emptyBlockEnv BTdecs):newBlockEnv:stack))
 
@@ -172,12 +171,6 @@ filterdecstmts  (decstm:decstmts) = case decstm of
   Dec dec@(Func _ _ _ _ _)  -> dec:(filterdecstmts decstmts)
   otherwise -> (filterdecstmts decstmts)
 
-filterstmts :: [DecStm] -> [DecStm]
-filterstmts  [] = []
-filterstmts  (decstm:decstmts) = case decstm of
-  Dec dec@(Func _ _ _ _ _)  -> (filterstmts decstmts)
-  otherwise -> decstm:(filterstmts decstmts)
-
 issimple::Exp->State TacM(Bool)
 issimple exp= case exp of
 	Eint _-> return True
@@ -187,7 +180,7 @@ issimple exp= case exp of
 	Echar _-> return True
 	otherwise->return False
 
-gettypid::Exp->State TacM(String,String)
+gettypid::Exp->State TacM(String,String)   --forse meglio ritornare (Typ,String)
 gettypid exp=case exp of
 	Eint (Pint(_,id))-> return ("Int",id)
 	Ebool (Pbool(_,id))-> return ("Bool",id)
@@ -218,20 +211,19 @@ addTAC :: [TAC] -> State TacM()
 addTAC nxtinst = do
     modify (\attr -> attr{code = (code attr) ++ nxtinst})
     return ()
-addTmp::(Ident,Pos)->Addr->State TacM()
+{--addTmp::(Ident,Pos)->Addr->State TacM()
 addTmp idpos addr= do
-    modify (\s@TacM{tacmap=m} -> s{ tacmap=Map.insert idpos addr m})
+    modify (\s@TacM{tacmap=m} -> s{tacmap=Map.insert idpos addr m})
     return ()
+    --}
 tacGenerator program = execState (genProgram program) startState
 
 genProgram :: Program -> State TacM ()
 genProgram (Progr decls) = do
-    label <- newlabel
+    addTAC $ [TACSLabel "Program"]
     env<-createInitialEnv emptyEnv
     genDecls env decls
-    {--addCode $ label ++ ":halt"
-    addTAC $ TACLabel label
-    addTAC $ TACPreamble "halt"--}
+    addTAC $ [TACELabel "Program"]
     return ()
 
 genDecls :: Env->[Dec] -> State TacM(Env)
@@ -262,7 +254,7 @@ genDecl env dec = case dec of
                False->do --se inizializzazione complessa,allora temporaneo. 
                	addr<-genexp env exp
                 addTAC $ [TACTmp id pos typ addr]
-                addTmp (id,pos) addr --aggiungo alla mappa la coppia (id,pos)-indirizzo
+                --addTmp (id,pos) addr --aggiungo alla mappa la coppia (id,pos)-indirizzo
                 return newEnv
             Nothing-> do --caso dichiarazione senza
               addTAC $ [TACInit typ id pos Nothing Nothing] --se possibile migliorare il tipo che viene stampato (soprattutto per gli array)
@@ -270,15 +262,14 @@ genDecl env dec = case dec of
               return newEnv
       Func retTyp ident params _ decstmts -> do
           label <- newlabel
-          newEnv<-addDec env dec
-          pushEnv<-(pushNewBlocktoEnv newEnv (BTfun retTyp))
+          pushEnv<-(pushNewBlocktoEnv env (BTfun retTyp))
           pushEnv<-addParams pushEnv params --porto dentro i parametri
-          addTAC $ [TACLabel label]
-          addTAC $ [TACPreamble "BeginFunc"]
-          (env,list)<-genDecStmts env decstmts   --genero codice body -dichiarazioni di fun 
+          addTAC $ [TACSLabel label]
+          (pushEnv,list)<-genDecStmts pushEnv decstmts   --genero codice body -dichiarazioni di fun 
+          addTAC $ [TACELabel label]
           let (funcs,envs)=unzip list
-          addTAC $ [TACPreamble "EndFunc"]
-          return newEnv
+          genFunDecls funcs envs
+          return env
          
 genDecStmts::Env->[DecStm]->State TacM((Env),[(Dec,Env)])
 genDecStmts env decstmts= do
@@ -286,21 +277,51 @@ genDecStmts env decstmts= do
     (pushEnv,funcdecs)<-foldM genDecStm (newEnv,[]) decstmts
     return (pushEnv,funcdecs)
     where fundecs=filterdecstmts decstmts
-          notfuncdec=filterstmts decstmts
 
 genDecStm::(Env,[(Dec,Env)])->DecStm->State TacM(Env,[(Dec,Env)])
 genDecStm (env,envdec) decstm= case decstm of
     Dec fundec@(Func _ _ _ _ _) -> do
         return (env,((fundec,env):envdec))
-    Dec id ->do
-    	pushEnv<-genDecl env id
-    	addTAC $ [TACPreamble "code of varDeclar"]
+    Dec vardecl ->do
+    	pushEnv<-genDecl env vardecl
     	return (pushEnv,envdec)
-    Stmt _ -> do 
-        addTAC $ [TACPreamble "code of statement"]
-        return (env,envdec)
+    Stmt stm -> do 
+    	fundecstm<-genStm env stm 
+    	case fundecstm of 
+    	  Nothing->return (env,envdec)
+    	  Just list->return (env,(list++envdec))
 
-
+genStm::Env->Stm->State TacM (Maybe[(Dec,Env)]) --controllare come viene fatta codifica espressioni
+genStm env stm= case stm of
+    Assgn op lexp rexp-> do 
+		addrlexp<-genlexp env lexp
+		addrrexp<-genexp env rexp
+		addTAC $ [TACAssign addrlexp addrrexp]
+		return Nothing
+    Valreturn exp-> do
+		addr<-genexp env exp
+		return Nothing
+    SExp exp-> do
+		genexp env exp
+		return Nothing
+    SimpleIf exp decstms-> do --TODO:codificare le espressioni di if/while
+		pushEnv<- pushNewBlocktoEnv env BTifEls
+		(_,fundecs)<-genDecStmts pushEnv decstms
+		return (Just fundecs)
+    IfThElse exp decstms1 decstms2->do --TODO:codificare le espressioni di if/while
+        pushEnvIf<-pushNewBlocktoEnv env BTifEls
+        pushEnvElse<-pushNewBlocktoEnv env BTifEls
+        (_,fundecs1)<-genDecStmts pushEnvIf decstms1
+        (_,fundecs2)<-genDecStmts pushEnvElse decstms2
+        return (Just (fundecs1++fundecs2))
+    DoWhile decstms exp-> do --TODO:codificare le espressioni di if/while
+        pushEnv<-pushNewBlocktoEnv env BTloop
+        (_,fundecs)<-genDecStmts env decstms
+        return (Just fundecs)
+    While exp decstms-> do --TODO:codificare le espressioni di if/while
+        pushEnv<-pushNewBlocktoEnv env BTloop
+        (_,fundecs)<-genDecStmts env decstms
+        return (Just fundecs)
 genexp :: Env->Exp -> State TacM (Addr)
 genexp env exp = case exp of 
 	InfixOp op exp1 exp2  -> case op of
@@ -324,20 +345,9 @@ genexp env exp = case exp of
 	Evar ident@(Pident(_,id))->do
 		(pos,(typ,_))<-lookVar ident env
 		addr<-newtemp
-		addTmp (id,pos) addr
 		addTAC $ [TACNewTemp addr typ id pos]
 		return(addr)
 	otherwise->genlexp env exp
-		{--tm<-gets tacmap
-		let tmp=Map.lookup (id,pos) tm
-		    tmp of 
-			Nothing->do 
-			addr<-newtemp
-            addTac $ TACNewTemp addr typ id pos
-            addTmp (id,pos) addr
-			Just tmp->do
-            addTac
-         --}
 	{--RelOp subop exp1 exp2->codeRelOp env subop exp1 exp2--}
 genlexp::Env->Exp->State TacM(Addr)
 genlexp env exp= case exp of
