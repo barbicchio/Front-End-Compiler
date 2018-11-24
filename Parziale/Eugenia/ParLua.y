@@ -199,7 +199,7 @@ ListExp : {- empty -} { [] }
          | Exp ',' ListExp { (:) $1 $3 }
 
 Lexp :: { Exp }
-Lexp :  Pident { Evar $1 } --%prec IDLEXP
+Lexp :  Pident %prec IDLEXP { Evar $1 } --%prec IDLEXP 
      | '('Lexp')' %prec PARLEXP {$2} 
      | '*' Exp %prec REF  { Indirection $2 } 
      | Exp '{' Exp '}' { Arraysel $1 $3 }
