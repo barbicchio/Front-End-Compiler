@@ -14,7 +14,8 @@ data TacM = TacM{
 				kaddr::Int,
 				klab::Int,
 				code::TacInst,
-			    tacmap::TacContext}
+			    tacmap::TacContext
+			    }
 	deriving (Show)			
 
 startState = TacM 0 0 [] (Map.empty)
@@ -48,24 +49,25 @@ type PosTypMod = (Pos,TypMod)
 type TypMod = (Typ,Mod)
 type PosSig = (Pos,Sig)
 
-data TAC= TACAssign Addr Addr {--modificare tutto con le posizioni
-	| TACBinaryOp Int Int InfixOp Int--}
-	| TACBinaryArithOp Addr Addr ArithOp Addr
-	| TACSLabel Label
-	| TACELabel Label
+data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
+	| TACBinaryInfixOp Addr Addr InfixOp Addr
+	--{| TACBinaryArithOp Addr Addr ArithOp Addr--}
+	| TACSLabel Label --inizio funzione e/o programma
+	| TACELabel Label --fine funzione e/o programma
+	| TACLabel Label --label generica
 	| TACTmp Ident Pos Typ Addr
 	| TACUnaryOp Addr Unary_Op Addr
-	| TACNewTemp Addr Typ Ident Pos
+	| TACNewTemp Addr Typ Ident (Maybe Pos)
 	| TACIncrDecr Addr Addr IncrDecr
+	| TACJump Addr Addr InfixOp Label
+	| TACGoto Label
 	{--| TACWhile String String String
 	--| TACIf TAC String String
-	--| TACCondition String String String
 	--| TACReturn String
 	--| TACCall String String String
 	--| TACParam String
 	--}
 	| TACPreamble String
-	--{| TACGoto String--}
 	| TACInit Typ Ident Pos (Maybe String) (Maybe String)
 	{--| TACInt Int
 	--| TACBool Bool
@@ -187,6 +189,15 @@ gettypid exp=case exp of
 	Estring (Pstring(_,id))-> return ("String",id)
 	Efloat (Preal(_,id))-> return ("Float",id)
 	Echar (Pchar(_,id))-> return ("Char",id)
+opposite::RelOp->InfixOp
+opposite op=case op of
+	Eq-> RelOp Neq
+	Neq-> RelOp Eq
+	Lt->RelOp GtE
+	GtE->RelOp Lt
+	LtE->RelOp Gt
+	Gt->RelOp LtE
+
 
 --generatori di temporanei e label--
 
@@ -260,7 +271,7 @@ genDecl env dec = case dec of
               addTAC $ [TACInit typ id pos Nothing Nothing] --se possibile migliorare il tipo che viene stampato (soprattutto per gli array)
               newEnv <- addDec env dec
               return newEnv
-      Func retTyp ident params _ decstmts -> do
+      Func retTyp ident params _ decstmts -> do   --TODO:se funzione restituisce tipo void devo aggiugere return void
           label <- newlabel
           pushEnv<-(pushNewBlocktoEnv env (BTfun retTyp))
           pushEnv<-addParams pushEnv params --porto dentro i parametri
@@ -293,11 +304,21 @@ genDecStm (env,envdec) decstm= case decstm of
 
 genStm::Env->Stm->State TacM (Maybe[(Dec,Env)]) --controllare come viene fatta codifica espressioni
 genStm env stm= case stm of
-    Assgn op lexp rexp-> do 
-		addrlexp<-genlexp env lexp
-		addrrexp<-genexp env rexp
-		addTAC $ [TACAssign addrlexp addrrexp]
-		return Nothing
+    Assgn op lexp rexp-> case op of
+        Assign->do
+           addrlexp<-genlexp env lexp
+           addrrexp<-genexp env rexp
+           addTAC $ [TACAssign addrlexp addrrexp]
+           return Nothing
+        AssgnArith subop->do
+           addr<-newtemp
+           addrlexp<-genlexp env lexp
+           addTAC $ [TACAssign addr addrlexp]
+           addrrexp<-genexp env rexp
+           addTAC $ [TACBinaryInfixOp addrlexp addr (ArithOp subop) addrrexp]
+           return Nothing
+        AssgnBool subop->do --TODO:completare
+        	return Nothing
     Valreturn exp-> do
 		addr<-genexp env exp
 		return Nothing
@@ -322,10 +343,11 @@ genStm env stm= case stm of
         pushEnv<-pushNewBlocktoEnv env BTloop
         (_,fundecs)<-genDecStmts env decstms
         return (Just fundecs)
-genexp :: Env->Exp -> State TacM (Addr)
+genexp :: Env->Exp-> State TacM (Addr)
 genexp env exp = case exp of 
 	InfixOp op exp1 exp2  -> case op of
-		ArithOp subop->genArithOp env exp1 exp2 subop
+		ArithOp subop->genArithOp env exp1 exp2 op
+		RelOp subop->genRelOp env exp1 exp2 subop
 	Unary_Op subop exp->genUnaryOp env subop exp
 	PrePost prepost exp->case prepost of
 		Pre op->do
@@ -345,10 +367,9 @@ genexp env exp = case exp of
 	Evar ident@(Pident(_,id))->do
 		(pos,(typ,_))<-lookVar ident env
 		addr<-newtemp
-		addTAC $ [TACNewTemp addr typ id pos]
+		addTAC $ [TACNewTemp addr typ id (Just pos)]
 		return(addr)
 	otherwise->genlexp env exp
-	{--RelOp subop exp1 exp2->codeRelOp env subop exp1 exp2--}
 genlexp::Env->Exp->State TacM(Addr)
 genlexp env exp= case exp of
 	Evar ident@(Pident(_,id))->do
@@ -361,12 +382,12 @@ genlexp env exp= case exp of
 		(pos,(typ,_))<-lookVar id  env
 --}
 
-genArithOp::Env->Exp->Exp->ArithOp->State TacM (Addr)
+genArithOp::Env->Exp->Exp->InfixOp->State TacM (Addr)
 genArithOp env exp1 exp2 op=do
         addr1<-genexp env exp1
         addr2<-genexp env exp2
         addr<-newtemp
-        addTAC $ [TACBinaryArithOp addr addr1 op addr2]
+        addTAC $ [TACBinaryInfixOp addr addr1 op addr2]
         return(addr)
 genUnaryOp :: Env->Unary_Op->Exp-> State TacM (Addr)
 genUnaryOp env op exp = case op of
@@ -375,11 +396,23 @@ genUnaryOp env op exp = case op of
       addr<-newtemp
       addTAC $[TACUnaryOp addr op addr1]
       return addr
---devo gestire LogNeg diversamente
+    Logneg->do 
+      addr1<-genexp env exp
+      addr<-newtemp
+      addTAC $[TACUnaryOp addr op addr1]
+      return addr
 
-{--codeRelOp::Env->BoolOp->Exp->State TacM(Addr,[TAC])
-codeRelOp env op exp1 exp2= case op of
-     Or->do
-      (addr1,code1)<-codeexp env exp1
-      (addr2,code2)<-codeexp env exp2
---}
+genRelOp::Env->Exp->Exp->RelOp->State TacM(Addr) --TODO
+genRelOp env exp1 exp2 op= do
+	addr1<-genexp env exp1
+	addr2<-genexp env exp2
+	lab1<-newlabel
+	lab2<-newlabel
+	addr<-newtemp
+	let opp=opposite op
+	addTAC $ [TACJump addr1 addr2 opp lab1]++[TACNewTemp addr Tbool "true" Nothing]++[TACGoto lab2]
+	addTAC $ [TACLabel lab1]++[TACNewTemp addr Tbool "false" Nothing]++[TACLabel lab2]
+	return addr
+
+
+

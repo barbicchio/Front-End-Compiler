@@ -1,14 +1,9 @@
 function integer main ()
     boolean x
-    integer y
-    integer p=2
-    if (x)
-    then
-    y=p+32
-    integer p=100
+    integer k
+    integer r
+    x=(k+3)>(r-4)
     function void p()
     end
-    end
-    y++
   return 50
 end
