@@ -256,7 +256,7 @@ inferExpr env expr = case expr of
     callParams <- mapM (\(pos,typ) -> do return typ) posTypLs --Ritorna la lista di Typ dal PosTyp
     (_,(defParams,retTyp,defNParams))<-lookFunc pident env --trova il tipo di ritorno ( se la funzione esiste)
     if retTyp /= Terror --continuo con il controllo dei parametri della funzione solo se il tipo di ritorno è diverso da Terror
-      then do
+    then do 
       paramsTyps<- mapM (\(typ,modal)->do return typ) defParams --trova la lista del tipo di parametri della definizione a partire da [ModTyp]
       checkParams pos callParams callNParams paramsTyps defNParams --check dei tipi sui parametri passati
       checkModality env pident callExprs -- controllo sulla modalità dei parametri attuali rispetto alla definizione di funzione
