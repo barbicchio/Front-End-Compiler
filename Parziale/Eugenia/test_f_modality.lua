@@ -20,7 +20,7 @@ function integer main ()
     pointer integer es_point
 
     test(7,1)--[segnala la richiesta di una l-expression
-    test(7,i)--modalità corretta
+    test(7,i)--[modalità corretta
     return 0
 end
 
