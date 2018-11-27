@@ -1,9 +1,7 @@
 function integer main ()
     boolean x
-    integer k
+    boolean y
     integer r
-    x=(k+3)>(r-4)
-    function void p()
-    end
+    x=(y or x or x or x) and false
   return 50
 end
