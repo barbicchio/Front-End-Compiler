@@ -14,12 +14,11 @@ data TacM = TacM{
 				kaddr::Int,
 				klab::Int,
 				code::TacInst,
-			    truefalse::(Maybe Label,Maybe Label)
-			    
+			    tacmap::TacContext
 			    }
 	deriving (Show)			
 
-startState = TacM 0 0 [] (Nothing,Nothing)
+startState = TacM 0 0 [] (Map.empty)
 
 data Env =Env [BlockEnv]  deriving (Eq, Ord, Show, Read)
 
@@ -43,7 +42,7 @@ type Sigs =Map.Map Ident PosSig
 type Context = Map.Map Ident PosTypMod
 type TacContext = Map.Map (Ident,Pos) Addr
 
-type Sig = (Typ,[TypMod],Maybe Label) --cambiare ordine di typmod e typ (per armonizzare con il typechecker?)
+type Sig = (Typ,[TypMod],Maybe Label) --cambiare ordine di typmod e typ
 type Pos = (Int,Int)
 type PosTyp=(Pos,Typ)
 type PosTypMod = (Pos,TypMod)
@@ -52,15 +51,15 @@ type PosSig = (Pos,Sig)
 
 data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
 	| TACBinaryInfixOp Addr Addr InfixOp Addr
-	| TACSLabel Label --inizio funzione e/o programma  --fare una taclabel unica con maybe bool se sono funzioni
+	--{| TACBinaryArithOp Addr Addr ArithOp Addr--}
+	| TACSLabel Label --inizio funzione e/o programma
 	| TACELabel Label --fine funzione e/o programma
 	| TACLabel Label --label generica
 	| TACTmp Ident Pos Typ Addr
 	| TACUnaryOp Addr Unary_Op Addr
 	| TACNewTemp Addr Typ Ident (Maybe Pos)
 	| TACIncrDecr Addr Addr IncrDecr
-	| TACJump Addr (Maybe Addr) (Maybe InfixOp) Label
-	| TACtf Addr Label Bool
+	| TACJump Addr Addr InfixOp Label
 	| TACGoto Label
 	{--| TACWhile String String String
 	--| TACIf TAC String String
@@ -77,12 +76,13 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
 	--| TACFloat Float --}
  deriving(Show)
 
---TODO:Array+Puntatori e fare cast espliciti e vedere come gestire le varie modalità parametri.
---aggiungere all'env le funzioni predefinite.Da controllare operazioni relazionali e booleane
+--TODO:riscrivere funzioni per la dichiarazione di funzione,
+--capire come gestire gli array e capire cosa viene fatto nelle infix operations.
+--Quando faccio cast devo aggiungere un temporaneo
 -------------------------------
 --funzioni ausiliarie per ENV--
 -------------------------------
-addDec::Env->Dec->State TacM(Env) 
+addDec::Env->Dec->State TacM(Env)  --TODO:quando faccio codeFunc DEVO ricordarmi di aggiungere i temporanei per i parametri!!!
 addDec env@(Env (current:stack)) dec = case dec of
   VarDeclar typ pident@(Pident (pos,ident)) exp ->do
     newBlockEnv<-addVarDec current ident pos typ Nothing
@@ -189,14 +189,14 @@ gettypid exp=case exp of
 	Estring (Pstring(_,id))-> return ("String",id)
 	Efloat (Preal(_,id))-> return ("Float",id)
 	Echar (Pchar(_,id))-> return ("Char",id)
-opposite::InfixOp->InfixOp
+opposite::RelOp->InfixOp
 opposite op=case op of
-	RelOp Eq-> RelOp Neq
-	RelOp Neq-> RelOp Eq
-	RelOp Lt->RelOp GtE
-	RelOp GtE->RelOp Lt
-	RelOp LtE->RelOp Gt
-	RelOp Gt->RelOp LtE
+	Eq-> RelOp Neq
+	Neq-> RelOp Eq
+	Lt->RelOp GtE
+	GtE->RelOp Lt
+	LtE->RelOp Gt
+	Gt->RelOp LtE
 
 
 --generatori di temporanei e label--
@@ -212,17 +212,6 @@ newlabel = do
           l<-gets klab
           modify $ \s->s{klab=l+1}
           return $"label"++ (show l)
-
-getdimarr::Typ->Int
-getdimarr typarr= case typarr of
-	Tarray _ Tint->4
-	Tarray _ Tbool->1
-	Tarray _ Tchar->4
-	Tarray _ Tstring->8
-	Tarray _ Tfloat->8
-	Tarray _ (Tpointer _)->1 --probabilmente devo valutare dimensione type pointer
-	Tarray _ subarr->getdimarr typarr --TODO non è così rivedere
-
 -------------------------------------
 ------funzioni per gestione TAC------
 -------------------------------------
@@ -273,12 +262,12 @@ genDecl env dec = case dec of
                	(typexp,exp)<-gettypid exp
                 addTAC $ [TACInit typ id pos (Just typexp) (Just exp)]
                 return newEnv  
-               False->do --se nell'inizializzazione rexp è complessa->temporaneo. 
+               False->do --se inizializzazione complessa,allora temporaneo. 
                	addr<-genexp env exp
                 addTAC $ [TACTmp id pos typ addr]
                 --addTmp (id,pos) addr --aggiungo alla mappa la coppia (id,pos)-indirizzo
                 return newEnv
-            Nothing-> do --caso dichiarazione senza inizializzazione
+            Nothing-> do --caso dichiarazione senza
               addTAC $ [TACInit typ id pos Nothing Nothing] --se possibile migliorare il tipo che viene stampato (soprattutto per gli array)
               newEnv <- addDec env dec
               return newEnv
@@ -356,52 +345,33 @@ genStm env stm= case stm of
         return (Just fundecs)
 genexp :: Env->Exp-> State TacM (Addr)
 genexp env exp = case exp of 
-    InfixOp op exp1 exp2  -> case op of
-      ArithOp _ -> genArithOp env exp1 exp2 op
-      RelOp _ -> genRelOp env exp1 exp2 op
-      BoolOp subop-> genBoolOp env exp1 exp2 op --provare ad usare solo tt ff in questo caso (Nothing,newlabel)
-      	{--And->do
-      	 first<-gets firstpass
-      	 if first
-      	 then do
-          false<-newlabel
-          modify (\attr -> attr{false =false})
-          genBoolOp env exp1 exp2 op
-          addr<-newtemp
-          lab<-newlabel
-          addTAC$[TACNewTemp addr Tbool "True" Nothing]++[TACGoto lab]++[TACLabel false]++[TACNewTemp addr Tbool "False" Nothing]++[TACLabel lab]
-          modify (\attr -> attr{firstpass=True})
-          return addr
-         else do 
-          genBoolOp env exp1 exp2 op
-        Or->do --TODO --in questo caso (newlabel,Nothing)
-         lab<-newlabel
-         modify (\attr -> attr{false =lab})
-         return ""--}
-    Unary_Op subop exp-> genUnaryOp env subop exp
-    PrePost prepost exp->case prepost of
-      Pre op->do
-		 tmp<-newtemp
-		 addrlexp<-genlexp env exp
-		 addTAC $ [TACAssign tmp addrlexp]++[TACIncrDecr addrlexp tmp op]
-		 return addrlexp
-      Post op->do
-		 addrlexp<-genlexp env exp
-		 addTAC $ [TACIncrDecr addrlexp addrlexp op]
-		 return addrlexp
-    Eint (Pint(_,num)) -> return num
-    Efloat (Preal(_,num)) -> return num
-    Ebool (Pbool(_,val))-> return val
-    Estring (Pstring(_,string))->return string
-    Echar (Pchar(_,char))->return char
-    Evar ident@(Pident(_,id))->do
+	InfixOp op exp1 exp2  -> case op of
+		ArithOp subop->genArithOp env exp1 exp2 op
+		RelOp subop->genRelOp env exp1 exp2 subop
+	Unary_Op subop exp->genUnaryOp env subop exp
+	PrePost prepost exp->case prepost of
+		Pre op->do
+			tmp<-newtemp
+			addrlexp<-genlexp env exp
+			addTAC $ [TACAssign tmp addrlexp]++[TACIncrDecr addrlexp tmp op]
+			return addrlexp
+		Post op->do
+			addrlexp<-genlexp env exp
+			addTAC $ [TACIncrDecr addrlexp addrlexp op]
+			return addrlexp
+	Eint (Pint(_,num)) -> return num
+	Efloat (Preal(_,num)) -> return num
+	Ebool (Pbool(_,val))->return val
+	Estring (Pstring(_,string))->return string
+	Echar (Pchar(_,char))->return char
+	Evar ident@(Pident(_,id))->do
 		(pos,(typ,_))<-lookVar ident env
 		addr<-newtemp
 		addTAC $ [TACNewTemp addr typ id (Just pos)]
 		return(addr)
-    otherwise->genlexp env exp
+	otherwise->genlexp env exp
 genlexp::Env->Exp->State TacM(Addr)
-genlexp env exp= case exp of --TODO:aggiungere array e puntatori
+genlexp env exp= case exp of
 	Evar ident@(Pident(_,id))->do
 		(pos,_)<-lookVar ident env
 		let idpos=id++"_"++(show pos)
@@ -432,7 +402,7 @@ genUnaryOp env op exp = case op of
       addTAC $[TACUnaryOp addr op addr1]
       return addr
 
-genRelOp::Env->Exp->Exp->InfixOp->State TacM(Addr) --TODO,come valutare se sono in un ciclo?
+genRelOp::Env->Exp->Exp->RelOp->State TacM(Addr) --TODO
 genRelOp env exp1 exp2 op= do
 	addr1<-genexp env exp1
 	addr2<-genexp env exp2
@@ -440,96 +410,6 @@ genRelOp env exp1 exp2 op= do
 	lab2<-newlabel
 	addr<-newtemp
 	let opp=opposite op
-	addTAC $ [TACJump addr1 (Just addr2) (Just opp) lab1]++[TACNewTemp addr Tbool "True" Nothing]++[TACGoto lab2]
-	addTAC $ [TACLabel lab1]++[TACNewTemp addr Tbool "False" Nothing]++[TACLabel lab2]
+	addTAC $ [TACJump addr1 addr2 opp lab1]++[TACNewTemp addr Tbool "true" Nothing]++[TACGoto lab2]
+	addTAC $ [TACLabel lab1]++[TACNewTemp addr Tbool "false" Nothing]++[TACLabel lab2]
 	return addr
-
-genBoolOp::Env->Exp->Exp->InfixOp->State TacM (Addr) --TODO
-genBoolOp env exp1 exp2 op= case op of
-    BoolOp And-> do --questa non è valutazione short-cut,mi sembra?? provare ad introdurre next
-      (labtrue,labfalse)<-gets truefalse
-      case labfalse of
-      	Nothing->do
-      	  labff<-newlabel
-      	  modify (\s@TacM{truefalse=(tval,fval)} -> s{truefalse=(tval,Just labff)})
-          addr1<-genexp env exp1
-          case addr1 of 
-            "false"-> addTAC $ [TACGoto labff]
-            "true"->return()
-            ""->return()
-            otherwise->addTAC $ [TACtf addr1 labff False]
-          addr2<-genexp env exp2
-          case addr2 of 
-            "false"-> addTAC $ [TACGoto labff]
-            "true"->return()
-            ""->return()
-            otherwise->addTAC $ [TACtf addr2 labff False]
-          modify (\s@TacM{truefalse=(tval,fval)} -> s{truefalse=(tval,Nothing)})
-          case labtrue of
-            Nothing-> do
-             addr<-newtemp
-             labtt<-newlabel
-             addTAC$[TACNewTemp addr Tbool "True" Nothing]++[TACGoto labtt]++[TACLabel labff]++[TACNewTemp addr Tbool "False" Nothing]++[TACLabel labtt]
-             return addr
-            Just lab-> do
-             addTAC$[TACGoto lab]++[TACLabel labff]
-             return ""	
-        Just lab->do
-          addr1<-genexp env exp1
-          let addr=""
-          case addr1 of 
-            "false"-> addTAC $ [TACGoto lab]
-            "true"->return()
-            ""->return()
-            otherwise->addTAC $ [TACtf addr1 lab False]--ACHTUNG:if not addr1 e addr2!!!
-          addr2<-genexp env exp2
-          case addr2 of 
-            "false"-> addTAC $ [TACGoto lab]
-            "true"->return()
-            ""->return()
-            otherwise->addTAC $ [TACtf addr2 lab False]   
-          return ""
-    BoolOp Or-> do
-      (labtrue,labfalse)<-gets truefalse
-      case labtrue of
-      	Nothing->do
-      	  labtt<-newlabel
-      	  modify (\s@TacM{truefalse=(tval,fval)} -> s{truefalse=(Just labtt,fval)})
-          addr1<-genexp env exp1
-          case addr1 of 
-            "false"->return ()
-            "true"->addTAC $ [TACGoto labtt]
-            ""->return()
-            otherwise->addTAC $ [TACtf addr1 labtt True]--ACHTUNG:if addr1 e addr2!!!
-          addr2<-genexp env exp2
-          case addr2 of 
-            "false"-> return()
-            "true"-> addTAC $ [TACGoto labtt]
-            ""->return()
-            otherwise->addTAC $ [TACtf addr2 labtt True]
-          modify (\s@TacM{truefalse=(tval,fval)} -> s{truefalse=(Nothing,fval)})
-          case labfalse of
-           Nothing-> do
-            addr<-newtemp
-            labff<-newlabel
-            addTAC$[TACNewTemp addr Tbool "False" Nothing]++[TACGoto labff]++[TACLabel labtt]++[TACNewTemp addr Tbool "True" Nothing]++[TACLabel labff]
-            return addr
-           Just lab->do
-            addTAC$[TACGoto lab]++[TACLabel labtt]
-            return ""
-        Just lab->do
-          addr1<-genexp env exp1
-          let addr=""
-          case addr1 of 
-            "false"-> return()
-            "true"->addTAC $ [TACGoto lab]
-            ""->return()
-            otherwise->addTAC $ [TACtf addr1 lab True]--ACHTUNG:if not addr1 e addr2!!!
-          addr2<-genexp env exp2
-          case addr2 of 
-            "false"->return()
-            "true"->addTAC $ [TACGoto lab]
-            ""->return()
-            otherwise->addTAC $ [TACtf addr2 lab True]   
-          return ""
-

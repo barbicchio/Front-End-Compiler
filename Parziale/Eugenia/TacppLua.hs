@@ -38,16 +38,16 @@ instance TacPP TAC where
       --prettyPrint (TACIf tacCondition l1 l2)          = nest tab $ text "if" <+> prettyPrint tacCondition <+> text "goto" <+> text l1 $$ text "goto" <+> text l2
       prettyPrint (TACGoto label)                     = nest tab $ text "goto" <+> text label 
       prettyPrint (TACJump addr1 addr2 op lab)   = case op of
-       Just (RelOp subop)-> case (subop,addr2) of
-        (Gt,Just addr2)->nest tab $ text "if"<+>text addr1<+>text ">"<+>text addr2<+>text "goto"<+>text lab
-        (Lt,Just addr2)->nest tab $ text "if"<+>text addr1<+>text "<"<+>text addr2<+>text "goto"<+>text lab
-        (Eq,Just addr2)->nest tab $ text "if"<+>text addr1<+>text "=="<+>text addr2<+>text "goto"<+>text lab
-        (Neq,Just addr2)->nest tab $ text "if"<+>text addr1<+>text "~="<+>text addr2<+>text "goto"<+>text lab
-        (GtE,Just addr2)->nest tab $ text "if"<+>text addr1<+>text "=>"<+>text addr2<+>text "goto"<+>text lab
-        (LtE,Just addr2)->nest tab $ text "if"<+>text addr1<+>text "<="<+>text addr2<+>text "goto"<+>text lab
-      prettyPrint(TACtf addr lab bool)=case bool of
-        True->nest tab $ text "if"<+>text addr<+> text "goto"<+>text lab
-        False->nest tab $ text "ifFalse"<+>text addr<+> text "goto"<+>text lab
+       RelOp subop-> case (subop,addr2) of
+        (Gt,addr2)->nest tab $ text "if"<+>text addr1<+>text ">"<+>text addr2<+>text "goto"<+>text lab
+        (Lt,addr2)->nest tab $ text "if"<+>text addr1<+>text "<"<+>text addr2<+>text "goto"<+>text lab
+        (Eq,addr2)->nest tab $ text "if"<+>text addr1<+>text "=="<+>text addr2<+>text "goto"<+>text lab
+        (Neq,addr2)->nest tab $ text "if"<+>text addr1<+>text "~="<+>text addr2<+>text "goto"<+>text lab
+        (GtE,addr2)->nest tab $ text "if"<+>text addr1<+>text "=>"<+>text addr2<+>text "goto"<+>text lab
+        (LtE,addr2)->nest tab $ text "if"<+>text addr1<+>text "<="<+>text addr2<+>text "goto"<+>text lab
+      --prettyPrint(TACtf addr lab bool)=case bool of
+        --True->nest tab $ text "if"<+>text addr<+> text "goto"<+>text lab
+        --False->nest tab $ text "ifFalse"<+>text addr<+> text "goto"<+>text lab
       --prettyPrint (TACReturn label)                   = nest tab $ text "return" <+> text label
       prettyPrint (TACPreamble s)                     = nest tab $ text s
       --prettyPrint (TACParam label)                    = nest tab $ text "param" <+> text label
