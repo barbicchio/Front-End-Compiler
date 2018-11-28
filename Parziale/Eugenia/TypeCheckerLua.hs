@@ -23,6 +23,11 @@ data BlockEnv = BlockEnv {
 data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ
   deriving (Eq, Ord, Show, Read)
 
+--data IsOk = IsOk {
+--  isError :: Bool
+--  }
+--  deriving (Show)
+
 type Ident = String
 type Typ = Type_specifier
 type Mod = Maybe Modality
@@ -40,6 +45,9 @@ type PosTypMod = (Pos,TypMod)
 ---------------------
 -----TYPECHECKER-----
 ---------------------
+
+--control program = execState (typecheck program) startState 
+--startState = False
 
 typecheck :: Program -> IO ()
 typecheck p@(Progr decls) = do
@@ -387,7 +395,9 @@ checkIfIsNumeric pos typ = do
 checkIfBoolean::Pos->Typ->IO ()
 checkIfBoolean pos typ = do
   if typ/=Tbool
-  then putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-boolean types"
+  then do
+    putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-boolean types"
+    --modify (\s@IsOk{isError = val} -> s{isError = True})
   else return ()  
 
 checkIfIsOrd::Pos->Typ->IO ()
@@ -475,7 +485,7 @@ pushNewBlocktoEnv (Env blocks) blocktyp = return $ Env ((newBlockEnv blocktyp):b
 addDec :: Env -> Dec -> IO Env
 addDec env@(Env (current:stack)) dec = case dec of
   VarDeclar typ pident@(Pident (pos,ident)) _ -> do
-    newBlockEnv <- addVarDec current ident pos (typ,Nothing)
+    newBlockEnv <- addVarDec current ident pos (typ, Nothing)
     return (Env (newBlockEnv:stack))
   Func typ pident@(Pident (pos,ident)) params nParams _  -> do
     newBlockEnv <- addFuncDec current ident pos typ (getParamsModTyp params) nParams

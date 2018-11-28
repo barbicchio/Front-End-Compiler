@@ -18,7 +18,7 @@ Typecompl.	   Type_specifier ::= ComplexType;
 --Tstring.       BasicType ::= "string";
 --Tvoid. 		 BasicType ::= {-empty-};
 Tarray.		   ComplexType ::= "{}" Type_specifier;
-Tarraydef.	   ComplexType ::= "{"Integer"}" Type_specifier;
+--Tarraydef.	   ComplexType ::= "{"Integer"}" Type_specifier;
 Tpointer.	   ComplexType ::= "pointer" Type_specifier;
 
 

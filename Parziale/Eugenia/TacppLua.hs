@@ -45,9 +45,9 @@ instance TacPP TAC where
         (Neq,addr2)->nest tab $ text "if"<+>text addr1<+>text "~="<+>text addr2<+>text "goto"<+>text lab
         (GtE,addr2)->nest tab $ text "if"<+>text addr1<+>text "=>"<+>text addr2<+>text "goto"<+>text lab
         (LtE,addr2)->nest tab $ text "if"<+>text addr1<+>text "<="<+>text addr2<+>text "goto"<+>text lab
-      --prettyPrint(TACtf addr lab bool)=case bool of
-        --True->nest tab $ text "if"<+>text addr<+> text "goto"<+>text lab
-        --False->nest tab $ text "ifFalse"<+>text addr<+> text "goto"<+>text lab
+      prettyPrint(TACtf addr (Just lab) bool)=case bool of
+        True->nest tab $ text "if"<+>text addr<+> text "goto"<+>text lab
+        False->nest tab $ text "ifFalse"<+>text addr<+> text "goto"<+>text lab
       --prettyPrint (TACReturn label)                   = nest tab $ text "return" <+> text label
       prettyPrint (TACPreamble s)                     = nest tab $ text s
       --prettyPrint (TACParam label)                    = nest tab $ text "param" <+> text label
