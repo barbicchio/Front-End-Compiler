@@ -2,6 +2,6 @@ function integer main ()
     boolean x
     boolean y
     integer r
-    x=(y or x or x or x) and false
+    x=(y or x or x or x) and r
   return 50
 end

@@ -23,9 +23,10 @@ render d = rend 0 (map ($ "") $ d []) "" where
     "("      :ts -> showChar '(' . rend i ts
     "do"      :ts -> showString "do" . new (i+1) . rend (i+1) ts
     "then"      :ts -> showString "then" . new (i+1) . rend (i+1) ts
+    "else"      :ts -> showString "else" . new (i+1) . rend (i+1) ts
     "end"      :ts -> new (i-1) . showString "end" . new (i-1) . rend (i-1) ts
     t  : "," :ts -> showString t . space "," . rend i ts
-    t  : ")" :ts -> showString t . showChar ')' . rend i ts
+    t  : ")" :ts -> showString t . showChar ')' . new (i+1) . rend i ts
     t  : "]" :ts -> showString t . showChar ']' . rend i ts
     t        :ts -> space t . rend i ts
     _            -> id

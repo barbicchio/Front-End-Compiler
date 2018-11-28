@@ -13,7 +13,7 @@ import PrintLua
 import AbsLua
 import TypeCheckerLua
 import TacLua
-import TacppLua
+--import TacppLua
 
 
 
@@ -39,7 +39,7 @@ run v p s = let ts = myLLexer s in case p ts of
                           putStrV v $ show ts
                           putStrLn s
                           exitFailure
-           Ok  tree -> do putStrLn "\nParse Successful!"
+           Ok  tree -> do putStrLn "\nParse Successful!\n"
                           showTree v tree
                           exitSuccess
 
@@ -75,18 +75,19 @@ main = do
 check :: String -> IO ()
 check s = case pProgram (myLexer s) of
             Bad err  -> do
-                        putStrLn "Parse Failed...\n"
+                        putStrLn "\n-----------------------\nParse Failed...\n-----------------------\n"
                         putStrLn err
                         exitFailure
             Ok tree -> do
-              putStrLn "Parse Successful!\n"
+              putStrLn "\n-----------------------\nParse Successful!\n-----------------------\n"
               putStrLn $ show tree
-              putStrLn ""
+              putStrLn "\n-----------------------\n CODE \n-----------------------\n"
               putStrLn $ printTree tree
+              putStrLn "\n-----------------------\n TYPE CHECK \n-----------------------\n"
               typecheck tree
-              putStrLn "-----------------------\n TAC \n-----------------------"
+              putStrLn "\n-----------------------\n THREE ADRESS CODE \n-----------------------\n"
               --putStrLn $ code tacAttr
-              print tac
-              putStrLn $ show $ prettyPrint $ code tac
-               where tac = tacGenerator tree
+              --print tac
+              --putStrLn $ show $ prettyPrint $ code tac
+              -- where tac = tacGenerator tree
               
