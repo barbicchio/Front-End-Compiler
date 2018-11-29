@@ -2,6 +2,6 @@ function integer main ()
     boolean x
     boolean y
     integer r
-    x=x and y
+    x=x and y+r
     return 4
 end
