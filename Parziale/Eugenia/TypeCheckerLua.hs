@@ -54,6 +54,16 @@ typecheck p@(Progr decls) = do
   checkDecs env decls
   return ()
 
+gettypid::Exp->Writer [String] String   
+gettypid exp=case exp of
+  Eint (Pint(_,id))-> return id
+  Ebool (Pbool(_,id))-> return id
+  Estring (Pstring(_,id))-> return id
+  Efloat (Preal(_,id))-> return id
+  Echar (Pchar(_,id))-> return id
+  Evar (Pident(_,id))->return id
+  otherwise->return $ (show exp)
+
 checkDecs :: Env -> [Dec] -> Writer [String] Env
 checkDecs env decsstats = do 
 newEnv <- foldM addDec env fundecs
@@ -109,7 +119,6 @@ checkDec env dec = case dec of
         case ret of
           False -> do 
                 tell $[(show pos) ++ ": Missing return statement for function" ++ (show ident)]
-
                 return env 
           True -> return env
       --se non ha un tipo di ritorno anche l'assenza di un return è accettata
@@ -181,7 +190,7 @@ checkReturn (Env ((BlockEnv _ _ blockTyp):stack)) pos returnTyp exp= case blockT
   BTfun decTyp -> do
     genTyp<-generalize returnTyp decTyp
     if genTyp/=decTyp
-    then tell $ [(show pos) ++ (show exp) ++ ": Type mismatch in return statement. Expected type->" ++ (show decTyp) ++ ". Actual type->" ++ (show returnTyp)]
+    then tell $ [(show pos) ++ (show (gettypid exp)) ++ ": Type mismatch in return statement. Expected type->" ++ (show decTyp) ++ ". Actual type->" ++ (show returnTyp)]
     else return ()
   otherwise->checkReturn (Env stack) pos returnTyp exp
 
@@ -195,7 +204,7 @@ checkExpr env typ expr= do
     then
       return (True, env)
     else do
-      tell $[ (show pos) ++ (show expr) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type->" ++ (show exprTyp)]
+      tell $[ (show pos) ++ (show (gettypid expr)) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type->" ++ (show exprTyp)]
       return (False, env)
 
 
@@ -254,7 +263,7 @@ inferExpr env expr = case expr of
     case arrayPosTyp of
       (pos,Tarray _ typ) -> return (pos,typ)
       (pos,_)->do
-        tell $ [(show pos) ++ (show expr)++ ": " ++ "Cannot use array selection operand in non-array types"]
+        tell $ [(show pos) ++ (show (gettypid expr))++ ": " ++ "Cannot use array selection operand in non-array types"]
         return((-1,-1),Terror) --sostituire con Terror
   PrePost _ exp->do
     (pos,typ)<-inferExpr env exp
@@ -379,32 +388,32 @@ inferInfixExpr env infixOp expr1 expr2 = do
 
 checkIfIsEq::Pos->Typ->Exp->Writer [String] ()
 checkIfIsEq pos typ exp = case typ of
-  Tarray _ _ -> do tell $ [(show pos) ++ (show exp) ++": " ++ "Cannot use operand in non-comparable types"]
+  Tarray _ _ -> do tell $ [(show pos) ++ (show (gettypid exp)) ++": " ++ "Cannot use operand in non-comparable types"]
   otherwise -> do return ()
 
 checkIfIsInt::Pos->Typ->Exp->Writer [String] ()
 checkIfIsInt pos typ exp = do
   if typ/=Tint 
-  then tell $ [(show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-int types"]
+  then tell $ [(show pos) ++ (show (gettypid exp)) ++ ": " ++ "Cannot use operand in non-int types"]
   else return ()
 
 checkIfIsNumeric::Pos->Typ->Exp->Writer [String] ()
 checkIfIsNumeric pos typ exp = do
   if typ/=Tint && typ/=Tfloat
-  then tell $ [(show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-numeric types"]
+  then tell $ [(show pos) ++ (show (gettypid exp)) ++ ": " ++ "Cannot use operand in non-numeric types"]
   else return ()
 
 checkIfBoolean::Pos->Typ->Exp->Writer [String] ()
 checkIfBoolean pos typ exp = do
   if typ/=Tbool
   then do
-    tell $ [(show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-boolean types"]
+    tell $ [(show pos) ++ (show (gettypid exp)) ++ ": " ++ "Cannot use operand in non-boolean types"]
   else return ()  
 
 checkIfIsOrd::Pos->Typ->Exp->Writer [String] ()
 checkIfIsOrd pos typ exp = do
   if typ/=Tint && typ/=Tfloat
-  then tell $ [show pos ++ show exp ++ ": " ++ "Cannot use operand in non-ordered types"]
+  then tell $ [(show pos) ++ (show (gettypid exp)) ++ ": " ++ "Cannot use operand in non-ordered types"]
   else return ()
 
 --controlla se il typo passato è un pointer, nel caso lo sia torna il tipo di array,
@@ -413,7 +422,7 @@ checkIfIsPointerAndReturnType::Pos->Typ->Exp->Writer [String] PosTyp
 checkIfIsPointerAndReturnType pos typ exp = case typ of
   Tpointer ptyp -> return (pos,ptyp)
   _ -> do
-    tell $ [show pos ++ show exp ++ ":" ++ "Cannot use operand in non-pointer types"]
+    tell $ [(show pos) ++ (show (gettypid exp)) ++ ":" ++ "Cannot use operand in non-pointer types"]
     return ((-1,-1),Terror) --sostituire con Terror
 
 --controlla numero e tipo dei parametri di una chiamata a funzione
@@ -591,7 +600,7 @@ checkLexpr (pos,expr,(typ,Just modal)) = do
   then
     if isLexpr expr
     then return ()
-    else tell $[(show pos) ++ (show expr)++ ":" ++ "Parameter Modality requires an L-Expression"]
+    else tell $[(show pos) ++ (show (gettypid expr))++ ":" ++ "Parameter Modality requires an L-Expression"]
   else return ()
 
 --controlla se la Modality richiede una L-expr, se sì restituisco True, altrimenti False
