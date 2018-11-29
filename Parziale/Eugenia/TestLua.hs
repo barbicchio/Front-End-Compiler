@@ -85,8 +85,7 @@ check s = case pProgram (myLexer s) of
                 then do
                  mapM_ print checkedtree 
                  putStrLn "\n-----------------------\n THREE ADRESS CODE \n-----------------------\n"
-                    --putStrLn $ code tacAttr
-                 print tac
+                 putStrLn $ show $ code tac
                  putStrLn $ show $ prettyPrint $ code tac
                 else do
                 putStr $ show len

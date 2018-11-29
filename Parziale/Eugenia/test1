@@ -2,5 +2,5 @@ function integer main ()
     boolean x
     boolean y
     integer r
-    x=x and y+r
+    x=(x and y) or r
 end

@@ -45,14 +45,21 @@ type PosTypMod = (Pos,TypMod)
 test::Program->[String]
 test program = execWriter (typecheck program)
 
-
---startState = False
-
 typecheck :: Program -> Writer [String] ()
 typecheck p@(Progr decls) = do
   env <- createInitialEnv emptyEnv
   checkDecs env decls
   return ()
+
+gettypid::Exp->String   
+gettypid exp=case exp of
+  Eint (Pint(_,id))->id
+  Ebool (Pbool(_,id))->id
+  Estring (Pstring(_,id))->id
+  Efloat (Preal(_,id))->id
+  Echar (Pchar(_,id))->id
+  Evar (Pident(_,id))->id
+  --otherwise->return $ (show exp)
 
 checkDecs :: Env -> [Dec] -> Writer [String] Env
 checkDecs env decsstats = do 
@@ -108,8 +115,7 @@ checkDec env dec = case dec of
         ret<-findReturnInDecStms decStm
         case ret of
           False -> do 
-                tell $[(show pos) ++ ": Missing return statement for function" ++ (show ident)]
-
+                tell $[(show pos) ++ ": Missing return statement for function "++ ident]
                 return env 
           True -> return env
       --se non ha un tipo di ritorno anche l'assenza di un return è accettata
@@ -181,22 +187,25 @@ checkReturn (Env ((BlockEnv _ _ blockTyp):stack)) pos returnTyp exp= case blockT
   BTfun decTyp -> do
     genTyp<-generalize returnTyp decTyp
     if genTyp/=decTyp
-    then tell $ [(show pos) ++ (show exp) ++ ": Type mismatch in return statement. Expected type->" ++ (show decTyp) ++ ". Actual type->" ++ (show returnTyp)]
+    then do
+      let ident=gettypid exp
+      tell $ [(show pos) ++ ": Type mismatch in return statement. Expected type->" ++ (show decTyp) ++ ". Actual type->" ++ (show returnTyp)++"in token "++ident]
     else return ()
   otherwise->checkReturn (Env stack) pos returnTyp exp
 
 
 --controlla l'expression. 
-checkExpr::Env->Typ->Exp->Writer [String] (Bool, Env)
+checkExpr::Env->Typ->Exp->Writer [String] (Env)
 checkExpr env typ expr= do
   (pos,exprTyp)<-inferExpr env expr
   genTyp<-generalize exprTyp typ
   if typ==genTyp
     then
-      return (True, env)
+      return env
     else do
-      tell $[ (show pos) ++ (show expr) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type->" ++ (show exprTyp)]
-      return (False, env)
+      let ident=gettypid expr
+      tell $[(show pos) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type token "++ident++ "->" ++ (show exprTyp)]
+      return env
 
 
 checkDefaultStm::Env->Maybe Stm->Writer [String] ()
@@ -254,7 +263,8 @@ inferExpr env expr = case expr of
     case arrayPosTyp of
       (pos,Tarray _ typ) -> return (pos,typ)
       (pos,_)->do
-        tell $ [(show pos) ++ (show expr)++ ": " ++ "Cannot use array selection operand in non-array types"]
+        let ident=gettypid expr
+        tell $ [(show pos) ++": " ++ "Cannot use array selection operand in non-array type "++ ident]
         return((-1,-1),Terror) --sostituire con Terror
   PrePost _ exp->do
     (pos,typ)<-inferExpr env exp
@@ -379,32 +389,41 @@ inferInfixExpr env infixOp expr1 expr2 = do
 
 checkIfIsEq::Pos->Typ->Exp->Writer [String] ()
 checkIfIsEq pos typ exp = case typ of
-  Tarray _ _ -> do tell $ [(show pos) ++ (show exp) ++": " ++ "Cannot use operand in non-comparable types"]
+  Tarray _ _ -> do 
+    let ident=gettypid exp
+    tell $ [(show pos) ++": " ++ "Cannot use operand in non-comparable type "++ident]
   otherwise -> do return ()
 
 checkIfIsInt::Pos->Typ->Exp->Writer [String] ()
 checkIfIsInt pos typ exp = do
   if typ/=Tint 
-  then tell $ [(show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-int types"]
+  then do
+    let ident=gettypid exp
+    tell $ [(show pos) ++ ": " ++ "Cannot use operand in non-int type "++ident]
   else return ()
 
 checkIfIsNumeric::Pos->Typ->Exp->Writer [String] ()
 checkIfIsNumeric pos typ exp = do
   if typ/=Tint && typ/=Tfloat
-  then tell $ [(show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-numeric types"]
+  then do
+    let ident=gettypid exp
+    tell $ [(show pos) ++ ": " ++ "Cannot use operand in non-numeric type "++ident]
   else return ()
 
 checkIfBoolean::Pos->Typ->Exp->Writer [String] ()
 checkIfBoolean pos typ exp = do
   if typ/=Tbool
   then do
-    tell $ [(show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-boolean types"]
+    let ident=gettypid exp
+    tell $ [(show pos) ++":"++"Cannot use operand in non-boolean type "++ident]
   else return ()  
 
 checkIfIsOrd::Pos->Typ->Exp->Writer [String] ()
 checkIfIsOrd pos typ exp = do
   if typ/=Tint && typ/=Tfloat
-  then tell $ [show pos ++ show exp ++ ": " ++ "Cannot use operand in non-ordered types"]
+  then do
+    let ident=gettypid exp 
+    tell $ [(show pos) ++ ": "++ "Cannot use operand in non-ordered type"++ident]
   else return ()
 
 --controlla se il typo passato è un pointer, nel caso lo sia torna il tipo di array,
@@ -413,14 +432,15 @@ checkIfIsPointerAndReturnType::Pos->Typ->Exp->Writer [String] PosTyp
 checkIfIsPointerAndReturnType pos typ exp = case typ of
   Tpointer ptyp -> return (pos,ptyp)
   _ -> do
-    tell $ [show pos ++ show exp ++ ":" ++ "Cannot use operand in non-pointer types"]
+    let ident=gettypid exp
+    tell $ [(show pos) ++":"++"Cannot use operand in non-pointer type"++ident]
     return ((-1,-1),Terror) --sostituire con Terror
 
 --controlla numero e tipo dei parametri di una chiamata a funzione
 checkParams::Pos->[Typ]->Int->[Typ]->Int->String->Writer [String] ()
 checkParams pos callParams callNParams defParams defNParams ident= do
   if callNParams /= defNParams
-  then tell $ [(show pos) ++ (show ident) ++ ": " ++ (show defNParams) ++ " parameters expected, but " ++ (show callNParams) ++ " found"]
+  then tell $ [(show pos)++ ": "++"function "++ident++"expects"++ (show defNParams) ++ "parameters but " ++ (show callNParams) ++ " found"]
   else do
     checkParamsTyps pos (zip (zip callParams defParams) [1,2..]) ident
     return ()
@@ -431,7 +451,7 @@ checkParamsTyps pos list ident = case list of
   (((typCall,typDef),paramN):params) -> do
     genTyp<-generalize typCall typDef
     if genTyp/=typDef
-    then tell $ [(show pos) ++ (show ident) ++ ": Type mismatch in parameter "++ (show paramN) ++".Expected type->" ++ (show typDef) ++ ". Actual type->" ++ (show typCall)]
+    then tell $ [(show pos) ++ ": Type mismatch in parameter "++ (show paramN) ++".Expected type->" ++ (show typDef) ++ ". Actual type of token "++ident++"->" ++ (show typCall)]
     else do
       checkParamsTyps pos params ident
 
@@ -442,7 +462,7 @@ checkParamsTyps pos list ident = case list of
 lookVar::Pident->Env->Writer [String] PosTypMod
 lookVar pident@(Pident (pos,ident)) (Env stack) = case stack of
   [] -> do
-   tell $[(show pos) ++ ": variable " ++ (show ident) ++ " out of scope"]
+   tell $[(show pos) ++ ": variable " ++ ident ++ " out of scope"]
    return((-1,-1),(Terror,Nothing))--sostituire con Terror
   (current@(BlockEnv _ context _ ):parent) -> do
     maybePosTypMod <- lookVarInContext ident context
@@ -453,7 +473,7 @@ lookVar pident@(Pident (pos,ident)) (Env stack) = case stack of
 lookFunc::Pident->Env->Writer [String] PosSig
 lookFunc pident@(Pident (pos,ident)) (Env stack) = case stack of
   [] -> do
-    tell $[(show pos) ++ ": function " ++ (show ident) ++ " out of scope"]
+    tell $[(show pos) ++ ": function " ++ ident ++ " out of scope"]
     return ((-1,-1),([],Terror,0)) --sostituire con Terror
   (current@(BlockEnv sigs _ _ ):parent) -> do
     maybePosTyp <- lookFuncInSigs ident sigs
@@ -591,7 +611,9 @@ checkLexpr (pos,expr,(typ,Just modal)) = do
   then
     if isLexpr expr
     then return ()
-    else tell $[(show pos) ++ (show expr)++ ":" ++ "Parameter Modality requires an L-Expression"]
+    else do
+      let ident=gettypid expr
+      tell $[(show pos) ++ ":" ++ "Modality of Parameter "++ident++"requires an L-Expression"]
   else return ()
 
 --controlla se la Modality richiede una L-expr, se sì restituisco True, altrimenti False
@@ -618,7 +640,7 @@ checkConstCall env (_,expr,(typ,Just modal)) = do
         (_,(_,(Just varmodal)))->do
           if (varmodal==Modality_CONST) && modalityRequiresLexpr modal
             then
-              tell $ [show pos ++ show ident ++ ":" ++ "Cannot pass parameter by constant when Modality requires an L-Expression"]
+              tell $ [show pos ++ ":" ++ "Cannot pass parameter "++ident++"by constant when Modality requires an L-Expression"]
             else
               return ()
         otherwise->return ()
@@ -628,7 +650,7 @@ checkConstCall env (_,expr,(typ,Just modal)) = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST && modalityRequiresLexpr modal
-            then  tell $ [show pos ++ show ident ++":" ++ "Cannot pass an index of constant array when Modality requires an L-Expression"]
+            then  tell $ [show pos ++":" ++ "Cannot pass an index of constant array "++ident++" when Modality requires an L-Expression"]
             else return ()
         otherwise->return ()
     otherwise->return ()
@@ -641,7 +663,7 @@ checkConstVar env expr = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST
-            then  tell $ [show pos ++ show ident ++ ":" ++ "Cannot assign a value to a CONST variable"]
+            then  tell $ [show pos ++ ":" ++ "Cannot assign a value"++ident++ "to a CONST variable"]
             else return ()
         otherwise->return ()
     Arraysel exprArray _ -> do
@@ -650,7 +672,7 @@ checkConstVar env expr = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST
-            then  tell $ [show pos ++ show ident ++ ":" ++ "Cannot assign a value to an index of a CONST array"]
+            then  tell $ [show pos ++ ":" ++ "Cannot assign a value "++ident++" to an index of a CONST array"]
             else return ()
         otherwise->return ()
     otherwise->return ()

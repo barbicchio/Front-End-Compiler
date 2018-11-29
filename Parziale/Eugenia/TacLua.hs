@@ -353,24 +353,32 @@ genexp env exp = case exp of
     ArithOp subop->genArithOp env exp1 exp2 op
     RelOp subop->genRelOp env exp1 exp2 subop
     BoolOp subop->do
-      (tt,ff)<-gets ttff
-      {--case (tt,ff) of
-        (Nothing,Nothing)->do
+      first<-gets first
+      case first of
+       True->do
+        (tt,ff)<-gets ttff
+        case (tt,ff) of
+         (Nothing,Nothing)->do
           newtt<-newlabel
           newff<-newlabel
           modify (\s->s{ttff=(Just newtt,Just newff)})
-        (Nothing,Just _)->do
+         (Nothing,Just _)->do
           newtt<-newlabel
-          modify (\s{ttff=(Nothing,fval)} -> s{ttff=(Just newtt,fval)})
-        (Just _ ,Nothing)->do
+          modify (\s-> s{ttff=(Just newtt,ff)})
+         (Just _ ,Nothing)->do
           newff<-newlabel
-          modify (\s{ttff=(tval,Nothing)} ->s{ttff=(tval,newff)})
-        otherwise->return ()
-        --}
-      (Just tt,Just ff)<-gets ttff
-      addr<-genBoolOp env exp1 exp2 op
-      addTAC $ [TACLabel tt]++[TACLabel ff]
-      return addr
+          modify (\s->s{ttff=(tt,Just newff)})
+         otherwise->return ()
+        (Just tt,Just ff)<-gets ttff
+        modify (\s->s{first=False})
+        genBoolOp env exp1 exp2 op
+        result<-newtemp
+        next<-newlabel
+        addTAC $ [TACLabel tt]++[TACNewTemp result Tbool "true" Nothing]++[TACGoto next] --se dentro guardia diverso...
+        addTAC $ [TACLabel ff]++[TACNewTemp result Tbool "false" Nothing]++[TACLabel next]
+        modify (\s->s{first=True,ttff=(Nothing,Nothing)})
+        return result
+       otherwise->genBoolOp env exp1 exp2 op
   Unary_Op subop exp->genUnaryOp env subop exp
   PrePost prepost exp->case prepost of
 		Pre op->do
@@ -432,31 +440,50 @@ genRelOp env exp1 exp2 op= do
 	lab1<-newlabel
 	lab2<-newlabel
 	addr<-newtemp
-	let opp=opposite op
-	addTAC $ [TACJump addr1 addr2 opp lab1]++[TACNewTemp addr Tbool "true" Nothing]++[TACGoto lab2]
-	addTAC $ [TACLabel lab1]++[TACNewTemp addr Tbool "false" Nothing]++[TACLabel lab2]
+	addTAC $ [TACJump addr1 addr2 (RelOp op) lab1]++[TACNewTemp addr Tbool "false" Nothing]++[TACGoto lab2]
+	addTAC $ [TACLabel lab1]++[TACNewTemp addr Tbool "true" Nothing]++[TACLabel lab2]
 	return addr
 genBoolOp::Env->Exp->Exp->InfixOp->State TacM(Addr)
 genBoolOp env exp1 exp2 op= case op of
   BoolOp subop->case subop of
     And->do
-     (tt,ff)<-gets ttff
+     (tt,Just ff)<-gets ttff
      newtt<-newlabel--B1.tt
-     {--modify (\s{ttff=(tval,Just fval)}->s{ttff=(Just newtt,Just fval)})
-     genexp env exp1
-     addTAC $[TACLabel newtt]
-     modify (\s->s{ttff=(tt,ff)}) 
-     genexp env exp2
+     modify (\s->s{ttff=(Just newtt,Just ff)})
+     addr1<-genexp env exp1
+     case addr1 of
+      ""->return()
+      "false"->addTAC $ [TACGoto ff]
+      "true"->return()
+      otherwise->addTAC $ [TACtf addr1 (Just ff) False]
+     addTAC $[TACLabel newtt] --lab(B1.tt)
+     modify (\s->s{ttff=(tt,Just ff)}) 
+     addr2<-genexp env exp2
+     case addr2 of
+      ""->return()
+      "false"->addTAC $ [TACGoto ff]
+      "true"->return()
+      otherwise->addTAC $ [TACtf addr1 (Just ff) False]
      return ""
     Or->do
-     (tt,ff)<-gets ttff
+     (Just tt,ff)<-gets ttff
      newff<-newlabel--B1.ff
-     modify (\s{ttff=(tval,fval)}->s{ttff=(tval,newff)})
-     genexp env exp1
-     addTAC $ [TACLabel newff]
-     modify (\s->s{ttff=(tt,ff)})
-     genexp env exp2--}
+     modify (\s->s{ttff=(Just tt,Just newff)})
+     addr1<-genexp env exp1
+     case addr1 of
+      ""->return()
+      "false"->return()
+      "true"->addTAC $ [TACGoto tt]
+      otherwise->addTAC $ [TACtf addr1 (Just tt) True]
+     addTAC $[TACLabel newff] --lab(B1.tt)
+     modify (\s->s{ttff=(Just tt,ff)}) 
+     addr2<-genexp env exp2
+     case addr2 of
+      ""->return()
+      "false"->addTAC $ [TACGoto tt]
+      "true"->return()
+      otherwise->addTAC $ [TACtf addr1 (Just tt) True]
      return ""
-  otherwise->do
+  otherwise->do --se mi arriva relop??? vedere se posso fare direttamente in genrel op
     return""
 
