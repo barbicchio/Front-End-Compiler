@@ -12,8 +12,8 @@ import ParLua
 import PrintLua
 import AbsLua
 import TypeCheckerLua
-import TacLua
-import TacppLua
+--import TacLua
+--import TacppLua
 import Control.Monad.Writer
 
 import ErrM
@@ -82,17 +82,27 @@ check s = case pProgram (myLexer s) of
               putStrLn "\n-----------------------\n CODE \n-----------------------\n"
               putStrLn $ printTree tree
               putStrLn "\n-----------------------\n TYPE CHECK \n-----------------------\n"
-              mapM_ print checkedtree
               if len==0
                 then do
                  putStrLn "\n-----------------------\n THREE ADRESS CODE \n-----------------------\n"
                     --putStrLn $ code tacAttr
-                 print tac
-                 putStrLn $ show $ prettyPrint $ code tac
-              else return ()
+                 --print tac
+                 --putStrLn $ show $ prettyPrint $ code tac
+              else do
+                putStr $ show len
+                if len == 1
+                  then 
+                    putStrLn " error found in typecheck phase:\n"
+                else 
+                  putStrLn " errors found in typecheck phase:\n"
+                return ()
               --string<-unwrap typecheck tree
-              
-               where tac = tacGenerator tree
-                     checkedtree=test tree
-                     len=length checkedtree
+              mapM_ print checkedtree
+
+              putStrLn ""
+              putStrLn "Can't generate TAC!"
+              putStrLn ""
+               --where tac = tacGenerator tree
+              where checkedtree = test tree
+                    len = length checkedtree
               
