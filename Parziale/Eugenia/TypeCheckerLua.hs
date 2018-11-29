@@ -171,19 +171,19 @@ checkStm env stm = case stm of
     return env
   Valreturn expr -> do
     (pos,typ)<-inferExpr env expr
-    checkReturn env pos typ
+    checkReturn env pos typ expr
     return env
 
 
 --controlla che il valore tornato dal return sia compatibile con quello della dichiarazione
-checkReturn::Env->Pos->Typ->IO ()
-checkReturn (Env ((BlockEnv _ _ blockTyp):stack)) pos returnTyp= case blockTyp of
+checkReturn::Env->Pos->Typ->Exp->IO ()
+checkReturn (Env ((BlockEnv _ _ blockTyp):stack)) pos returnTyp exp= case blockTyp of
   BTfun decTyp -> do
     genTyp<-generalize returnTyp decTyp
     if genTyp/=decTyp
-    then putStrLn $ (show pos) ++ ": Type mismatch in return statement. Expected type->" ++ (show decTyp) ++ ". Actual type->" ++ (show returnTyp)
+    then putStrLn $ (show pos) ++ (show exp) ++ ": Type mismatch in return statement. Expected type->" ++ (show decTyp) ++ ". Actual type->" ++ (show returnTyp)
     else return ()
-  otherwise->checkReturn (Env stack) pos returnTyp
+  otherwise->checkReturn (Env stack) pos returnTyp exp
 
 
 --controlla l'expression. 
@@ -195,7 +195,7 @@ checkExpr env typ expr= do
     then
       return (True, env)
     else do
-      putStrLn $ (show pos) ++ " "++ (show expr) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type->" ++ (show exprTyp)
+      putStrLn $ (show pos) ++ (show expr) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type->" ++ (show exprTyp)
       return (False, env)
 
 
