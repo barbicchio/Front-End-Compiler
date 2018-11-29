@@ -14,14 +14,13 @@ data TacM = TacM{
 				kaddr::Int,
 				klab::Int,
 				code::TacInst,
-			  tt::Maybe Label,
-        ff::Maybe Label,
+			  ttff::(Maybe Label,Maybe Label),
         next::Label,
         first::Bool
 			    }
 	deriving (Show)			
 
-startState = TacM 0 0 [] Nothing Nothing "" True
+startState = TacM 0 0 [] (Nothing,Nothing) "" True
 
 data Env =Env [BlockEnv]  deriving (Eq, Ord, Show, Read)
 
@@ -193,6 +192,7 @@ gettypid exp=case exp of
 	Estring (Pstring(_,id))-> return ("String",id)
 	Efloat (Preal(_,id))-> return ("Float",id)
 	Echar (Pchar(_,id))-> return ("Char",id)
+
 opposite::RelOp->InfixOp
 opposite op=case op of
 	Eq-> RelOp Neq
@@ -353,13 +353,23 @@ genexp env exp = case exp of
     ArithOp subop->genArithOp env exp1 exp2 op
     RelOp subop->genRelOp env exp1 exp2 subop
     BoolOp subop->do
-      first<-gets first
-      case first of
-       False->genBoolOp env exp1 exp2 subop
-       True->do
-        genBoolOp env exp1 exp2 subop
-        modify (\s->s{tt=Nothing,ff=Nothing})
-        return ""
+      (tt,ff)<-gets ttff
+      case (tt,ff) of
+        (Nothing,Nothing)->do
+          newtt<-newlabel
+          newff<-newlabel
+          modify (\s->s{ttff=(Just newtt,Just newff)})
+        {--(Nothing,Just _)->do
+          newtt<-newlabel
+          modify (\s{ttff=(tval,fval)} -> s{ttff=(newtt,fval)})
+        (Just _,Nothing)->do
+          newff<-newlabel
+          modify (\s{ttff=(tval,fval)} ->s{ttff=(tval,newff)})--}
+        otherwise->return ()
+      (Just tt,Just ff)<-gets ttff
+      addr<-genBoolOp env exp1 exp2 op
+      addTAC $ [TACLabel tt]++[TACLabel ff]
+      return addr
   Unary_Op subop exp->genUnaryOp env subop exp
   PrePost prepost exp->case prepost of
 		Pre op->do
@@ -425,50 +435,27 @@ genRelOp env exp1 exp2 op= do
 	addTAC $ [TACJump addr1 addr2 opp lab1]++[TACNewTemp addr Tbool "true" Nothing]++[TACGoto lab2]
 	addTAC $ [TACLabel lab1]++[TACNewTemp addr Tbool "false" Nothing]++[TACLabel lab2]
 	return addr
-genBoolOp::Env->Exp->Exp->BoolOp->State TacM(Addr)
+genBoolOp::Env->Exp->Exp->InfixOp->State TacM(Addr)
 genBoolOp env exp1 exp2 op= case op of
-  And->do
-    first<-gets first
-    case first of
-      True->do
-       tt<-gets tt
-       ff<-gets ff
-       tt1<-newlabel --B1.tt=newlabel()
-       case ff of
-        Nothing-> do
-        ff1<-newlabel --idealmente è il mio next
-        modify(\s->s{tt = Just tt1,ff=Just ff1,first=False)})
-        otherwise-> modify (\s->s{tt=Just tt1,first=False})
-       addr1<-genexp env exp1
-       modify (\s->s{tt = tt}) --B2.tt=B.tt
-       case addr1 of
-        ""->return()
-        otherwise->addTAC $ [TACtf addr1 ff False]
-       addTAC $ [TACLabel tt1]
-       addr2<-genexp env exp2
-       modify (\s->s{tt=tt ff=ff)})
-       case addr2 of
-       ""->return()
-       otherwise->do
-        next<-newlabel
-        addTAC $ [TACtf addr2 ff False]++[TACGoto next]++[TACLabel ff]
-       return ""
-      False->do
-       tt=gets tt
-       ff<-gets ff
-       tt1<-newlabel
-       modify (\s->s{tt=Just tt1)}) --dopo un giro è impossibile che ff sia Nothing
-       addr1<-genexp env exp1
-       modify (\s->s{tt=tt,ff=ff)}) 
-       case addr1 of
-        ""->return()
-        otherwise->addTAC $ [TACtf addr1 ff False]
-       addTAC $ [TACLabel tt1]
-       addr2<-genexp env exp2
-       modify (\s->s{tt=tt ff=ff)})
-       case addr2 of
-       ""->return()
-       otherwise->addTAC $ [TACtf addr2 ff False]
-  Or->do
+  BoolOp subop->case subop of
+    And->do
+     (tt,ff)<-gets ttff
+     newtt<-newlabel--B1.tt
+     {--modify (\s{ttff=(tval,Just fval)}->s{ttff=(Just newtt,Just fval)})
+     genexp env exp1
+     addTAC $[TACLabel newtt]
+     modify (\s->s{ttff=(tt,ff)}) 
+     genexp env exp2
+     return ""
+    Or->do
+     (tt,ff)<-gets ttff
+     newff<-newlabel--B1.ff
+     modify (\s{ttff=(tval,fval)}->s{ttff=(tval,newff)})
+     genexp env exp1
+     addTAC $ [TACLabel newff]
+     modify (\s->s{ttff=(tt,ff)})
+     genexp env exp2--}
+     return ""
+  otherwise->do
     return""
 

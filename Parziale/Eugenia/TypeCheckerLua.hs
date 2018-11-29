@@ -4,6 +4,7 @@ import System.IO
 import qualified Data.Map as Map
 import Control.Monad
 import Control.Monad.State
+import Control.Monad.Writer
 
 import AbsLua
 import PrintLua
@@ -23,10 +24,6 @@ data BlockEnv = BlockEnv {
 data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ
   deriving (Eq, Ord, Show, Read)
 
---data IsOk = IsOk {
---  isError :: IO Bool
---}deriving (Show)
-
 type Ident = String
 type Typ = Type_specifier
 type Mod = Maybe Modality
@@ -45,16 +42,19 @@ type PosTypMod = (Pos,TypMod)
 -----TYPECHECKER-----
 ---------------------
 
---control program = execState (typecheck program) startState 
+test::Program->[String]
+test program = execWriter (typecheck program)
+
+
 --startState = False
 
-typecheck :: Program -> IO ()
+typecheck :: Program -> Writer [String] ()
 typecheck p@(Progr decls) = do
   env <- createInitialEnv emptyEnv
   checkDecs env decls
   return ()
 
-checkDecs :: Env -> [Dec] -> IO Env
+checkDecs :: Env -> [Dec] -> Writer [String] Env
 checkDecs env decsstats = do 
 newEnv <- foldM addDec env fundecs
 foldM checkDec newEnv decsstats --foldM analogo di foldl per le monadi
@@ -66,7 +66,7 @@ filterdecs (dec:decs) = case dec of
   Func _ _ _ _ _  -> dec: filterdecs decs
   otherwise -> filterdecs decs
 
-checkDecStms::Env->[DecStm]->IO Env
+checkDecStms::Env->[DecStm]->Writer [String] Env
 checkDecStms env decsstms = do
   newEnv <- foldM addDec env fundecs
   foldM checkDecStm newEnv decsstms 
@@ -79,7 +79,7 @@ filterdecstmts  (decstm:decstmts) = case decstm of
   otherwise -> filterdecstmts decstmts
 
 
-checkDecStm::Env->DecStm->IO Env
+checkDecStm::Env->DecStm->Writer [String] Env
 checkDecStm env decStm = case decStm of
              Dec dec -> do
               newEnv<-checkDec env dec
@@ -88,7 +88,7 @@ checkDecStm env decStm = case decStm of
               checkStm env stm
               return env
 
-checkDec::Env->Dec->IO Env
+checkDec::Env->Dec->Writer [String] Env
 checkDec env dec = case dec of
     VarDeclar typ pident expr -> case expr of
       Nothing -> do 
@@ -108,20 +108,20 @@ checkDec env dec = case dec of
         ret<-findReturnInDecStms decStm
         case ret of
           False -> do 
-                putStrLn $ (show pos) ++ ": Missing return statement for function" ++ (show ident)
+                tell $[(show pos) ++ ": Missing return statement for function" ++ (show ident)]
 
                 return env 
           True -> return env
       --se non ha un tipo di ritorno anche l'assenza di un return è accettata
       else return env
 
-findReturnInDecStms::[DecStm]->IO Bool
+findReturnInDecStms::[DecStm]->Writer [String] Bool
 findReturnInDecStms decStm = do
   returns<-mapM findReturnInStm decStm
   return $ or returns
 
 
-findReturnInStm::DecStm->IO Bool
+findReturnInStm::DecStm->Writer [String] Bool
 findReturnInStm decstm = case decstm of
     Stmt(Valreturn _ )-> return True
     Stmt(SimpleIf _ decstmts) -> findReturnInDecStms decstmts
@@ -137,7 +137,7 @@ findReturnInStm decstm = case decstm of
 checkStms env stm = foldM checkStm env --}
 
 --controlla gli statement
-checkStm::Env->Stm->IO Env
+checkStm::Env->Stm->Writer [String] Env
 checkStm env stm = case stm of
   Assgn _ lexp expr -> do
     (pos,typ)<-inferExpr env lexp
@@ -176,18 +176,18 @@ checkStm env stm = case stm of
 
 
 --controlla che il valore tornato dal return sia compatibile con quello della dichiarazione
-checkReturn::Env->Pos->Typ->Exp->IO ()
+checkReturn::Env->Pos->Typ->Exp->Writer [String] ()
 checkReturn (Env ((BlockEnv _ _ blockTyp):stack)) pos returnTyp exp= case blockTyp of
   BTfun decTyp -> do
     genTyp<-generalize returnTyp decTyp
     if genTyp/=decTyp
-    then putStrLn $ (show pos) ++ (show exp) ++ ": Type mismatch in return statement. Expected type->" ++ (show decTyp) ++ ". Actual type->" ++ (show returnTyp)
+    then tell $ [(show pos) ++ (show exp) ++ ": Type mismatch in return statement. Expected type->" ++ (show decTyp) ++ ". Actual type->" ++ (show returnTyp)]
     else return ()
   otherwise->checkReturn (Env stack) pos returnTyp exp
 
 
 --controlla l'expression. 
-checkExpr::Env->Typ->Exp->IO (Bool, Env)
+checkExpr::Env->Typ->Exp->Writer [String] (Bool, Env)
 checkExpr env typ expr= do
   (pos,exprTyp)<-inferExpr env expr
   genTyp<-generalize exprTyp typ
@@ -195,11 +195,11 @@ checkExpr env typ expr= do
     then
       return (True, env)
     else do
-      putStrLn $ (show pos) ++ (show expr) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type->" ++ (show exprTyp)
+      tell $[ (show pos) ++ (show expr) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type->" ++ (show exprTyp)]
       return (False, env)
 
 
-checkDefaultStm::Env->Maybe Stm->IO ()
+checkDefaultStm::Env->Maybe Stm->Writer [String] ()
 checkDefaultStm env defaultStm = case defaultStm of
   Just stm-> do
     checkStm env stm
@@ -207,7 +207,7 @@ checkDefaultStm env defaultStm = case defaultStm of
   Nothing -> do return ()
 
 --Generalizzazione dei tipi
-generalize::Typ->Typ->IO Typ
+generalize::Typ->Typ->Writer [String] Typ
 generalize Tint Tfloat = do
  return Tfloat
 --generalize (Tarray Nothing Tint) (Tarray Nothing Tfloat) = do --generalizzazione e cast per array
@@ -216,14 +216,14 @@ generalize from to = do
  return from --nel caso non si possa generalizzare
 
 
-genericType::Typ->Typ->IO Typ
+genericType::Typ->Typ->Writer [String] Typ
 genericType typ1 typ2 = do
   genTyp<-generalize typ2 typ1
   if genTyp==typ1
   then return genTyp
   else generalize typ1 typ2
 
-inferExpr::Env->Exp->IO PosTyp
+inferExpr::Env->Exp->Writer [String] PosTyp
 inferExpr env expr = case expr of
 
   Arr (exp:exprs)-> do
@@ -254,7 +254,7 @@ inferExpr env expr = case expr of
     case arrayPosTyp of
       (pos,Tarray _ typ) -> return (pos,typ)
       (pos,_)->do
-        putStrLn $ (show pos) ++ (show expr)++ ": " ++ "Cannot use array selection operand in non-array types"
+        tell $ [(show pos) ++ (show expr)++ ": " ++ "Cannot use array selection operand in non-array types"]
         return((-1,-1),Terror) --sostituire con Terror
   PrePost _ exp->do
     (pos,typ)<-inferExpr env exp
@@ -287,14 +287,14 @@ inferExpr env expr = case expr of
     (_,(typ,modal))<-lookVar pident env
     return (pos,typ)
 
-checkArr::Env->Pos->Typ->[Exp]->IO ()
+checkArr::Env->Pos->Typ->[Exp]->Writer [String] ()
 checkArr env pos typ exprs = case exprs of
   []->return ()
   (expr:expss)-> do
     checkExpr env typ expr
     checkArr env pos typ expss
 
-inferUnaryExp::Env->Unary_Op->Exp->IO PosTyp
+inferUnaryExp::Env->Unary_Op->Exp->Writer [String] PosTyp
 inferUnaryExp env op expr = case op of
   Neg -> do
     (pos,typ)<-inferExpr env expr
@@ -305,7 +305,7 @@ inferUnaryExp env op expr = case op of
     checkIfBoolean pos typ expr 
     return (pos,typ)
 
-inferInfixExpr::Env->InfixOp->Exp->Exp->IO PosTyp
+inferInfixExpr::Env->InfixOp->Exp->Exp->Writer [String] PosTyp
 inferInfixExpr env infixOp expr1 expr2 = do
   e1@(pos1,typ1)<-inferExpr env expr1
   e2@(pos2,typ2)<-inferExpr env expr2
@@ -377,62 +377,61 @@ inferInfixExpr env infixOp expr1 expr2 = do
 
 
 
-checkIfIsEq::Pos->Typ->Exp->IO ()
+checkIfIsEq::Pos->Typ->Exp->Writer [String] ()
 checkIfIsEq pos typ exp = case typ of
-  Tarray _ _ -> do putStrLn $ (show pos) ++ (show exp) ++": " ++ "Cannot use operand in non-comparable types"
+  Tarray _ _ -> do tell $ [(show pos) ++ (show exp) ++": " ++ "Cannot use operand in non-comparable types"]
   otherwise -> do return ()
 
-checkIfIsInt::Pos->Typ->Exp->IO ()
+checkIfIsInt::Pos->Typ->Exp->Writer [String] ()
 checkIfIsInt pos typ exp = do
   if typ/=Tint 
-  then putStrLn $ (show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-int types"
+  then tell $ [(show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-int types"]
   else return ()
 
-checkIfIsNumeric::Pos->Typ->Exp->IO ()
+checkIfIsNumeric::Pos->Typ->Exp->Writer [String] ()
 checkIfIsNumeric pos typ exp = do
   if typ/=Tint && typ/=Tfloat
-  then putStrLn $ (show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-numeric types"
+  then tell $ [(show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-numeric types"]
   else return ()
 
-checkIfBoolean::Pos->Typ->Exp->IO ()
+checkIfBoolean::Pos->Typ->Exp->Writer [String] ()
 checkIfBoolean pos typ exp = do
   if typ/=Tbool
   then do
-    putStrLn $ (show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-boolean types"
-    --modify (\s@IsOk{isError = val} -> s{isError = True})
+    tell $ [(show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-boolean types"]
   else return ()  
 
-checkIfIsOrd::Pos->Typ->Exp->IO ()
+checkIfIsOrd::Pos->Typ->Exp->Writer [String] ()
 checkIfIsOrd pos typ exp = do
   if typ/=Tint && typ/=Tfloat
-  then putStrLn $ (show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-ordered types"
+  then tell $ [show pos ++ show exp ++ ": " ++ "Cannot use operand in non-ordered types"]
   else return ()
 
 --controlla se il typo passato è un pointer, nel caso lo sia torna il tipo di array,
 --altrimenti fail
-checkIfIsPointerAndReturnType::Pos->Typ->Exp->IO PosTyp
+checkIfIsPointerAndReturnType::Pos->Typ->Exp->Writer [String] PosTyp
 checkIfIsPointerAndReturnType pos typ exp = case typ of
   Tpointer ptyp -> return (pos,ptyp)
   _ -> do
-    putStrLn $ (show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-pointer types"
+    tell $ [show pos ++ show exp ++ ":" ++ "Cannot use operand in non-pointer types"]
     return ((-1,-1),Terror) --sostituire con Terror
 
 --controlla numero e tipo dei parametri di una chiamata a funzione
-checkParams::Pos->[Typ]->Int->[Typ]->Int->String->IO ()
+checkParams::Pos->[Typ]->Int->[Typ]->Int->String->Writer [String] ()
 checkParams pos callParams callNParams defParams defNParams ident= do
   if callNParams /= defNParams
-  then putStrLn $ (show pos) ++ (show ident) ++ ": " ++ (show defNParams) ++ " parameters expected, but " ++ (show callNParams) ++ " found"
+  then tell $ [(show pos) ++ (show ident) ++ ": " ++ (show defNParams) ++ " parameters expected, but " ++ (show callNParams) ++ " found"]
   else do
     checkParamsTyps pos (zip (zip callParams defParams) [1,2..]) ident
     return ()
 
-checkParamsTyps::Pos->[((Typ,Typ),Int)]->String->IO ()
+checkParamsTyps::Pos->[((Typ,Typ),Int)]->String->Writer [String] ()
 checkParamsTyps pos list ident = case list of
   [] -> return ()
   (((typCall,typDef),paramN):params) -> do
     genTyp<-generalize typCall typDef
     if genTyp/=typDef
-    then putStrLn $ (show pos) ++ (show ident) ++ ": Type mismatch in parameter "++ (show paramN) ++".Expected type->" ++ (show typDef) ++ ". Actual type->" ++ (show typCall)
+    then tell $ [(show pos) ++ (show ident) ++ ": Type mismatch in parameter "++ (show paramN) ++".Expected type->" ++ (show typDef) ++ ". Actual type->" ++ (show typCall)]
     else do
       checkParamsTyps pos params ident
 
@@ -440,10 +439,10 @@ checkParamsTyps pos list ident = case list of
 -----ENV LOOKUP------
 ---------------------
 
-lookVar::Pident->Env->IO PosTypMod
+lookVar::Pident->Env->Writer [String] PosTypMod
 lookVar pident@(Pident (pos,ident)) (Env stack) = case stack of
   [] -> do
-   putStrLn $ (show pos) ++ ": variable " ++ (show ident) ++ " out of scope"
+   tell $[(show pos) ++ ": variable " ++ (show ident) ++ " out of scope"]
    return((-1,-1),(Terror,Nothing))--sostituire con Terror
   (current@(BlockEnv _ context _ ):parent) -> do
     maybePosTypMod <- lookVarInContext ident context
@@ -451,10 +450,10 @@ lookVar pident@(Pident (pos,ident)) (Env stack) = case stack of
       Nothing -> lookVar pident (Env parent)
       Just posTypMod-> return posTypMod
 
-lookFunc::Pident->Env->IO PosSig
+lookFunc::Pident->Env->Writer [String] PosSig
 lookFunc pident@(Pident (pos,ident)) (Env stack) = case stack of
   [] -> do
-    putStrLn $ (show pos) ++ ": function " ++ (show ident) ++ " out of scope"
+    tell $[(show pos) ++ ": function " ++ (show ident) ++ " out of scope"]
     return ((-1,-1),([],Terror,0)) --sostituire con Terror
   (current@(BlockEnv sigs _ _ ):parent) -> do
     maybePosTyp <- lookFuncInSigs ident sigs
@@ -463,11 +462,11 @@ lookFunc pident@(Pident (pos,ident)) (Env stack) = case stack of
       Just posTyp-> return posTyp
 
 
-lookVarInContext::Ident->Context->IO (Maybe PosTypMod)
+lookVarInContext::Ident->Context->Writer [String] (Maybe PosTypMod)
 lookVarInContext ident context= do
   return (Map.lookup ident context)
 
-lookFuncInSigs::Ident->Sigs->IO (Maybe PosSig)
+lookFuncInSigs::Ident->Sigs->Writer [String] (Maybe PosSig)
 lookFuncInSigs ident sigs= do
   return (Map.lookup ident sigs)    
 
@@ -480,11 +479,11 @@ emptyBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp
 newBlockEnv :: BlockTyp -> BlockEnv
 newBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp
 
-pushNewBlocktoEnv :: Env -> BlockTyp -> IO Env
+pushNewBlocktoEnv :: Env -> BlockTyp -> Writer [String] Env
 pushNewBlocktoEnv (Env blocks) blocktyp = return $ Env ((newBlockEnv blocktyp):blocks)
 
 --smista i tipi di dichiarazione da aggiungere all'env e aggiunge nel contesto corrente
-addDec :: Env -> Dec -> IO Env
+addDec :: Env -> Dec -> Writer [String] Env
 addDec env@(Env (current:stack)) dec = case dec of
   VarDeclar typ pident@(Pident (pos,ident)) _ -> do
     newBlockEnv <- addVarDec current ident pos (typ, Nothing)
@@ -494,23 +493,23 @@ addDec env@(Env (current:stack)) dec = case dec of
     return (Env (newBlockEnv:stack))
   
 --aggiunge una variabile a un contesto
-addVarDec :: BlockEnv -> Ident -> Pos -> (Typ,Maybe Modality) -> IO BlockEnv
+addVarDec :: BlockEnv -> Ident -> Pos -> (Typ,Maybe Modality) -> Writer [String] BlockEnv
 addVarDec curr@(BlockEnv sigs context blockTyp) ident pos@(line,col) modtyp = do
   record <- lookVarInContext ident context
   case record of
     Nothing -> return (BlockEnv sigs (Map.insert ident (pos,modtyp) context ) blockTyp) --confrontare con eiffel
     Just (pos',_) -> do
-      putStrLn $ (show pos) ++ ": variable "++ ident ++ " already declared in " ++ (show pos')
+      tell $[(show pos) ++ ": variable "++ ident ++ " already declared in " ++ (show pos')]
       return curr
 
 --aggiunge una funzione a un contesto
-addFuncDec :: BlockEnv -> Ident -> Pos -> Typ -> [(Typ, Mod)] -> Int -> IO BlockEnv
+addFuncDec :: BlockEnv -> Ident -> Pos -> Typ -> [(Typ, Mod)] -> Int -> Writer [String] BlockEnv
 addFuncDec curr@(BlockEnv sigs context blockTyp) ident pos@(line,col) returnTyp paramsTyps nParams = do
   record <- lookFuncInSigs ident sigs
   case record of
     Nothing -> return (BlockEnv (Map.insert ident (pos,(paramsTyps,returnTyp,nParams)) sigs) context  blockTyp)
     Just (pos',_) -> do
-      putStrLn $ (show pos) ++ ": function "++ ident ++ " already declared in " ++ (show pos')
+      tell $ [(show pos) ++ ": function "++ ident ++ " already declared in " ++ (show pos')]
       return curr
       
 --aggiunge parametri/argomenti all'environment
@@ -527,9 +526,9 @@ addParam (Env (current:stack)) pars = case pars of
       newBlockEnv<-addVarDec current ident pos (Tarray typ)
       return (Env (newBlockEnv:stack))--}
 
-addParams::Env->[Argument]->IO Env
+addParams::Env->[Argument]->Writer [String] Env
 addParams env arguments = foldM addParam env arguments where
-  addParam::Env->Argument->IO Env
+  addParam::Env->Argument->Writer [String] Env
   addParam (Env (current:stack)) (FormPar modal typ (Pident (pos,ident))) = do
     newBlockEnv<-addVarDec current ident pos (typ,Just modal)
     return (Env (newBlockEnv:stack))      
@@ -550,7 +549,7 @@ getParamsModTyp params = map (\(FormPar  mod typ _)->(typ,(Just mod))) params
 getParamsMod::[Argument]->[Mod]
 getParamsMod params = map (\(FormPar modal _ _ )->Just modal) params--}
 
-createInitialEnv :: Env -> IO Env
+createInitialEnv :: Env -> Writer [String] Env
 createInitialEnv (Env (current:stack)) = do
   newBlockEnv <- addFuncDec current "writeInt" (-1,-1) Tvoid [(Tint,Just Modality_VAL)]  1
   newBlockEnv <- addFuncDec newBlockEnv "writeFloat" (-1,-1) Tvoid [(Tfloat,Just Modality_VAL)] 1
@@ -569,7 +568,7 @@ createInitialEnv (Env (current:stack)) = do
 -----MODALITY CHECK-----
 ------------------------
 --controlla se la modalità della definizione e i parametri attuali della chiamata sono compatibili
-checkModality::Env->Pident->[Exp]->IO ()
+checkModality::Env->Pident->[Exp]->Writer [String] ()
 checkModality env pident callExprs = do
   --trova la posizione dei parametri
   posTypLs <- mapM (inferExpr env) callExprs --trova la lista di PosTyp
@@ -586,13 +585,13 @@ checkModality env pident callExprs = do
   return ()
 
 --controlla se il parametro attuale è una Lexpr se la modalità lo richiede
-checkLexpr::(Pos,Exp,TypMod)->IO ()
+checkLexpr::(Pos,Exp,TypMod)->Writer [String] ()
 checkLexpr (pos,expr,(typ,Just modal)) = do
   if  modalityRequiresLexpr modal
   then
     if isLexpr expr
     then return ()
-    else putStrLn $ (show pos) ++ (show expr)++ ":" ++ "Parameter Modality requires an L-Expression" -- ++(show expr)
+    else tell $[(show pos) ++ (show expr)++ ":" ++ "Parameter Modality requires an L-Expression"]
   else return ()
 
 --controlla se la Modality richiede una L-expr, se sì restituisco True, altrimenti False
@@ -610,7 +609,7 @@ isLexpr expr = case expr of
   Arraysel _ _ -> True
   otherwise -> False
 
-checkConstCall::Env->(Pos,Exp,TypMod)->IO ()
+checkConstCall::Env->(Pos,Exp,TypMod)->Writer [String] ()
 checkConstCall env (_,expr,(typ,Just modal)) = do
   case expr of
     Evar (pident@(Pident (pos,ident)))->do
@@ -619,7 +618,7 @@ checkConstCall env (_,expr,(typ,Just modal)) = do
         (_,(_,(Just varmodal)))->do
           if (varmodal==Modality_CONST) && modalityRequiresLexpr modal
             then
-              putStrLn $ (show pos) ++ (show ident) ++ ":" ++ "Cannot pass parameter by constant when Modality requires an L-Expression"
+              tell $ [show pos ++ show ident ++ ":" ++ "Cannot pass parameter by constant when Modality requires an L-Expression"]
             else
               return ()
         otherwise->return ()
@@ -629,12 +628,12 @@ checkConstCall env (_,expr,(typ,Just modal)) = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST && modalityRequiresLexpr modal
-            then  putStrLn $ (show pos) ++ (show ident) ++":" ++ "Cannot pass an index of constant array when Modality requires an L-Expression"
+            then  tell $ [show pos ++ show ident ++":" ++ "Cannot pass an index of constant array when Modality requires an L-Expression"]
             else return ()
         otherwise->return ()
     otherwise->return ()
 
-checkConstVar::Env->Exp->IO ()
+checkConstVar::Env->Exp->Writer [String] ()
 checkConstVar env expr = do
   case expr of
     Evar (pident@(Pident (pos,ident)))->do
@@ -642,7 +641,7 @@ checkConstVar env expr = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST
-            then  putStrLn $ (show pos) ++ (show ident) ++ ":" ++ "Cannot assign a value to a CONST variable"
+            then  tell $ [show pos ++ show ident ++ ":" ++ "Cannot assign a value to a CONST variable"]
             else return ()
         otherwise->return ()
     Arraysel exprArray _ -> do
@@ -651,13 +650,13 @@ checkConstVar env expr = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST
-            then  putStrLn $ (show pos) ++ (show ident) ++ ":" ++ "Cannot assign a value to an index of a CONST array"
+            then  tell $ [show pos ++ show ident ++ ":" ++ "Cannot assign a value to an index of a CONST array"]
             else return ()
         otherwise->return ()
     otherwise->return ()
 
 
-getVarFromArraySelection :: Exp -> IO Pident
+getVarFromArraySelection :: Exp -> Writer [String] Pident
 getVarFromArraySelection expr = case expr of
   Evar pident -> do
     return pident

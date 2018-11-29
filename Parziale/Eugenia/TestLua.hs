@@ -14,9 +14,7 @@ import AbsLua
 import TypeCheckerLua
 import TacLua
 import TacppLua
-
-
-
+import Control.Monad.Writer
 
 import ErrM
 
@@ -84,10 +82,14 @@ check s = case pProgram (myLexer s) of
               putStrLn "\n-----------------------\n CODE \n-----------------------\n"
               putStrLn $ printTree tree
               putStrLn "\n-----------------------\n TYPE CHECK \n-----------------------\n"
-              typecheck tree
+              mapM_ print checkedtree
+              putStrLn $ show len
+              --string<-unwrap typecheck tree
               putStrLn "\n-----------------------\n THREE ADRESS CODE \n-----------------------\n"
               --putStrLn $ code tacAttr
               print tac
               putStrLn $ show $ prettyPrint $ code tac
                where tac = tacGenerator tree
+                     checkedtree=test tree
+                     len=length checkedtree
               
