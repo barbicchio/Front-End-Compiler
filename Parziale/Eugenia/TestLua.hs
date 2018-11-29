@@ -8,7 +8,6 @@ import System.Exit ( exitFailure, exitSuccess )
 
 import LexLua
 import ParLua
---import SkelLua
 import PrintLua
 import AbsLua
 import TypeCheckerLua
@@ -90,8 +89,6 @@ check s = case pProgram (myLexer s) of
                  print tac
                  putStrLn $ show $ prettyPrint $ code tac
               else return ()
-              --string<-unwrap typecheck tree
-              
                where tac = tacGenerator tree
                      checkedtree=test tree
                      len=length checkedtree

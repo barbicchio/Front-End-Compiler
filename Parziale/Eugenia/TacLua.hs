@@ -354,18 +354,19 @@ genexp env exp = case exp of
     RelOp subop->genRelOp env exp1 exp2 subop
     BoolOp subop->do
       (tt,ff)<-gets ttff
-      case (tt,ff) of
+      {--case (tt,ff) of
         (Nothing,Nothing)->do
           newtt<-newlabel
           newff<-newlabel
           modify (\s->s{ttff=(Just newtt,Just newff)})
-        {--(Nothing,Just _)->do
+        (Nothing,Just _)->do
           newtt<-newlabel
-          modify (\s{ttff=(tval,fval)} -> s{ttff=(newtt,fval)})
-        (Just _,Nothing)->do
+          modify (\s{ttff=(Nothing,fval)} -> s{ttff=(Just newtt,fval)})
+        (Just _ ,Nothing)->do
           newff<-newlabel
-          modify (\s{ttff=(tval,fval)} ->s{ttff=(tval,newff)})--}
+          modify (\s{ttff=(tval,Nothing)} ->s{ttff=(tval,newff)})
         otherwise->return ()
+        --}
       (Just tt,Just ff)<-gets ttff
       addr<-genBoolOp env exp1 exp2 op
       addTAC $ [TACLabel tt]++[TACLabel ff]

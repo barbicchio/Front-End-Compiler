@@ -2,6 +2,7 @@
 
 module TacppLua where
 
+import Prelude hiding((<>))
 import TacLua
 import AbsLua
 import Text.PrettyPrint
