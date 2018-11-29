@@ -24,9 +24,8 @@ data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ
   deriving (Eq, Ord, Show, Read)
 
 --data IsOk = IsOk {
---  isError :: Bool
---  }
---  deriving (Show)
+--  isError :: IO Bool
+--}deriving (Show)
 
 type Ident = String
 type Typ = Type_specifier
@@ -110,6 +109,7 @@ checkDec env dec = case dec of
         case ret of
           False -> do 
                 putStrLn $ (show pos) ++ ": Missing return statement for function" ++ (show ident)
+
                 return env 
           True -> return env
       --se non ha un tipo di ritorno anche l'assenza di un return è accettata
@@ -181,7 +181,7 @@ checkReturn (Env ((BlockEnv _ _ blockTyp):stack)) pos returnTyp= case blockTyp o
   BTfun decTyp -> do
     genTyp<-generalize returnTyp decTyp
     if genTyp/=decTyp
-    then putStrLn $ (show pos) ++ ": Type mismatch in return statement.Expected type->" ++ (show decTyp) ++ ". Actual type->" ++ (show returnTyp)
+    then putStrLn $ (show pos) ++ ": Type mismatch in return statement. Expected type->" ++ (show decTyp) ++ ". Actual type->" ++ (show returnTyp)
     else return ()
   otherwise->checkReturn (Env stack) pos returnTyp
 
@@ -195,7 +195,7 @@ checkExpr env typ expr= do
     then
       return (True, env)
     else do
-      putStrLn $ (show pos) ++ ": Type mismatch.Expected type->" ++ (show typ) ++ ". Actual type->" ++ (show exprTyp)
+      putStrLn $ (show pos) ++ " "++ (show expr) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type->" ++ (show exprTyp)
       return (False, env)
 
 
@@ -210,6 +210,8 @@ checkDefaultStm env defaultStm = case defaultStm of
 generalize::Typ->Typ->IO Typ
 generalize Tint Tfloat = do
  return Tfloat
+--generalize (Tarray Nothing Tint) (Tarray Nothing Tfloat) = do --generalizzazione e cast per array
+ --return (Tarray Nothing Tfloat)
 generalize from to = do
  return from --nel caso non si possa generalizzare
 
@@ -243,20 +245,20 @@ inferExpr env expr = case expr of
 
   Indirection exp-> do
     (pos,typ)<-inferExpr env exp
-    posTyp<-checkIfIsPointerAndReturnType pos typ
+    posTyp<-checkIfIsPointerAndReturnType pos typ exp
     return posTyp
 
-  Arraysel exprArray exprInt -> do
+  Arraysel exprArray exprInt -> do --investigare su exprArray 
     checkExpr env Tint exprInt 
     arrayPosTyp<-inferExpr env exprArray
     case arrayPosTyp of
       (pos,Tarray _ typ) -> return (pos,typ)
       (pos,_)->do
-        putStrLn $ (show pos) ++ ": " ++ "Cannot use array selection operand in non-array types"
+        putStrLn $ (show pos) ++ (show expr)++ ": " ++ "Cannot use array selection operand in non-array types"
         return((-1,-1),Terror) --sostituire con Terror
   PrePost _ exp->do
     (pos,typ)<-inferExpr env exp
-    posTyp<-checkIfIsInt pos typ
+    posTyp<-checkIfIsInt pos typ exp
     return (pos,typ)
 
   Fcall pident@(Pident (pos,ident)) callExprs callNParams ->do
@@ -266,7 +268,7 @@ inferExpr env expr = case expr of
     if retTyp /= Terror --continuo con il controllo dei parametri della funzione solo se il tipo di ritorno è diverso da Terror
     then do 
       paramsTyps<- mapM (\(typ,modal)->do return typ) defParams --trova la lista del tipo di parametri della definizione a partire da [ModTyp]
-      checkParams pos callParams callNParams paramsTyps defNParams --check dei tipi sui parametri passati
+      checkParams pos callParams callNParams paramsTyps defNParams ident --check dei tipi sui parametri passati
       checkModality env pident callExprs -- controllo sulla modalità dei parametri attuali rispetto alla definizione di funzione
       return (pos,retTyp)
     else return (pos,retTyp)
@@ -296,11 +298,11 @@ inferUnaryExp::Env->Unary_Op->Exp->IO PosTyp
 inferUnaryExp env op expr = case op of
   Neg -> do
     (pos,typ)<-inferExpr env expr
-    checkIfIsNumeric pos typ
+    checkIfIsNumeric pos typ expr
     return (pos,typ)
   Logneg -> do
     (pos,typ)<-inferExpr env expr
-    checkIfBoolean pos typ
+    checkIfBoolean pos typ expr 
     return (pos,typ)
 
 inferInfixExpr::Env->InfixOp->Exp->Exp->IO PosTyp
@@ -314,32 +316,32 @@ inferInfixExpr env infixOp expr1 expr2 = do
     ArithOp op -> do
       case op of
         Add->do
-          checkIfIsNumeric pos1 gtyp1
-          checkIfIsNumeric pos2 gtyp2
+          checkIfIsNumeric pos1 gtyp1 expr1
+          checkIfIsNumeric pos2 gtyp2 expr2
           return (pos1,genTyp)
         Sub->do
-          checkIfIsNumeric pos1 gtyp1
-          checkIfIsNumeric pos2 gtyp2
+          checkIfIsNumeric pos1 gtyp1 expr1
+          checkIfIsNumeric pos2 gtyp2 expr2
           return (pos1,genTyp)
         Mul->do
-          checkIfIsNumeric pos1 gtyp1
-          checkIfIsNumeric pos2 gtyp2
+          checkIfIsNumeric pos1 gtyp1 expr1
+          checkIfIsNumeric pos2 gtyp2 expr2
           return (pos1,genTyp)
         Div->do
-          checkIfIsNumeric pos1 gtyp1
-          checkIfIsNumeric pos2 gtyp2
+          checkIfIsNumeric pos1 gtyp1 expr1
+          checkIfIsNumeric pos2 gtyp2 expr2
           return (pos1,genTyp)
         Pow->do
-          checkIfIsNumeric pos1 gtyp1
-          checkIfIsNumeric pos2 gtyp2
+          checkIfIsNumeric pos1 gtyp1 expr1
+          checkIfIsNumeric pos2 gtyp2 expr2
           return (pos1,genTyp)
         Mod->do 
-          checkIfIsNumeric pos1 gtyp1
-          checkIfIsNumeric pos2 gtyp2
+          checkIfIsNumeric pos1 gtyp1 expr1
+          checkIfIsNumeric pos2 gtyp2 expr2
           return (pos1,genTyp)
     BoolOp op->do
-      checkIfBoolean pos1 gtyp1
-      checkIfBoolean pos2 gtyp2
+      checkIfBoolean pos1 gtyp1 expr1
+      checkIfBoolean pos2 gtyp2 expr2
       case op of
         And->do
           return (pos1,Tbool)
@@ -349,90 +351,90 @@ inferInfixExpr env infixOp expr1 expr2 = do
       checkExpr env genTyp expr2
       case op of
         Eq->do
-          checkIfIsEq pos1 gtyp1
-          checkIfIsEq pos2 gtyp2
+          checkIfIsEq pos1 gtyp1 expr1
+          checkIfIsEq pos2 gtyp2 expr2
           return (pos1,Tbool)
         Neq->do
-          checkIfIsEq pos1 gtyp1
-          checkIfIsEq pos2 gtyp2
+          checkIfIsEq pos1 gtyp1 expr1
+          checkIfIsEq pos2 gtyp2 expr2
           return (pos1,Tbool)
         Lt->do
-          checkIfIsOrd pos1 gtyp1
-          checkIfIsOrd pos2 gtyp2
+          checkIfIsOrd pos1 gtyp1 expr1
+          checkIfIsOrd pos2 gtyp2 expr2
           return (pos1,Tbool)
         LtE->do
-          checkIfIsOrd pos1 gtyp1
-          checkIfIsOrd pos2 gtyp2
+          checkIfIsOrd pos1 gtyp1 expr1
+          checkIfIsOrd pos2 gtyp2 expr2
           return (pos1,Tbool)
         Gt->do
-          checkIfIsOrd pos1 gtyp1
-          checkIfIsOrd pos2 gtyp2
+          checkIfIsOrd pos1 gtyp1 expr1
+          checkIfIsOrd pos2 gtyp2 expr2
           return (pos1,Tbool)
         GtE->do
-          checkIfIsOrd pos1 gtyp1
-          checkIfIsOrd pos2 gtyp2
+          checkIfIsOrd pos1 gtyp1 expr1
+          checkIfIsOrd pos2 gtyp2 expr2
           return (pos1,Tbool)  
 
 
 
-checkIfIsEq::Pos->Typ->IO ()
-checkIfIsEq pos typ = case typ of
-  Tarray _ _ -> do putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-comparable types"
+checkIfIsEq::Pos->Typ->Exp->IO ()
+checkIfIsEq pos typ exp = case typ of
+  Tarray _ _ -> do putStrLn $ (show pos) ++ (show exp) ++": " ++ "Cannot use operand in non-comparable types"
   otherwise -> do return ()
 
-checkIfIsInt::Pos->Typ->IO ()
-checkIfIsInt pos typ = do
+checkIfIsInt::Pos->Typ->Exp->IO ()
+checkIfIsInt pos typ exp = do
   if typ/=Tint 
-  then putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-int types"
+  then putStrLn $ (show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-int types"
   else return ()
 
-checkIfIsNumeric::Pos->Typ->IO ()
-checkIfIsNumeric pos typ = do
+checkIfIsNumeric::Pos->Typ->Exp->IO ()
+checkIfIsNumeric pos typ exp = do
   if typ/=Tint && typ/=Tfloat
-  then putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-numeric types"
+  then putStrLn $ (show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-numeric types"
   else return ()
 
-checkIfBoolean::Pos->Typ->IO ()
-checkIfBoolean pos typ = do
+checkIfBoolean::Pos->Typ->Exp->IO ()
+checkIfBoolean pos typ exp = do
   if typ/=Tbool
   then do
-    putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-boolean types"
+    putStrLn $ (show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-boolean types"
     --modify (\s@IsOk{isError = val} -> s{isError = True})
   else return ()  
 
-checkIfIsOrd::Pos->Typ->IO ()
-checkIfIsOrd pos typ = do
+checkIfIsOrd::Pos->Typ->Exp->IO ()
+checkIfIsOrd pos typ exp = do
   if typ/=Tint && typ/=Tfloat
-  then putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-ordered types"
+  then putStrLn $ (show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-ordered types"
   else return ()
 
 --controlla se il typo passato è un pointer, nel caso lo sia torna il tipo di array,
 --altrimenti fail
-checkIfIsPointerAndReturnType::Pos->Typ->IO PosTyp
-checkIfIsPointerAndReturnType pos typ = case typ of
+checkIfIsPointerAndReturnType::Pos->Typ->Exp->IO PosTyp
+checkIfIsPointerAndReturnType pos typ exp = case typ of
   Tpointer ptyp -> return (pos,ptyp)
   _ -> do
-    putStrLn $ (show pos) ++ ": " ++ "Cannot use operand in non-pointer types"
+    putStrLn $ (show pos) ++ (show exp) ++ ": " ++ "Cannot use operand in non-pointer types"
     return ((-1,-1),Terror) --sostituire con Terror
 
 --controlla numero e tipo dei parametri di una chiamata a funzione
-checkParams::Pos->[Typ]->Int->[Typ]->Int->IO ()
-checkParams pos callParams callNParams defParams defNParams = do
+checkParams::Pos->[Typ]->Int->[Typ]->Int->String->IO ()
+checkParams pos callParams callNParams defParams defNParams ident= do
   if callNParams /= defNParams
-  then putStrLn $ (show pos) ++ ": " ++ (show defNParams) ++ " parameters expected, but " ++ (show callNParams) ++ " found"
+  then putStrLn $ (show pos) ++ (show ident) ++ ": " ++ (show defNParams) ++ " parameters expected, but " ++ (show callNParams) ++ " found"
   else do
-    checkParamsTyps pos (zip (zip callParams defParams) [1,2..])
+    checkParamsTyps pos (zip (zip callParams defParams) [1,2..]) ident
     return ()
 
-checkParamsTyps::Pos->[((Typ,Typ),Int)]->IO ()
-checkParamsTyps pos list = case list of
+checkParamsTyps::Pos->[((Typ,Typ),Int)]->String->IO ()
+checkParamsTyps pos list ident = case list of
   [] -> return ()
   (((typCall,typDef),paramN):params) -> do
     genTyp<-generalize typCall typDef
     if genTyp/=typDef
-    then putStrLn $ (show pos) ++ ": Type mismatch in parameter "++ (show paramN) ++".Expected type->" ++ (show typDef) ++ ". Actual type->" ++ (show typCall)
+    then putStrLn $ (show pos) ++ (show ident) ++ ": Type mismatch in parameter "++ (show paramN) ++".Expected type->" ++ (show typDef) ++ ". Actual type->" ++ (show typCall)
     else do
-      checkParamsTyps pos params
+      checkParamsTyps pos params ident
 
 ---------------------
 -----ENV LOOKUP------
@@ -590,7 +592,7 @@ checkLexpr (pos,expr,(typ,Just modal)) = do
   then
     if isLexpr expr
     then return ()
-    else putStrLn $ (show pos) ++ ":" ++ "Parameter Modality requires an L-Expression"
+    else putStrLn $ (show pos) ++ (show expr)++ ":" ++ "Parameter Modality requires an L-Expression" -- ++(show expr)
   else return ()
 
 --controlla se la Modality richiede una L-expr, se sì restituisco True, altrimenti False
@@ -617,7 +619,7 @@ checkConstCall env (_,expr,(typ,Just modal)) = do
         (_,(_,(Just varmodal)))->do
           if (varmodal==Modality_CONST) && modalityRequiresLexpr modal
             then
-              putStrLn $ (show pos) ++ ":" ++ "Cannot pass parameter by constant when Modality requires an L-Expression"
+              putStrLn $ (show pos) ++ (show ident) ++ ":" ++ "Cannot pass parameter by constant when Modality requires an L-Expression"
             else
               return ()
         otherwise->return ()
@@ -627,7 +629,7 @@ checkConstCall env (_,expr,(typ,Just modal)) = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST && modalityRequiresLexpr modal
-            then  putStrLn $ (show pos) ++ ":" ++ "Cannot pass an index of constant array when Modality requires an L-Expression"
+            then  putStrLn $ (show pos) ++ (show ident) ++":" ++ "Cannot pass an index of constant array when Modality requires an L-Expression"
             else return ()
         otherwise->return ()
     otherwise->return ()
@@ -640,7 +642,7 @@ checkConstVar env expr = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST
-            then  putStrLn $ (show pos) ++ ":" ++ "Cannot assign a value to a CONST variable"
+            then  putStrLn $ (show pos) ++ (show ident) ++ ":" ++ "Cannot assign a value to a CONST variable"
             else return ()
         otherwise->return ()
     Arraysel exprArray _ -> do
@@ -649,7 +651,7 @@ checkConstVar env expr = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST
-            then  putStrLn $ (show pos) ++ ":" ++ "Cannot assign a value to an index of a CONST array"
+            then  putStrLn $ (show pos) ++ (show ident) ++ ":" ++ "Cannot assign a value to an index of a CONST array"
             else return ()
         otherwise->return ()
     otherwise->return ()
