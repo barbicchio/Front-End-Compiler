@@ -8,7 +8,7 @@ import AbsLua
 import ErrM
 import Debug.Trace
 
-type TacInst=[TAC]
+type TacInst = [TAC]
 
 data TacM = TacM{
 				kaddr::Int,
@@ -36,22 +36,22 @@ data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ
 
 type Ident = String
 type Typ = Type_specifier
-type Addr= String
+type Addr = String
 type Label = String
 type Mod = Maybe Modality
 
-type Sigs =Map.Map Ident PosSig
+type Sigs = Map.Map Ident PosSig
 type Context = Map.Map Ident PosTypMod
 type TacContext = Map.Map (Ident,Pos) Addr
 
 type Sig = (Typ,[TypMod],Maybe Label) --cambiare ordine di typmod e typ
 type Pos = (Int,Int)
-type PosTyp=(Pos,Typ)
+type PosTyp = (Pos,Typ)
 type PosTypMod = (Pos,TypMod)
 type TypMod = (Typ,Mod)
 type PosSig = (Pos,Sig)
 
-data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
+data TAC = TACAssign Addr Addr           --modificare tutto con le posizioni
 	| TACBinaryInfixOp Addr Addr InfixOp Addr
 	--{| TACBinaryArithOp Addr Addr ArithOp Addr--}
 	| TACSLabel Label --inizio funzione e/o programma
@@ -238,7 +238,7 @@ genProgram (Progr decls) = do
     addTAC $ [TACSLabel "Program"]
     env<-createInitialEnv emptyEnv
     genDecls env decls
-    addTAC $ [TACELabel "Program"]
+    addTAC $ [TACELabel "Program\n"]
     return ()
 
 genDecls :: Env->[Dec] -> State TacM(Env)
@@ -347,6 +347,7 @@ genStm env stm= case stm of
         pushEnv<-pushNewBlocktoEnv env BTloop
         (_,fundecs)<-genDecStmts env decstms
         return (Just fundecs)
+        
 genexp :: Env->Exp-> State TacM (Addr)
 genexp env exp = case exp of 
   InfixOp op exp1 exp2 ->case op of
@@ -401,6 +402,7 @@ genexp env exp = case exp of
 		addTAC $ [TACNewTemp addr typ id (Just pos)]
 		return(addr)
   otherwise->genlexp env exp
+
 genlexp::Env->Exp->State TacM(Addr)
 genlexp env exp= case exp of
 	Evar ident@(Pident(_,id))->do
@@ -420,6 +422,7 @@ genArithOp env exp1 exp2 op=do
         addr<-newtemp
         addTAC $ [TACBinaryInfixOp addr addr1 op addr2]
         return(addr)
+
 genUnaryOp :: Env->Unary_Op->Exp-> State TacM (Addr)
 genUnaryOp env op exp = case op of
     Neg->do
@@ -443,6 +446,7 @@ genRelOp env exp1 exp2 op= do
 	addTAC $ [TACJump addr1 addr2 (RelOp op) lab1]++[TACNewTemp addr Tbool "false" Nothing]++[TACGoto lab2]
 	addTAC $ [TACLabel lab1]++[TACNewTemp addr Tbool "true" Nothing]++[TACLabel lab2]
 	return addr
+
 genBoolOp::Env->Exp->Exp->InfixOp->State TacM(Addr)
 genBoolOp env exp1 exp2 op= case op of
   BoolOp subop->case subop of
