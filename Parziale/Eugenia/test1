@@ -1,6 +1,10 @@
-function void main ()
-    boolean x=true
-    boolean y
-    integer r
-    x=x or y
-end
+function void main () 
+ boolean x = (true)
+  boolean y 
+ integer r 
+ if r < 100 or k > 200 and x ~= y then
+ k = 0 
+ else
+ y = false 
+ end
+ end

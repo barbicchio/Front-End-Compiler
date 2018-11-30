@@ -53,7 +53,6 @@ instance TacPP TAC where
         True->nest tab $ text "if"<+>text addr<+> text "goto"<+>text lab
         False->nest tab $ text "ifFalse"<+>text addr<+> text "goto"<+>text lab
       prettyPrint (TACRet addr)                   = nest tab $ text "return" <+> text addr
-      --prettyPrint (TACPreamble s)                     = nest tab $ text s
       --prettyPrint (TACParam label)                    = nest tab $ text "param" <+> text label
       --prettyPrint (TACCallVoid  id npar)              = nest tab $ text "Call" <+> text id <> text "," <> text npar
       --prettyPrint (TACCall var id npar)               = nest tab $ text var <+> text "=" <+> text "Call" <+> text id <> text "," <> text npar

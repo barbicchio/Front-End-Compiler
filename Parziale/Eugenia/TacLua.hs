@@ -11,14 +11,14 @@ import Debug.Trace
 type TacInst=[TAC]
 
 data TacM = TacM{
-				kaddr::Int,
-				klab::Int,
-				code::TacInst,
-			  ttff::(Maybe Label,Maybe Label),
+        kaddr::Int,
+        klab::Int,
+        code::TacInst,
+        ttff::(Maybe Label,Maybe Label),
         next::Label,
         first::Bool
-			    }
-	deriving (Show)			
+          }
+  deriving (Show)     
 
 startState = TacM 0 0 [] (Nothing,Nothing) "" True
 
@@ -52,33 +52,21 @@ type TypMod = (Typ,Mod)
 type PosSig = (Pos,Sig)
 
 data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
-	| TACBinaryInfixOp Addr Addr InfixOp Addr
-	--{| TACBinaryArithOp Addr Addr ArithOp Addr--}
-	| TACSLabel Label --inizio funzione e/o programma
-	| TACELabel Label --fine funzione e/o programma
-	| TACLabel Label --label generica
-	| TACTmp Ident Pos Typ Addr
-	| TACUnaryOp Addr Unary_Op Addr
-	| TACNewTemp Addr Typ Ident (Maybe Pos)
-	| TACIncrDecr Addr Addr IncrDecr
-	| TACJump Addr Addr InfixOp Label
-	| TACGoto Label
+  | TACBinaryInfixOp Addr Addr InfixOp Addr
+  --{| TACBinaryArithOp Addr Addr ArithOp Addr--}
+  | TACSLabel Label --inizio funzione e/o programma
+  | TACELabel Label --fine funzione e/o programma
+  | TACLabel Label --label generica
+  | TACTmp Ident Pos Typ Addr
+  | TACUnaryOp Addr Unary_Op Addr
+  | TACNewTemp Addr Typ Ident (Maybe Pos)
+  | TACIncrDecr Addr Addr IncrDecr
+  | TACJump Addr Addr InfixOp Label
+  | TACGoto Label
   | TACGotoM (Maybe Label)
   | TACtf Addr (Maybe Label) Bool
   | TACRet Addr
-	{--| TACWhile String String String
-	--| TACIf TAC String String
-
-	--| TACCall String String String
-	--| TACParam String
-	--}
-	| TACPreamble String
-	| TACInit Typ Ident Pos (Maybe String) (Maybe String)
-	{--| TACInt Int
-	--| TACBool Bool
-	--| TACChar Char
-	--| TACString String
-	--| TACFloat Float --}
+  | TACInit Typ Ident Pos (Maybe String) (Maybe String)
  deriving(Show)
 
 --TODO:riscrivere funzioni per la dichiarazione di funzione,
@@ -180,29 +168,29 @@ filterdecstmts  (decstm:decstmts) = case decstm of
 
 issimple::Exp->State TacM(Bool)
 issimple exp= case exp of
-	Eint _-> return True
-	Ebool _-> return True
-	Estring _-> return True
-	Efloat _-> return True
-	Echar _-> return True
-	otherwise->return False
+  Eint _-> return True
+  Ebool _-> return True
+  Estring _-> return True
+  Efloat _-> return True
+  Echar _-> return True
+  otherwise->return False
 
 gettypid::Exp->State TacM(String,String)   --forse meglio ritornare (Typ,String)
 gettypid exp=case exp of
-	Eint (Pint(_,id))-> return ("Int",id)
-	Ebool (Pbool(_,id))-> return ("Bool",id)
-	Estring (Pstring(_,id))-> return ("String",id)
-	Efloat (Preal(_,id))-> return ("Float",id)
-	Echar (Pchar(_,id))-> return ("Char",id)
+  Eint (Pint(_,id))-> return ("Int",id)
+  Ebool (Pbool(_,id))-> return ("Bool",id)
+  Estring (Pstring(_,id))-> return ("String",id)
+  Efloat (Preal(_,id))-> return ("Float",id)
+  Echar (Pchar(_,id))-> return ("Char",id)
 
 opposite::RelOp->InfixOp
 opposite op=case op of
-	Eq-> RelOp Neq
-	Neq-> RelOp Eq
-	Lt->RelOp GtE
-	GtE->RelOp Lt
-	LtE->RelOp Gt
-	Gt->RelOp LtE
+  Eq-> RelOp Neq
+  Neq-> RelOp Eq
+  Lt->RelOp GtE
+  GtE->RelOp Lt
+  LtE->RelOp Gt
+  Gt->RelOp LtE
 
 
 --generatori di temporanei e label--
@@ -245,9 +233,9 @@ genProgram (Progr decls) = do
 
 genDecls :: Env->[Dec] -> State TacM(Env)
 genDecls env decs = do 
-		newEnv<-foldM addDec env fundecs
-		foldM genDecl newEnv decs
-			where fundecs=filterdecs decs
+    newEnv<-foldM addDec env fundecs
+    foldM genDecl newEnv decs
+      where fundecs=filterdecs decs
 
 genFunDecls::[Dec]->[Env]->State TacM()
 genFunDecls [] []=return ()
@@ -265,11 +253,11 @@ genDecl env dec = case dec of
               simplexp<-issimple exp
               case simplexp of --caso inizializzazione con semplice valore,no temporaneo. 
                True->do
-               	(typexp,exp)<-gettypid exp
+                (typexp,exp)<-gettypid exp
                 addTAC $ [TACInit typ id pos (Just typexp) (Just exp)]
                 return newEnv  
                False->do --se inizializzazione complessa,allora temporaneo. 
-               	addr<-genexp env exp
+                addr<-genexp env exp
                 addTAC $ [TACTmp id pos typ addr]
                 --addTmp (id,pos) addr --aggiungo alla mappa la coppia (id,pos)-indirizzo
                 return newEnv
@@ -300,13 +288,13 @@ genDecStm (env,envdec) decstm= case decstm of
     Dec fundec@(Func _ _ _ _ _) -> do
         return (env,((fundec,env):envdec))
     Dec vardecl ->do
-    	pushEnv<-genDecl env vardecl
-    	return (pushEnv,envdec)
+      pushEnv<-genDecl env vardecl
+      return (pushEnv,envdec)
     Stmt stm -> do 
-    	fundecstm<-genStm env stm 
-    	case fundecstm of 
-    	  Nothing->return (env,envdec)
-    	  Just list->return (env,(list++envdec))
+      fundecstm<-genStm env stm 
+      case fundecstm of 
+        Nothing->return (env,envdec)
+        Just list->return (env,(list++envdec))
 
 genStm::Env->Stm->State TacM (Maybe[(Dec,Env)]) --controllare come viene fatta codifica espressioni
 genStm env stm= case stm of
@@ -324,14 +312,14 @@ genStm env stm= case stm of
            addTAC $ [TACBinaryInfixOp addrlexp addr (ArithOp subop) addrrexp]
            return Nothing
         AssgnBool subop->do --TODO:completare
-        	return Nothing
+          return Nothing
     Valreturn exp-> do
         addr<-genexp env exp
         addTAC $[TACRet addr]        
         return Nothing
     SExp exp-> do
-		    genexp env exp
-		    return Nothing
+        genexp env exp
+        return Nothing
     SimpleIf exp decstms-> do --TODO:codificare le espressioni di if/while
         bodyif<-newlabel
         exitif<-newlabel
@@ -442,36 +430,36 @@ genexp env exp = case exp of
        otherwise->genBoolOp env exp1 exp2 subop
   Unary_Op subop exp->genUnaryOp env subop exp
   PrePost prepost exp->case prepost of
-		Pre op->do
-			tmp<-newtemp
-			addrlexp<-genlexp env exp
-			addTAC $ [TACAssign tmp addrlexp]++[TACIncrDecr addrlexp tmp op]
-			return addrlexp
-		Post op->do
-			addrlexp<-genlexp env exp
-			addTAC $ [TACIncrDecr addrlexp addrlexp op]
-			return addrlexp
+    Pre op->do
+      tmp<-newtemp
+      addrlexp<-genlexp env exp
+      addTAC $ [TACAssign tmp addrlexp]++[TACIncrDecr addrlexp tmp op]
+      return addrlexp
+    Post op->do
+      addrlexp<-genlexp env exp
+      addTAC $ [TACIncrDecr addrlexp addrlexp op]
+      return addrlexp
   Eint (Pint(_,num)) -> return num
   Efloat (Preal(_,num)) -> return num
   Ebool (Pbool(_,val))->return val
   Estring (Pstring(_,string))->return string
   Echar (Pchar(_,char))->return char
   Evar ident@(Pident(_,id))->do
-		(pos,(typ,_))<-lookVar ident env
-		addr<-newtemp
-		addTAC $ [TACNewTemp addr typ id (Just pos)]
-		return(addr)
+    (pos,(typ,_))<-lookVar ident env
+    addr<-newtemp
+    addTAC $ [TACNewTemp addr typ id (Just pos)]
+    return(addr)
   otherwise->genlexp env exp
 genlexp::Env->Exp->State TacM(Addr)
 genlexp env exp= case exp of
-	Evar ident@(Pident(_,id))->do
-		(pos,_)<-lookVar ident env
-		let idpos=id++"_"++(show pos)
-		--addTmp (id,pos) addr
-		--addTAC $ [TACNewTemp addr typ id pos]
-		return(idpos)
-	{--Arraysel id exp->do
-		(pos,(typ,_))<-lookVar id  env
+  Evar ident@(Pident(_,id))->do
+    (pos,_)<-lookVar ident env
+    let idpos=id++"_"++(show pos)
+    --addTmp (id,pos) addr
+    --addTAC $ [TACNewTemp addr typ id pos]
+    return(idpos)
+  {--Arraysel id exp->do
+    (pos,(typ,_))<-lookVar id  env
 --}
 
 genArithOp::Env->Exp->Exp->InfixOp->State TacM (Addr)
@@ -541,4 +529,3 @@ genBoolOp env exp1 exp2 op= case op of
       "true"->return()
       otherwise->addTAC $ [TACtf addr2 (Just tt) True]++[TACGotoM ff]
      return ""
-
