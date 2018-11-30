@@ -63,6 +63,7 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
 	| TACIncrDecr Addr Addr IncrDecr
 	| TACJump Addr Addr InfixOp Label
 	| TACGoto Label
+  | TACGotoM (Maybe Label)
   | TACtf Addr (Maybe Label) Bool
   | TACRet Addr
 	{--| TACWhile String String String
@@ -480,7 +481,7 @@ genBoolOp env exp1 exp2 op= case op of
       ""->return()
       "false"->addTAC $ [TACGoto ff]
       "true"->return()
-      otherwise->addTAC $ [TACtf addr2 (Just ff) False]
+      otherwise->addTAC $ [TACtf addr2 (Just ff) False]++[TACGotoM tt]
      return ""
     Or->do
      (Just tt,ff)<-gets ttff
@@ -499,6 +500,6 @@ genBoolOp env exp1 exp2 op= case op of
       ""->return()
       "false"->addTAC $ [TACGoto tt]
       "true"->return()
-      otherwise->addTAC $ [TACtf addr2 (Just tt) True]
+      otherwise->addTAC $ [TACtf addr2 (Just tt) True]++[TACGotoM ff]
      return ""
 

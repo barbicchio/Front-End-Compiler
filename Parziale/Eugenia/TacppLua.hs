@@ -38,6 +38,9 @@ instance TacPP TAC where
       --prettyPrint (TACCondition left op right)        = nest tab $ text left <> text op <> text right
       --prettyPrint (TACIf tacCondition l1 l2)          = nest tab $ text "if" <+> prettyPrint tacCondition <+> text "goto" <+> text l1 $$ text "goto" <+> text l2
       prettyPrint (TACGoto label)                     = nest tab $ text "goto" <+> text label 
+      prettyPrint (TACGotoM lab)                     =case lab of
+         Nothing->nest tab $ text "goto"
+         Just label->nest tab $ text "goto" <+> text label 
       prettyPrint (TACJump addr1 addr2 op lab)   = case op of
        RelOp subop-> case (subop,addr2) of
         (Gt,addr2)->nest tab $ text "if"<+>text addr1<+>text ">"<+>text addr2<+>text "goto"<+>text lab
