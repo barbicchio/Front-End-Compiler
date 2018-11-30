@@ -385,17 +385,17 @@ genexp env exp = case exp of
        True->do
         (tt,ff)<-gets ttff
         case (tt,ff) of
-           (Nothing,Nothing)->do
-            newtt<-newlabel
-            newff<-newlabel
-            modify (\s->s{ttff=(Just newtt,Just newff)})
-           (Nothing,Just _)->do
-            newtt<-newlabel
-            modify (\s-> s{ttff=(Just newtt,ff)})
-           (Just _ ,Nothing)->do
-            newff<-newlabel
-            modify (\s->s{ttff=(tt,Just newff)})
-           otherwise->return ()
+         (Nothing,Nothing)->do
+          newtt<-newlabel
+          newff<-newlabel
+          modify (\s->s{ttff=(Just newtt,Just newff)})
+         (Nothing,Just _)->do
+          newtt<-newlabel
+          modify (\s-> s{ttff=(Just newtt,ff)})
+         (Just _ ,Nothing)->do
+          newff<-newlabel
+          modify (\s->s{ttff=(tt,Just newff)})
+         otherwise->return ()
         (Just tt,Just ff)<-gets ttff
         modify (\s->s{first=False})
         genRelOp env exp1 exp2 subop
@@ -489,12 +489,12 @@ genUnaryOp env op exp = case op of
 
 genRelOp::Env->Exp->Exp->RelOp->State TacM(Addr) --TODO:scrivere in modo che funzioni anche nelle guardie cicli
 genRelOp env exp1 exp2 op= do
-    (Just tt,Just ff)<-gets ttff
-    addr1<-genexp env exp1
-    addr2<-genexp env exp2
-    addTAC $ [TACJump addr1 addr2 (RelOp op) tt]++[TACGoto ff]
-	--addTAC $ [TACLabel lab1]++[TACNewTemp addr Tbool "true" Nothing]++[TACLabel lab2]
-    return ""
+  (Just tt,Just ff)<-gets ttff
+  next<-newlabel
+  addr1<-genexp env exp1
+  addr2<-genexp env exp2
+  addTAC $ [TACJump addr1 addr2 (RelOp op) tt]++[TACGoto ff]
+  return ""
 genBoolOp::Env->Exp->Exp->BoolOp->State TacM(Addr)
 genBoolOp env exp1 exp2 op= case op of
     And->do
