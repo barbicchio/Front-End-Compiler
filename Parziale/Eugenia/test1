@@ -1,6 +1,7 @@
 function integer main ()
-    boolean x
+    boolean x=true
     boolean y
     integer r
-    x=(x and y) or r
+    x=(x and y) and x
+    return r
 end

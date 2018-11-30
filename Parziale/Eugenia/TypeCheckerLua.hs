@@ -59,7 +59,7 @@ gettypid exp=case exp of
   Efloat (Preal(_,id))->id
   Echar (Pchar(_,id))->id
   Evar (Pident(_,id))->id
-  --otherwise->return $ (show exp)
+  otherwise->""
 
 checkDecs :: Env -> [Dec] -> Writer [String] Env
 checkDecs env decsstats = do 
