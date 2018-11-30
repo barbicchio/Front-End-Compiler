@@ -83,9 +83,11 @@ check s = case pProgram (myLexer s) of
               putStrLn "\n-----------------------\n TYPE CHECK \n-----------------------\n"
               if len==0
                 then do
+                 putStrLn "Typecheck ok!"
                  mapM_ print checkedtree 
                  putStrLn "\n-----------------------\n THREE ADRESS CODE \n-----------------------\n"
                  putStrLn $ show $ code tac
+                 putStrLn ""
                  putStrLn $ show $ prettyPrint $ code tac
                 else do
                 putStr $ show len
@@ -97,9 +99,8 @@ check s = case pProgram (myLexer s) of
     
               --string<-unwrap typecheck tree
                 mapM_ print checkedtree
-                putStrLn ""
-                putStrLn "Can't generate TAC!"
-                putStrLn ""
+
+
                
               where tac = tacGenerator tree
                     checkedtree = test tree

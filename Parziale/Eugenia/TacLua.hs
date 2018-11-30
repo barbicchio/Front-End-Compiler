@@ -240,7 +240,7 @@ genProgram (Progr decls) = do
     addTAC $ [TACSLabel "Program"]
     env<-createInitialEnv emptyEnv
     genDecls env decls
-    addTAC $ [TACELabel "Program"]
+    addTAC $ [TACELabel "Program\n"]
     return ()
 
 genDecls :: Env->[Dec] -> State TacM(Env)
