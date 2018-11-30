@@ -189,7 +189,7 @@ checkReturn (Env ((BlockEnv _ _ blockTyp):stack)) pos returnTyp exp= case blockT
     if genTyp/=decTyp
     then do
       let ident=gettypid exp
-      tell $ [(show pos) ++ ": Type mismatch in return statement. Expected type->" ++ (show decTyp) ++ ". Actual type->" ++ (show returnTyp)++"in token "++ident]
+      tell $ [(show pos) ++ ": Type mismatch in return statement. Expected type->" ++ (show decTyp) ++ ". Actual type->" ++ (show returnTyp)++" in token "++ident]
     else return ()
   otherwise->checkReturn (Env stack) pos returnTyp exp
 
@@ -204,7 +204,7 @@ checkExpr env typ expr= do
       return env
     else do
       let ident=gettypid expr
-      tell $[(show pos) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type token "++ident++ "->" ++ (show exprTyp)]
+      tell $[(show pos) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type token "++ident++ "-> " ++ (show exprTyp)]
       return env
 
 
@@ -423,7 +423,7 @@ checkIfIsOrd pos typ exp = do
   if typ/=Tint && typ/=Tfloat
   then do
     let ident=gettypid exp 
-    tell $ [(show pos) ++ ": "++ "Cannot use operand in non-ordered type"++ident]
+    tell $ [(show pos) ++ ": "++ "Cannot use operand in non-ordered type "++ident]
   else return ()
 
 --controlla se il typo passato è un pointer, nel caso lo sia torna il tipo di array,
@@ -433,7 +433,7 @@ checkIfIsPointerAndReturnType pos typ exp = case typ of
   Tpointer ptyp -> return (pos,ptyp)
   _ -> do
     let ident=gettypid exp
-    tell $ [(show pos) ++":"++"Cannot use operand in non-pointer type"++ident]
+    tell $ [(show pos) ++":"++"Cannot use operand in non-pointer type "++ident]
     return ((-1,-1),Terror) --sostituire con Terror
 
 --controlla numero e tipo dei parametri di una chiamata a funzione
@@ -517,7 +517,7 @@ addVarDec :: BlockEnv -> Ident -> Pos -> (Typ,Maybe Modality) -> Writer [String]
 addVarDec curr@(BlockEnv sigs context blockTyp) ident pos@(line,col) modtyp = do
   record <- lookVarInContext ident context
   case record of
-    Nothing -> return (BlockEnv sigs (Map.insert ident (pos,modtyp) context ) blockTyp) --confrontare con eiffel
+    Nothing -> return (BlockEnv sigs (Map.insert ident (pos,modtyp) context ) blockTyp) 
     Just (pos',_) -> do
       tell $[(show pos) ++ ": variable "++ ident ++ " already declared in " ++ (show pos')]
       return curr
@@ -613,7 +613,7 @@ checkLexpr (pos,expr,(typ,Just modal)) = do
     then return ()
     else do
       let ident=gettypid expr
-      tell $[(show pos) ++ ":" ++ "Modality of Parameter "++ident++"requires an L-Expression"]
+      tell $[(show pos) ++ ":" ++ "Modality of Parameter "++ident++" requires an L-Expression"]
   else return ()
 
 --controlla se la Modality richiede una L-expr, se sì restituisco True, altrimenti False
@@ -640,7 +640,7 @@ checkConstCall env (_,expr,(typ,Just modal)) = do
         (_,(_,(Just varmodal)))->do
           if (varmodal==Modality_CONST) && modalityRequiresLexpr modal
             then
-              tell $ [show pos ++ ":" ++ "Cannot pass parameter "++ident++"by constant when Modality requires an L-Expression"]
+              tell $ [show pos ++ ":" ++ "Cannot pass parameter "++ident++" by constant when Modality requires an L-Expression"]
             else
               return ()
         otherwise->return ()
@@ -663,7 +663,7 @@ checkConstVar env expr = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST
-            then  tell $ [show pos ++ ":" ++ "Cannot assign a value"++ident++ "to a CONST variable"]
+            then  tell $ [show pos ++ ":" ++ "Cannot assign a value "++ident++ " to a CONST variable"]
             else return ()
         otherwise->return ()
     Arraysel exprArray _ -> do
