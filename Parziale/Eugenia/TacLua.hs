@@ -162,7 +162,15 @@ lookFuncInSigs ident sigs= do
 createInitialEnv::Env->State TacM(Env) --TODO aggiornare con le altre funzioni
 createInitialEnv (Env (current:stack)) = do
   newBlockEnv<-addFuncDec current "writeInt" (-1,-1) Tvoid [(Tint,Just Modality_VAL)] Nothing
-  newBlockEnv<-addFuncDec newBlockEnv "readInt" (-1,-1)  Tint [] Nothing
+  newBlockEnv <- addFuncDec newBlockEnv "writeFloat" (-1,-1) Tvoid [(Tfloat,Just Modality_VAL)] Nothing
+  newBlockEnv <- addFuncDec newBlockEnv "writeChar" (-1,-1) Tvoid [(Tchar,Just Modality_VAL)] Nothing
+  newBlockEnv <- addFuncDec newBlockEnv "writeString" (-1,-1) Tvoid [(Tstring,Just Modality_VAL)] Nothing
+
+  newBlockEnv <- addFuncDec newBlockEnv "readInt" (-1,-1)  Tint [] Nothing  
+  newBlockEnv <- addFuncDec newBlockEnv "readFloat" (-1,-1)  Tfloat [] Nothing 
+  newBlockEnv <- addFuncDec newBlockEnv "readChar" (-1,-1)  Tchar [] Nothing
+  newBlockEnv <- addFuncDec newBlockEnv "readString" (-1,-1)  Tstring [] Nothing
+
   return (Env ((emptyBlockEnv BTdecs):newBlockEnv:stack))
 
 filterdecs::[Dec]->[Dec]
