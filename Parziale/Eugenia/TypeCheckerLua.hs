@@ -59,7 +59,7 @@ gettypid exp=case exp of
   Efloat (Preal(_,id))->id
   Echar (Pchar(_,id))->id
   Evar (Pident(_,id))->id
-  --otherwise->return $ (show exp)
+  otherwise->""
 
 checkDecs :: Env -> [Dec] -> Writer [String] Env
 checkDecs env decsstats = do 
@@ -138,9 +138,6 @@ findReturnInStm decstm = case decstm of
     Stmt(While _  decstmts) -> findReturnInDecStms decstmts
     Stmt(DoWhile decstmts _)-> findReturnInDecStms decstmts
     _ -> return False
-
-{--checkStms::Env->[Stm]->IO Env
-checkStms env stm = foldM checkStm env --}
 
 --controlla gli statement
 checkStm::Env->Stm->Writer [String] Env
@@ -238,7 +235,7 @@ inferExpr env expr = case expr of
   Arr (exp:exprs)-> do
     (pos,typ)<-inferExpr env exp
     checkArr env pos typ exprs
-    return (pos,Tarray Nothing typ) --TODO rivedere come gestire l'intero di array
+    return (pos,Tarray Nothing typ) 
 
   InfixOp infixOp expr1 expr2 -> do
     posTyp<-inferInfixExpr env infixOp expr1 expr2

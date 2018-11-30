@@ -8,7 +8,7 @@ import AbsLua
 import ErrM
 import Debug.Trace
 
-type TacInst = [TAC]
+type TacInst=[TAC]
 
 data TacM = TacM{
 				kaddr::Int,
@@ -36,22 +36,22 @@ data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ
 
 type Ident = String
 type Typ = Type_specifier
-type Addr = String
+type Addr= String
 type Label = String
 type Mod = Maybe Modality
 
-type Sigs = Map.Map Ident PosSig
+type Sigs =Map.Map Ident PosSig
 type Context = Map.Map Ident PosTypMod
 type TacContext = Map.Map (Ident,Pos) Addr
 
 type Sig = (Typ,[TypMod],Maybe Label) --cambiare ordine di typmod e typ
 type Pos = (Int,Int)
-type PosTyp = (Pos,Typ)
+type PosTyp=(Pos,Typ)
 type PosTypMod = (Pos,TypMod)
 type TypMod = (Typ,Mod)
 type PosSig = (Pos,Sig)
 
-data TAC = TACAssign Addr Addr           --modificare tutto con le posizioni
+data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
 	| TACBinaryInfixOp Addr Addr InfixOp Addr
 	--{| TACBinaryArithOp Addr Addr ArithOp Addr--}
 	| TACSLabel Label --inizio funzione e/o programma
@@ -63,10 +63,12 @@ data TAC = TACAssign Addr Addr           --modificare tutto con le posizioni
 	| TACIncrDecr Addr Addr IncrDecr
 	| TACJump Addr Addr InfixOp Label
 	| TACGoto Label
+  | TACGotoM (Maybe Label)
   | TACtf Addr (Maybe Label) Bool
+  | TACRet Addr
 	{--| TACWhile String String String
 	--| TACIf TAC String String
-	--| TACReturn String
+
 	--| TACCall String String String
 	--| TACParam String
 	--}
@@ -275,8 +277,8 @@ genDecl env dec = case dec of
               addTAC $ [TACInit typ id pos Nothing Nothing] --se possibile migliorare il tipo che viene stampato (soprattutto per gli array)
               newEnv <- addDec env dec
               return newEnv
-      Func retTyp ident params _ decstmts -> do   --TODO:se funzione restituisce tipo void devo aggiugere return void
-          label <- newlabel
+      Func retTyp ident@(Pident(pos,id)) params _ decstmts -> do   --TODO:se funzione restituisce tipo void devo aggiugere return void
+          let label=id
           pushEnv<-(pushNewBlocktoEnv env (BTfun retTyp))
           pushEnv<-addParams pushEnv params --porto dentro i parametri
           addTAC $ [TACSLabel label]
@@ -324,30 +326,46 @@ genStm env stm= case stm of
         AssgnBool subop->do --TODO:completare
         	return Nothing
     Valreturn exp-> do
-		addr<-genexp env exp
-		return Nothing
+        addr<-genexp env exp
+        addTAC $[TACRet addr]        
+        return Nothing
     SExp exp-> do
-		genexp env exp
-		return Nothing
+		    genexp env exp
+		    return Nothing
     SimpleIf exp decstms-> do --TODO:codificare le espressioni di if/while
-		pushEnv<- pushNewBlocktoEnv env BTifEls
-		(_,fundecs)<-genDecStmts pushEnv decstms
-		return (Just fundecs)
+        bodyif<-newlabel
+        exitif<-newlabel
+        modify(\s->s{ttff=(Just bodyif,Just exitif),first=False})
+        pushEnv<- pushNewBlocktoEnv env BTifEls
+        genexp env exp
+        addTAC $ [TACLabel bodyif]
+        modify (\s->s{first=True,ttff=(Nothing,Nothing)})
+        (_,fundecs)<-genDecStmts pushEnv decstms
+        addTAC $ [TACLabel exitif]
+        return (Just fundecs)
     IfThElse exp decstms1 decstms2->do --TODO:codificare le espressioni di if/while
+        bodyif<-newlabel
+        bodyelse<-newlabel
+        next<-newlabel
+        modify(\s->s{ttff=(Just bodyif,Just bodyelse),first=False})
         pushEnvIf<-pushNewBlocktoEnv env BTifEls
+        genexp env exp
+        modify(\s->s{ttff=(Nothing,Nothing),first=True})
         pushEnvElse<-pushNewBlocktoEnv env BTifEls
+        addTAC $[TACLabel bodyif]
         (_,fundecs1)<-genDecStmts pushEnvIf decstms1
+        addTAC $[TACGoto next]++[TACLabel bodyelse]
         (_,fundecs2)<-genDecStmts pushEnvElse decstms2
+        addTAC $ [TACLabel next]
         return (Just (fundecs1++fundecs2))
     DoWhile decstms exp-> do --TODO:codificare le espressioni di if/while
         pushEnv<-pushNewBlocktoEnv env BTloop
-        (_,fundecs)<-genDecStmts env decstms
+        (_,fundecs)<-genDecStmts pushEnv decstms
         return (Just fundecs)
     While exp decstms-> do --TODO:codificare le espressioni di if/while
         pushEnv<-pushNewBlocktoEnv env BTloop
-        (_,fundecs)<-genDecStmts env decstms
+        (_,fundecs)<-genDecStmts pushEnv decstms
         return (Just fundecs)
-        
 genexp :: Env->Exp-> State TacM (Addr)
 genexp env exp = case exp of 
   InfixOp op exp1 exp2 ->case op of
@@ -372,14 +390,14 @@ genexp env exp = case exp of
          otherwise->return ()
         (Just tt,Just ff)<-gets ttff
         modify (\s->s{first=False})
-        genBoolOp env exp1 exp2 op
+        genBoolOp env exp1 exp2 subop
         result<-newtemp
         next<-newlabel
         addTAC $ [TACLabel tt]++[TACNewTemp result Tbool "true" Nothing]++[TACGoto next] --se dentro guardia diverso...
         addTAC $ [TACLabel ff]++[TACNewTemp result Tbool "false" Nothing]++[TACLabel next]
         modify (\s->s{first=True,ttff=(Nothing,Nothing)})
         return result
-       otherwise->genBoolOp env exp1 exp2 op
+       otherwise->genBoolOp env exp1 exp2 subop
   Unary_Op subop exp->genUnaryOp env subop exp
   PrePost prepost exp->case prepost of
 		Pre op->do
@@ -402,7 +420,6 @@ genexp env exp = case exp of
 		addTAC $ [TACNewTemp addr typ id (Just pos)]
 		return(addr)
   otherwise->genlexp env exp
-
 genlexp::Env->Exp->State TacM(Addr)
 genlexp env exp= case exp of
 	Evar ident@(Pident(_,id))->do
@@ -422,7 +439,6 @@ genArithOp env exp1 exp2 op=do
         addr<-newtemp
         addTAC $ [TACBinaryInfixOp addr addr1 op addr2]
         return(addr)
-
 genUnaryOp :: Env->Unary_Op->Exp-> State TacM (Addr)
 genUnaryOp env op exp = case op of
     Neg->do
@@ -446,10 +462,8 @@ genRelOp env exp1 exp2 op= do
 	addTAC $ [TACJump addr1 addr2 (RelOp op) lab1]++[TACNewTemp addr Tbool "false" Nothing]++[TACGoto lab2]
 	addTAC $ [TACLabel lab1]++[TACNewTemp addr Tbool "true" Nothing]++[TACLabel lab2]
 	return addr
-
-genBoolOp::Env->Exp->Exp->InfixOp->State TacM(Addr)
+genBoolOp::Env->Exp->Exp->BoolOp->State TacM(Addr)
 genBoolOp env exp1 exp2 op= case op of
-  BoolOp subop->case subop of
     And->do
      (tt,Just ff)<-gets ttff
      newtt<-newlabel--B1.tt
@@ -467,7 +481,7 @@ genBoolOp env exp1 exp2 op= case op of
       ""->return()
       "false"->addTAC $ [TACGoto ff]
       "true"->return()
-      otherwise->addTAC $ [TACtf addr1 (Just ff) False]
+      otherwise->addTAC $ [TACtf addr2 (Just ff) False]++[TACGotoM tt]
      return ""
     Or->do
      (Just tt,ff)<-gets ttff
@@ -486,8 +500,6 @@ genBoolOp env exp1 exp2 op= case op of
       ""->return()
       "false"->addTAC $ [TACGoto tt]
       "true"->return()
-      otherwise->addTAC $ [TACtf addr1 (Just tt) True]
+      otherwise->addTAC $ [TACtf addr2 (Just tt) True]++[TACGotoM ff]
      return ""
-  otherwise->do --se mi arriva relop??? vedere se posso fare direttamente in genrel op
-    return""
 
