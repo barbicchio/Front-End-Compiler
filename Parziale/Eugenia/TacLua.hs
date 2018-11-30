@@ -4,6 +4,8 @@ import qualified Data.Map as Map
 import Control.Monad
 import Control.Monad.Trans.State
 import AbsLua
+--import PrintC
+import ErrM
 import Debug.Trace
 
 type TacInst=[TAC]
@@ -51,6 +53,7 @@ type PosSig = (Pos,Sig)
 
 data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
 	| TACBinaryInfixOp Addr Addr InfixOp Addr
+	--{| TACBinaryArithOp Addr Addr ArithOp Addr--}
 	| TACSLabel Label --inizio funzione e/o programma
 	| TACELabel Label --fine funzione e/o programma
 	| TACLabel Label --label generica
@@ -58,12 +61,24 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
 	| TACUnaryOp Addr Unary_Op Addr
 	| TACNewTemp Addr Typ Ident (Maybe Pos)
 	| TACIncrDecr Addr Addr IncrDecr
-	| TACJump Addr Addr InfixOp Label --salti per espressioni relazionali
+	| TACJump Addr Addr InfixOp Label
 	| TACGoto Label
   | TACGotoM (Maybe Label)
-  | TACtf Addr (Maybe Label) Bool --salti per espressioni booleane
+  | TACtf Addr (Maybe Label) Bool
   | TACRet Addr
-	| TACInit Typ Ident Pos (Maybe String) (Maybe String)	
+	{--| TACWhile String String String
+	--| TACIf TAC String String
+
+	--| TACCall String String String
+	--| TACParam String
+	--}
+	| TACPreamble String
+	| TACInit Typ Ident Pos (Maybe String) (Maybe String)
+	{--| TACInt Int
+	--| TACBool Bool
+	--| TACChar Char
+	--| TACString String
+	--| TACFloat Float --}
  deriving(Show)
 
 --TODO:riscrivere funzioni per la dichiarazione di funzione,
@@ -147,15 +162,7 @@ lookFuncInSigs ident sigs= do
 createInitialEnv::Env->State TacM(Env) --TODO aggiornare con le altre funzioni
 createInitialEnv (Env (current:stack)) = do
   newBlockEnv<-addFuncDec current "writeInt" (-1,-1) Tvoid [(Tint,Just Modality_VAL)] Nothing
-  newBlockEnv <- addFuncDec newBlockEnv "writeFloat" (-1,-1) Tvoid [(Tfloat,Just Modality_VAL)] Nothing
-  newBlockEnv <- addFuncDec newBlockEnv "writeChar" (-1,-1) Tvoid [(Tchar,Just Modality_VAL)] Nothing
-  newBlockEnv <- addFuncDec newBlockEnv "writeString" (-1,-1) Tvoid [(Tstring,Just Modality_VAL)] Nothing
-
-  newBlockEnv <- addFuncDec newBlockEnv "readInt" (-1,-1)  Tint [] Nothing  
-  newBlockEnv <- addFuncDec newBlockEnv "readFloat" (-1,-1)  Tfloat [] Nothing 
-  newBlockEnv <- addFuncDec newBlockEnv "readChar" (-1,-1)  Tchar [] Nothing
-  newBlockEnv <- addFuncDec newBlockEnv "readString" (-1,-1)  Tstring [] Nothing
-
+  newBlockEnv<-addFuncDec newBlockEnv "readInt" (-1,-1)  Tint [] Nothing
   return (Env ((emptyBlockEnv BTdecs):newBlockEnv:stack))
 
 filterdecs::[Dec]->[Dec]
@@ -490,7 +497,6 @@ genUnaryOp env op exp = case op of
 genRelOp::Env->Exp->Exp->RelOp->State TacM(Addr) --TODO:scrivere in modo che funzioni anche nelle guardie cicli
 genRelOp env exp1 exp2 op= do
   (Just tt,Just ff)<-gets ttff
-  next<-newlabel
   addr1<-genexp env exp1
   addr2<-genexp env exp2
   addTAC $ [TACJump addr1 addr2 (RelOp op) tt]++[TACGoto ff]
