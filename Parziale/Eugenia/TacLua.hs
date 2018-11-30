@@ -67,21 +67,21 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
   | TACtf Addr (Maybe Label) Bool
   | TACRet Addr
   | TACInit Typ Ident Pos (Maybe String) (Maybe String)
+  | TACCall Label Int
  deriving(Show)
 
---TODO:riscrivere funzioni per la dichiarazione di funzione,
---capire come gestire gli array e capire cosa viene fatto nelle infix operations.
---Quando faccio cast devo aggiungere un temporaneo
+--FCall,puntatori/array (assolutamente domani),chiamata a funzioni e relativa gestione parametri vari
+--Assegnamenti booleani
 -------------------------------
 --funzioni ausiliarie per ENV--
 -------------------------------
-addDec::Env->Dec->State TacM(Env)  --TODO:quando faccio codeFunc DEVO ricordarmi di aggiungere i temporanei per i parametri!!!
+addDec::Env->Dec->State TacM(Env) 
 addDec env@(Env (current:stack)) dec = case dec of
   VarDeclar typ pident@(Pident (pos,ident)) exp ->do
     newBlockEnv<-addVarDec current ident pos typ Nothing
     return (Env (newBlockEnv:stack))
   Func typ pident@(Pident (pos,ident)) params nparams _  -> do
-    label<-newlabel
+    let label=ident++(show pos)
     newBlockEnv<-addFuncDec current ident pos typ (getParamsModTyp params) (Just label)
     return (Env (newBlockEnv:stack))
 --aggiunge una variabile a un contesto
@@ -147,10 +147,17 @@ lookFuncInSigs ident sigs= do
   return (Map.lookup ident sigs)
 
 
-createInitialEnv::Env->State TacM(Env) --TODO aggiornare con le altre funzioni
+createInitialEnv::Env->State TacM(Env) --TODO label funzione==>name+pos
 createInitialEnv (Env (current:stack)) = do
   newBlockEnv<-addFuncDec current "writeInt" (-1,-1) Tvoid [(Tint,Just Modality_VAL)] Nothing
-  newBlockEnv<-addFuncDec newBlockEnv "readInt" (-1,-1)  Tint [] Nothing
+  newBlockEnv <- addFuncDec newBlockEnv "writeFloat" (-1,-1) Tvoid [(Tfloat,Just Modality_VAL)] Nothing
+  newBlockEnv <- addFuncDec newBlockEnv "writeChar" (-1,-1) Tvoid [(Tchar,Just Modality_VAL)] Nothing
+  newBlockEnv <- addFuncDec newBlockEnv "writeString" (-1,-1) Tvoid [(Tstring,Just Modality_VAL)] Nothing
+
+  newBlockEnv <- addFuncDec newBlockEnv "readInt" (-1,-1)  Tint [] Nothing
+  newBlockEnv <- addFuncDec newBlockEnv "readFloat" (-1,-1)  Tfloat [] Nothing
+  newBlockEnv <- addFuncDec newBlockEnv "readChar" (-1,-1)  Tchar [] Nothing
+  newBlockEnv <- addFuncDec newBlockEnv "readString" (-1,-1)  Tstring [] Nothing
   return (Env ((emptyBlockEnv BTdecs):newBlockEnv:stack))
 
 filterdecs::[Dec]->[Dec]
@@ -209,18 +216,13 @@ newlabel = do
 -------------------------------------
 ------funzioni per gestione TAC------
 -------------------------------------
-{--addCode :: String -> State TacM()
-addCode newCode = modify (\attr -> attr{code = (code attr) ++ newCode ++ "\n"})
---}
 addTAC :: [TAC] -> State TacM()
 addTAC nxtinst = do
     modify (\s ->s{code = (code s) ++ nxtinst})
     return ()
-{--addTmp::(Ident,Pos)->Addr->State TacM()
-addTmp idpos addr= do
-    modify (\s@TacM{tacmap=m} -> s{tacmap=Map.insert idpos addr m})
-    return ()
-    --}
+-------------------------------------
+------generazione codice TAC---------
+-------------------------------------
 tacGenerator program = execState (genProgram program) startState
 
 genProgram :: Program -> State TacM ()
@@ -259,21 +261,23 @@ genDecl env dec = case dec of
                False->do --se inizializzazione complessa,allora temporaneo. 
                 addr<-genexp env exp
                 addTAC $ [TACTmp id pos typ addr]
-                --addTmp (id,pos) addr --aggiungo alla mappa la coppia (id,pos)-indirizzo
                 return newEnv
             Nothing-> do --caso dichiarazione senza
               addTAC $ [TACInit typ id pos Nothing Nothing] --se possibile migliorare il tipo che viene stampato (soprattutto per gli array)
               newEnv <- addDec env dec
               return newEnv
-      Func retTyp ident@(Pident(pos,id)) params _ decstmts -> do   --TODO:se funzione restituisce tipo void devo aggiugere return void
-          let label=id
+      Func retTyp ident@(Pident(pos,id)) params _ decstmts -> do  
+          let label=id++(show pos)
           pushEnv<-(pushNewBlocktoEnv env (BTfun retTyp))
           pushEnv<-addParams pushEnv params --porto dentro i parametri
           addTAC $ [TACSLabel label]
-          (pushEnv,list)<-genDecStmts pushEnv decstmts   --genero codice body -dichiarazioni di fun 
+          (pushEnv,list)<-genDecStmts pushEnv decstmts   --genero codice body escluse dichiarazioni di fun 
+          if (retTyp==Tvoid)
+            then addTAC $ [TACRet "void"] --se non c'è tipo ritorno stampo return void
+            else return()
           addTAC $ [TACELabel label]
           let (funcs,envs)=unzip list
-          genFunDecls funcs envs
+          genFunDecls funcs envs --genero codice funzioni
           return env
          
 genDecStmts::Env->[DecStm]->State TacM((Env),[(Dec,Env)])
@@ -312,7 +316,12 @@ genStm env stm= case stm of
            addTAC $ [TACBinaryInfixOp addrlexp addr (ArithOp subop) addrrexp]
            return Nothing
         AssgnBool subop->do --TODO:completare
-          return Nothing
+           addr<-newtemp
+           addrlexp<-genlexp env lexp
+           addTAC $ [TACAssign addr addrlexp]
+           addrrexp<-genexp env rexp
+           addTAC $ [TACBinaryInfixOp addrlexp addr (BoolOp subop) addrrexp]
+           return Nothing
     Valreturn exp-> do
         addr<-genexp env exp
         addTAC $[TACRet addr]        
@@ -320,7 +329,7 @@ genStm env stm= case stm of
     SExp exp-> do
         genexp env exp
         return Nothing
-    SimpleIf exp decstms-> do --TODO:codificare le espressioni di if/while
+    SimpleIf exp decstms-> do
         bodyif<-newlabel
         exitif<-newlabel
         modify(\s->s{ttff=(Just bodyif,Just exitif),first=False})
@@ -331,7 +340,7 @@ genStm env stm= case stm of
         (_,fundecs)<-genDecStmts pushEnv decstms
         addTAC $ [TACLabel exitif]
         return (Just fundecs)
-    IfThElse exp decstms1 decstms2->do --TODO:codificare le espressioni di if/while
+    IfThElse exp decstms1 decstms2->do
         bodyif<-newlabel
         bodyelse<-newlabel
         next<-newlabel
@@ -346,7 +355,7 @@ genStm env stm= case stm of
         (_,fundecs2)<-genDecStmts pushEnvElse decstms2
         addTAC $ [TACLabel next]
         return (Just (fundecs1++fundecs2))
-    DoWhile decstms exp-> do --TODO:codificare le espressioni di if/while
+    DoWhile decstms exp-> do
         bodywhile<-newlabel --B.tt
         next<-newlabel --B.ff
         pushEnv<-pushNewBlocktoEnv env BTloop
@@ -357,7 +366,7 @@ genStm env stm= case stm of
         modify(\s->s{ttff=(Nothing,Nothing),first=True})
         addTAC $ [TACLabel next]
         return (Just fundecs)
-    While exp decstms-> do --TODO:codificare le espressioni di if/while
+    While exp decstms-> do 
         bodywhile<-newlabel --B.tt
         next<-newlabel --S.next
         guard<-newlabel
@@ -439,6 +448,10 @@ genexp env exp = case exp of
       addrlexp<-genlexp env exp
       addTAC $ [TACIncrDecr addrlexp addrlexp op]
       return addrlexp
+  Fcall id@(Pident (pos,ident)) par num-> do --bisognerebbe fare tutto con look func
+    (pos,(_,_,Just lab))<-lookFunc id env
+    addTAC $ [TACCall lab num]
+    return ""
   Eint (Pint(_,num)) -> return num
   Efloat (Preal(_,num)) -> return num
   Ebool (Pbool(_,val))->return val
@@ -450,13 +463,11 @@ genexp env exp = case exp of
     addTAC $ [TACNewTemp addr typ id (Just pos)]
     return(addr)
   otherwise->genlexp env exp
-genlexp::Env->Exp->State TacM(Addr)
+genlexp::Env->Exp->State TacM(Addr) --TODO
 genlexp env exp= case exp of
   Evar ident@(Pident(_,id))->do
     (pos,_)<-lookVar ident env
     let idpos=id++"_"++(show pos)
-    --addTmp (id,pos) addr
-    --addTAC $ [TACNewTemp addr typ id pos]
     return(idpos)
   {--Arraysel id exp->do
     (pos,(typ,_))<-lookVar id  env
@@ -482,7 +493,7 @@ genUnaryOp env op exp = case op of
       addTAC $[TACUnaryOp addr op addr1]
       return addr
 
-genRelOp::Env->Exp->Exp->RelOp->State TacM(Addr) --TODO:scrivere in modo che funzioni anche nelle guardie cicli
+genRelOp::Env->Exp->Exp->RelOp->State TacM(Addr) 
 genRelOp env exp1 exp2 op= do
   (Just tt,Just ff)<-gets ttff
   addr1<-genexp env exp1

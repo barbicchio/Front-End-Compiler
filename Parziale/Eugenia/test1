@@ -1,10 +1,11 @@
 function void main () 
- boolean x = (true)
-  boolean y 
- integer r 
- if r < 100 or k > 200 and x ~= y then
- k = 0 
- else
- y = false 
- end
- end
+boolean x = (true)
+boolean y 
+integer r 
+carlo(r)
+end
+
+function integer carlo(integer p)
+main()
+return 0
+end
