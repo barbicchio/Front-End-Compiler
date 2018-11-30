@@ -64,9 +64,10 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
 	| TACJump Addr Addr InfixOp Label
 	| TACGoto Label
   | TACtf Addr (Maybe Label) Bool
+  | TACRet Addr
 	{--| TACWhile String String String
 	--| TACIf TAC String String
-	--| TACReturn String
+
 	--| TACCall String String String
 	--| TACParam String
 	--}
@@ -324,23 +325,37 @@ genStm env stm= case stm of
         AssgnBool subop->do --TODO:completare
         	return Nothing
     Valreturn exp-> do
-		addr<-genexp env exp
-		return Nothing
+        addr<-genexp env exp
+        addTAC $[TACRet addr]        
+        return Nothing
     SExp exp-> do
-		genexp env exp
-		return Nothing
+		    genexp env exp
+		    return Nothing
     SimpleIf exp decstms-> do --TODO:codificare le espressioni di if/while
-        modify (\s->s{first=False})
+        bodyif<-newlabel
+        exitif<-newlabel
+        modify(\s->s{ttff=(Just bodyif,Just exitif),first=False})
         pushEnv<- pushNewBlocktoEnv env BTifEls
         genexp env exp
-        modify (\s->s{first=True})
+        addTAC $ [TACLabel bodyif]
+        modify (\s->s{first=True,ttff=(Nothing,Nothing)})
         (_,fundecs)<-genDecStmts pushEnv decstms
+        addTAC $ [TACLabel exitif]
         return (Just fundecs)
     IfThElse exp decstms1 decstms2->do --TODO:codificare le espressioni di if/while
+        bodyif<-newlabel
+        bodyelse<-newlabel
+        next<-newlabel
+        modify(\s->s{ttff=(Just bodyif,Just bodyelse),first=False})
         pushEnvIf<-pushNewBlocktoEnv env BTifEls
+        genexp env exp
+        modify(\s->s{ttff=(Nothing,Nothing),first=True})
         pushEnvElse<-pushNewBlocktoEnv env BTifEls
+        addTAC $[TACLabel bodyif]
         (_,fundecs1)<-genDecStmts pushEnvIf decstms1
+        addTAC $[TACGoto next]++[TACLabel bodyelse]
         (_,fundecs2)<-genDecStmts pushEnvElse decstms2
+        addTAC $ [TACLabel next]
         return (Just (fundecs1++fundecs2))
     DoWhile decstms exp-> do --TODO:codificare le espressioni di if/while
         pushEnv<-pushNewBlocktoEnv env BTloop
