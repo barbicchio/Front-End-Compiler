@@ -4,8 +4,6 @@ import qualified Data.Map as Map
 import Control.Monad
 import Control.Monad.Trans.State
 import AbsLua
---import PrintC
-import ErrM
 import Debug.Trace
 
 type TacInst=[TAC]
@@ -53,7 +51,6 @@ type PosSig = (Pos,Sig)
 
 data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
 	| TACBinaryInfixOp Addr Addr InfixOp Addr
-	--{| TACBinaryArithOp Addr Addr ArithOp Addr--}
 	| TACSLabel Label --inizio funzione e/o programma
 	| TACELabel Label --fine funzione e/o programma
 	| TACLabel Label --label generica
@@ -61,24 +58,12 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
 	| TACUnaryOp Addr Unary_Op Addr
 	| TACNewTemp Addr Typ Ident (Maybe Pos)
 	| TACIncrDecr Addr Addr IncrDecr
-	| TACJump Addr Addr InfixOp Label
+	| TACJump Addr Addr InfixOp Label --salti per espressioni relazionali
 	| TACGoto Label
   | TACGotoM (Maybe Label)
-  | TACtf Addr (Maybe Label) Bool
+  | TACtf Addr (Maybe Label) Bool --salti per espressioni booleane
   | TACRet Addr
-	{--| TACWhile String String String
-	--| TACIf TAC String String
-
-	--| TACCall String String String
-	--| TACParam String
-	--}
-	| TACPreamble String
-	| TACInit Typ Ident Pos (Maybe String) (Maybe String)
-	{--| TACInt Int
-	--| TACBool Bool
-	--| TACChar Char
-	--| TACString String
-	--| TACFloat Float --}
+	| TACInit Typ Ident Pos (Maybe String) (Maybe String)	
  deriving(Show)
 
 --TODO:riscrivere funzioni per la dichiarazione di funzione,
@@ -386,7 +371,33 @@ genexp :: Env->Exp-> State TacM (Addr)
 genexp env exp = case exp of 
   InfixOp op exp1 exp2 ->case op of
     ArithOp subop->genArithOp env exp1 exp2 op
-    RelOp subop->genRelOp env exp1 exp2 subop
+    RelOp subop->do
+      first<-gets first
+      case first of
+       True->do
+        (tt,ff)<-gets ttff
+        case (tt,ff) of
+           (Nothing,Nothing)->do
+            newtt<-newlabel
+            newff<-newlabel
+            modify (\s->s{ttff=(Just newtt,Just newff)})
+           (Nothing,Just _)->do
+            newtt<-newlabel
+            modify (\s-> s{ttff=(Just newtt,ff)})
+           (Just _ ,Nothing)->do
+            newff<-newlabel
+            modify (\s->s{ttff=(tt,Just newff)})
+           otherwise->return ()
+        (Just tt,Just ff)<-gets ttff
+        modify (\s->s{first=False})
+        genRelOp env exp1 exp2 subop
+        result<-newtemp
+        next<-newlabel
+        addTAC $ [TACLabel tt]++[TACNewTemp result Tbool "true" Nothing]++[TACGoto next] --se dentro guardia diverso...
+        addTAC $ [TACLabel ff]++[TACNewTemp result Tbool "false" Nothing]++[TACLabel next]
+        modify (\s->s{first=True,ttff=(Nothing,Nothing)})
+        return result
+       otherwise->genRelOp env exp1 exp2 subop
     BoolOp subop->do
       first<-gets first
       case first of
@@ -470,14 +481,12 @@ genUnaryOp env op exp = case op of
 
 genRelOp::Env->Exp->Exp->RelOp->State TacM(Addr) --TODO:scrivere in modo che funzioni anche nelle guardie cicli
 genRelOp env exp1 exp2 op= do
-	addr1<-genexp env exp1
-	addr2<-genexp env exp2
-	lab1<-newlabel
-	lab2<-newlabel
-	addr<-newtemp
-	addTAC $ [TACJump addr1 addr2 (RelOp op) lab1]++[TACNewTemp addr Tbool "false" Nothing]++[TACGoto lab2]
-	addTAC $ [TACLabel lab1]++[TACNewTemp addr Tbool "true" Nothing]++[TACLabel lab2]
-	return addr
+    (Just tt,Just ff)<-gets ttff
+    addr1<-genexp env exp1
+    addr2<-genexp env exp2
+    addTAC $ [TACJump addr1 addr2 (RelOp op) tt]++[TACGoto ff]
+	--addTAC $ [TACLabel lab1]++[TACNewTemp addr Tbool "true" Nothing]++[TACLabel lab2]
+    return ""
 genBoolOp::Env->Exp->Exp->BoolOp->State TacM(Addr)
 genBoolOp env exp1 exp2 op= case op of
     And->do

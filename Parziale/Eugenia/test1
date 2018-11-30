@@ -1,9 +1,6 @@
-function integer main ()
+function void main ()
     boolean x=true
     boolean y
     integer r
-    repeat
-    r++
-    until (x and y)
-    return r
+    x=x or y
 end
