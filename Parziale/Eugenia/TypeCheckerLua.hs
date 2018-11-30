@@ -529,20 +529,6 @@ addFuncDec curr@(BlockEnv sigs context blockTyp) ident pos@(line,col) returnTyp 
       tell $ [(show pos) ++ ": function "++ ident ++ " already declared in " ++ (show pos')]
       return curr
       
---aggiunge parametri/argomenti all'environment
-
-{--addParams::Env->[Argument]->IO Env
-addParams env arguments = foldM addParam env arguments
- 
-addParam::Env->Argument->IO Env
-addParam (Env (current:stack)) pars = case pars of
-    Param typ (Pident (pos,ident)) -> do
-      newBlockEnv<-addVarDec current ident pos typ
-      return (Env (newBlockEnv:stack))
-    ParamArr typ (Pident (pos,ident)) _ -> do
-      newBlockEnv<-addVarDec current ident pos (Tarray typ)
-      return (Env (newBlockEnv:stack))--}
-
 addParams::Env->[Argument]->Writer [String] Env
 addParams env arguments = foldM addParam env arguments where
   addParam::Env->Argument->Writer [String] Env
@@ -554,17 +540,8 @@ addParams env arguments = foldM addParam env arguments where
 ----HELPERS----
 ---------------
 
---getParamsTyp :: [Argument] -> [Typ]
---getParamsTyp (par:params) = case par of
---    Param typ _ -> typ:getParamsTyp params
---    ParamArr typ _ _ -> (Tarray typ):getParamsTyp params
-
-
 getParamsModTyp::[Argument]->[(Typ,Mod)]
 getParamsModTyp params = map (\(FormPar  mod typ _)->(typ,(Just mod))) params
-{--
-getParamsMod::[Argument]->[Mod]
-getParamsMod params = map (\(FormPar modal _ _ )->Just modal) params--}
 
 createInitialEnv :: Env -> Writer [String] Env
 createInitialEnv (Env (current:stack)) = do

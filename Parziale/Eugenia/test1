@@ -2,11 +2,8 @@ function integer main ()
     boolean x=true
     boolean y
     integer r
-    if (x and y)
-    then
-    x=(x and y)or true 
-    else
-    x=false
-    end
+    repeat
+    r++
+    until (x and y)
     return r
 end

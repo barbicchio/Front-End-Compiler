@@ -359,12 +359,28 @@ genStm env stm= case stm of
         addTAC $ [TACLabel next]
         return (Just (fundecs1++fundecs2))
     DoWhile decstms exp-> do --TODO:codificare le espressioni di if/while
+        bodywhile<-newlabel --B.tt
+        next<-newlabel --B.ff
         pushEnv<-pushNewBlocktoEnv env BTloop
+        addTAC $ [TACLabel bodywhile]
         (_,fundecs)<-genDecStmts pushEnv decstms
+        modify(\s->s{ttff=(Just next,Just bodywhile),first=False}) --repeat B until E, E not true
+        genexp env exp
+        modify(\s->s{ttff=(Nothing,Nothing),first=True})
+        addTAC $ [TACLabel next]
         return (Just fundecs)
     While exp decstms-> do --TODO:codificare le espressioni di if/while
+        bodywhile<-newlabel --B.tt
+        next<-newlabel --S.next
+        guard<-newlabel
         pushEnv<-pushNewBlocktoEnv env BTloop
+        addTAC $[TACGoto guard]++[TACLabel bodywhile]
         (_,fundecs)<-genDecStmts pushEnv decstms
+        modify(\s->s{ttff=(Just bodywhile,Just next),first=False})
+        addTAC $ [TACLabel guard]
+        genexp env exp
+        modify(\s->s{ttff=(Nothing,Nothing),first=True})
+        addTAC $[TACLabel next]
         return (Just fundecs)
 genexp :: Env->Exp-> State TacM (Addr)
 genexp env exp = case exp of 
