@@ -130,7 +130,7 @@ Type_specifier :'boolean' { Tbool }
           | 'void'{ Tvoid }
           | 'pointer' Type_specifier { Tpointer $2 }
           | '{}' Type_specifier { Tarray Nothing $2 }
-          --| '{'Exp'}' Type_specifier { Tarray (Just $2) $4 } 
+          | '{'Exp'}' Type_specifier { Tarray (Just $2) $4 } 
 Argument :: { Argument }
 Argument : Modality Type_specifier Pident { FormPar $1 $2 $3 }
 ListArgument :: { [Argument] }

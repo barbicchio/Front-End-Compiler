@@ -196,22 +196,37 @@ checkReturn (Env ((BlockEnv _ _ blockTyp):stack)) pos returnTyp exp= case blockT
     else return ()
   otherwise->checkReturn (Env stack) pos returnTyp exp
 
+checktyparr::Pos->Typ->Typ->Writer[String]()
+checktyparr pos typ1 typ2=case (typ1,typ2) of
+ (Tarray _ subtyp1,Tarray _ subtyp2)->checktyparr pos subtyp1 subtyp2
+ otherwise->if (typ1==typ2)
+            then return ()
+            else do
+            tell $ [(show pos) ++ ": Type mismatch in array. Expected type->" ++ (show typ1) ++ ". Actual type->" ++ (show typ2)]
+            return()
+
+
 
 --controlla l'expression. 
 checkExpr::Env->Typ->Exp->Writer [String] (Env)
 checkExpr env typ expr= do
   (pos,exprTyp)<-inferExpr env expr
-  if exprTyp==Terror
-    then return env
-  else do  
-   genTyp<-generalize exprTyp typ
-   if typ==genTyp
-    then
+  case (typ,exprTyp) of
+    (Tarray _ subtyp,Tarray _ subexprTyp)-> do
+      checktyparr pos subtyp subexprTyp
       return env
-    else do
-      let ident=gettypid expr
-      tell $[(show pos) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type token "++ident++ "-> " ++ (show exprTyp)]
-      return env
+    otherwise->do
+     if exprTyp==Terror
+      then return env
+      else do  
+      genTyp<-generalize exprTyp typ
+      if typ==genTyp
+       then
+       return env
+       else do
+       let ident=gettypid expr
+       tell $[(show pos) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type token "++ident++ "-> " ++ (show exprTyp)]
+       return env
 
 
 checkDefaultStm::Env->Maybe Stm->Writer [String] ()

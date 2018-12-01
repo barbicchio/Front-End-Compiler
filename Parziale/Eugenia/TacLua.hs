@@ -4,8 +4,6 @@ import qualified Data.Map as Map
 import Control.Monad
 import Control.Monad.Trans.State
 import AbsLua
---import PrintC
-import ErrM
 import Debug.Trace
 
 type TacInst=[TAC]
@@ -15,12 +13,12 @@ data TacM = TacM{
         klab::Int,
         code::TacInst,
         ttff::(Maybe Label,Maybe Label),
-        next::Label,
-        first::Bool
+        first::Bool,
+        arrayinfo::(Int,Maybe Ident,Maybe Typ,Maybe Typ) --offset,base,type,elemtype
           }
   deriving (Show)     
 
-startState = TacM 0 0 [] (Nothing,Nothing) "" True
+startState = TacM 0 0 [] (Nothing,Nothing) True (0,Nothing,Nothing,Nothing)
 
 data Env =Env [BlockEnv]  deriving (Eq, Ord, Show, Read)
 
@@ -33,6 +31,7 @@ data BlockEnv = BlockEnv {
 
 data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ
   deriving (Eq, Ord, Show, Read)
+
 
 type Ident = String
 type Typ = Type_specifier
@@ -53,7 +52,6 @@ type PosSig = (Pos,Sig)
 
 data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
   | TACBinaryInfixOp Addr Addr InfixOp Addr
-  --{| TACBinaryArithOp Addr Addr ArithOp Addr--}
   | TACSLabel Label --inizio funzione e/o programma
   | TACELabel Label --fine funzione e/o programma
   | TACLabel Label --label generica
@@ -68,10 +66,11 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
   | TACRet Addr
   | TACInit Typ Ident Pos (Maybe String) (Maybe String)
   | TACCall Label Int
+  | TACParam Addr
  deriving(Show)
 
---FCall,puntatori/array (assolutamente domani),chiamata a funzioni e relativa gestione parametri vari
---Assegnamenti booleani
+--FCall,puntatori/array (assolutamente domani),relativa gestione parametri vari,cast se non riescono
+--Assegnamenti booleani -->da fare
 -------------------------------
 --funzioni ausiliarie per ENV--
 -------------------------------
@@ -101,12 +100,10 @@ addFuncDec (BlockEnv sigs context blockTyp)  ident pos@(line,col) returnTyp para
 addParams::Env->[Argument]->State TacM(Env)
 addParams env parameters = foldM addParam env parameters
  
-addParam::Env->Argument->State TacM(Env) --riscrivere in modo che
+addParam::Env->Argument->State TacM(Env) --modalità diverse possono avere anche tac associato
 addParam (Env (current:stack)) pars = case pars of
     FormPar mod typ (Pident (pos,ident)) -> do
       newBlockEnv<-addVarDec current ident pos typ (Just mod)
-      --addCode $ tmp ++ " = " ++ ident --idealmente questo va separato
-      --addTAC $ TACAssign tmp ident
       return (Env (newBlockEnv:stack))
 
 emptyEnv = Env [emptyBlockEnv BTroot]
@@ -189,7 +186,7 @@ gettypid exp=case exp of
   Estring (Pstring(_,id))-> return ("String",id)
   Efloat (Preal(_,id))-> return ("Float",id)
   Echar (Pchar(_,id))-> return ("Char",id)
-
+{--
 opposite::RelOp->InfixOp
 opposite op=case op of
   Eq-> RelOp Neq
@@ -198,7 +195,7 @@ opposite op=case op of
   GtE->RelOp Lt
   LtE->RelOp Gt
   Gt->RelOp LtE
-
+--}
 
 --generatori di temporanei e label--
 
@@ -259,10 +256,17 @@ genDecl env dec = case dec of
                 addTAC $ [TACInit typ id pos (Just typexp) (Just exp)]
                 return newEnv  
                False->do --se inizializzazione complessa,allora temporaneo. 
-                addr<-genexp env exp
-                addTAC $ [TACTmp id pos typ addr]
-                return newEnv
-            Nothing-> do --caso dichiarazione senza
+                case typ of
+                 Tarray exps subtyp -> do
+                  modify (\s->s{arrayinfo=(0,Just id,Just typ,Just subtyp)})
+                  genexp env exp
+                  modify (\s->s{arrayinfo=(0,Nothing,Nothing,Nothing)})
+                  return newEnv
+                 otherwise->do 
+                  addr<-genexp env exp
+                  addTAC $ [TACTmp id pos typ addr]
+                  return newEnv
+            Nothing-> do --caso dichiarazione senza inizializzazione
               addTAC $ [TACInit typ id pos Nothing Nothing] --se possibile migliorare il tipo che viene stampato (soprattutto per gli array)
               newEnv <- addDec env dec
               return newEnv
@@ -448,7 +452,8 @@ genexp env exp = case exp of
       addrlexp<-genlexp env exp
       addTAC $ [TACIncrDecr addrlexp addrlexp op]
       return addrlexp
-  Fcall id@(Pident (pos,ident)) par num-> do --bisognerebbe fare tutto con look func
+  Fcall id@(Pident (pos,ident)) pars num-> do
+    genparams env pars -- TODO: in questo caso gestire le diverse modalità parametri
     (pos,(_,_,Just lab))<-lookFunc id env
     addTAC $ [TACCall lab num]
     return ""
@@ -472,6 +477,15 @@ genlexp env exp= case exp of
   {--Arraysel id exp->do
     (pos,(typ,_))<-lookVar id  env
 --}
+genparams::Env->[Exp]->State TacM ()
+genparams _ []=return()
+genparams env (exp:exps)= do
+        par<-newtemp
+        addr<-genexp env exp
+        addTAC $ [TACAssign par addr]
+        addTAC $ [TACParam par]
+        genparams env exps
+        return()
 
 genArithOp::Env->Exp->Exp->InfixOp->State TacM (Addr)
 genArithOp env exp1 exp2 op=do
@@ -487,7 +501,7 @@ genUnaryOp env op exp = case op of
       addr<-newtemp
       addTAC $[TACUnaryOp addr op addr1]
       return addr
-    Logneg->do 
+    Logneg->do     --TODO:rivedere ed eventualmente correggere
       addr1<-genexp env exp
       addr<-newtemp
       addTAC $[TACUnaryOp addr op addr1]

@@ -63,6 +63,7 @@ instance TacPP TAC where
         False->nest tab $ text "ifFalse"<+>text addr<+> text "goto"<+>text lab
       prettyPrint (TACRet addr)                   = nest tab $ text "return" <+> text addr
       prettyPrint (TACCall id npar)               = nest tab $ text "call" <+> text id <> text "/" <> text (show npar)
+      prettyPrint (TACParam addr)                 = nest tab $ text "parameter"<+> text addr
      -- prettyPrint (TACException label)                = nest tab $ text "on exception goto" <+> text label
 
 class TacPP a where
