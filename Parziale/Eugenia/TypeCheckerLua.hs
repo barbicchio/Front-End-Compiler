@@ -51,7 +51,7 @@ typecheck p@(Progr decls) = do
   checkDecs env decls
   return ()
 
-gettypid::Exp->String   
+gettypid::Exp->String  
 gettypid exp=case exp of
   Eint (Pint(_,id))->id
   Ebool (Pbool(_,id))->id
@@ -59,7 +59,7 @@ gettypid exp=case exp of
   Efloat (Preal(_,id))->id
   Echar (Pchar(_,id))->id
   Evar (Pident(_,id))->id
-  otherwise->""
+  otherwise-> show(exp)
 
 checkDecs :: Env -> [Dec] -> Writer [String] Env
 checkDecs env decsstats = do 
