@@ -1,4 +1,6 @@
 function void main ()
 {3}{4}integer g
-g{2}{3}=3
+integer k
+integer p
+g{k++}{--p}=3
 end

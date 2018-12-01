@@ -495,13 +495,14 @@ genlexp env exp= case exp of
 
 genArrSel::Env->Exp->Exp->State TacM(Addr)
 genArrSel env exp1 exp2= do
-  let (Just id,exps)=getid exp1 []
+  let (Just id@(Pident(_,name)),exps)=getid exp1 []
       allexp=exps++[exp2] --aggiungo l'espressione più esterna
   (pos,(typ,_))<-lookVar id env
   let dims=getsizes typ
       dimtyp=getdim$gettyp typ
-  getoffset env dimtyp allexp dims
-  return (show id)
+  offset<-getoffset env dimtyp allexp dims
+  let addr=name++"_"++(show pos)++"["++offset++"]"
+  return addr
 
 getsizes::Typ->[Int]  --tiro fuori le posizioni
 getsizes typ= case typ of
@@ -514,20 +515,31 @@ getid exp list= case exp of
  Arraysel subexp indexexp->getid subexp (indexexp:list)
  
 getoffset::Env->Int->[Exp]->[Int]->State TacM(Addr)
-getoffset _ _ [] _=return ""
-getoffset env size (exp:exps) (_:dims)=do
+getoffset env dimtyp allexp dims = do
+  addrs<-listaddr env dimtyp allexp dims []
+  addr<-sumaddr addrs
+  return addr
+
+listaddr::Env->Int->[Exp]->[Int]->[Addr]->State TacM([Addr])
+listaddr _ _ [] _ list=return list
+listaddr env size (exp:exps) (_:dims) list=do
   addr1<-genexp env exp
   let addr2=show $ foldl (*) size dims
   tmp<-newtemp
   addTAC $ [TACBinaryInfixOp tmp addr1 (ArithOp Mul) addr2]
-  getoffset env size exps dims
-  return ""
-getoffset env size (exp:[]) _=do
+  listaddr env size exps dims (tmp:list)
+{--listaddr env size (exp:[]) dims list=do
   addr<-genexp env exp
   tmp<-newtemp
   addTAC $ [TACBinaryInfixOp tmp addr (ArithOp Mul) (show size)]
-  return tmp
+  listaddr env size [] dims (tmp:list)--}
 
+sumaddr::[Addr]->State TacM(Addr)
+sumaddr (addr:[])=return addr
+sumaddr (addr1:addr2:other)= do
+  tmp<-newtemp
+  addTAC $ [TACBinaryInfixOp tmp addr1 (ArithOp Add) addr2]
+  sumaddr(tmp:other)
 
 genparams::Env->[Exp]->State TacM ()
 genparams _ []=return()
