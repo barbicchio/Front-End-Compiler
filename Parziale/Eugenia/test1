@@ -1,5 +1,5 @@
 function void main () 
-{2}{4} integer g={{1,2,3,4},{5,2,5,7}}
+{2}{4} integer g={{'c','g','r','p'},{5,2,5,7}}
 boolean x = (true)
 boolean y 
 integer r 
