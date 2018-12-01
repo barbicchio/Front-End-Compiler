@@ -144,9 +144,12 @@ checkStm::Env->Stm->Writer [String] Env
 checkStm env stm = case stm of
   Assgn _ lexp expr -> do
     (pos,typ)<-inferExpr env lexp
-    checkExpr env typ expr
-    checkConstVar env lexp
-    return env
+    if typ==Terror
+     then return env
+     else do
+     checkExpr env typ expr
+     checkConstVar env lexp
+     return env
   SExp expr -> do
     inferExpr env expr
     return env
@@ -174,6 +177,9 @@ checkStm env stm = case stm of
     return env
   Valreturn expr -> do
     (pos,typ)<-inferExpr env expr
+    if typ==Terror
+    then return env
+    else do
     checkReturn env pos typ expr
     return env
 
@@ -190,19 +196,37 @@ checkReturn (Env ((BlockEnv _ _ blockTyp):stack)) pos returnTyp exp= case blockT
     else return ()
   otherwise->checkReturn (Env stack) pos returnTyp exp
 
+checktyparr::Pos->Typ->Typ->Writer[String]()
+checktyparr pos typ1 typ2=case (typ1,typ2) of
+ (Tarray _ subtyp1,Tarray _ subtyp2)->checktyparr pos subtyp1 subtyp2
+ otherwise->if (typ1==typ2)
+            then return ()
+            else do
+            tell $ [(show pos) ++ ": Type mismatch in array. Expected type->" ++ (show typ1) ++ ". Actual type->" ++ (show typ2)]
+            return()
+
+
 
 --controlla l'expression. 
 checkExpr::Env->Typ->Exp->Writer [String] (Env)
 checkExpr env typ expr= do
   (pos,exprTyp)<-inferExpr env expr
-  genTyp<-generalize exprTyp typ
-  if typ==genTyp
-    then
+  case (typ,exprTyp) of
+    (Tarray _ subtyp,Tarray _ subexprTyp)-> do
+      checktyparr pos subtyp subexprTyp
       return env
-    else do
-      let ident=gettypid expr
-      tell $[(show pos) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type token "++ident++ "-> " ++ (show exprTyp)]
-      return env
+    otherwise->do
+     if exprTyp==Terror
+      then return env
+      else do  
+      genTyp<-generalize exprTyp typ
+      if typ==genTyp
+       then
+       return env
+       else do
+       let ident=gettypid expr
+       tell $[(show pos) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type token "++ident++ "-> " ++ (show exprTyp)]
+       return env
 
 
 checkDefaultStm::Env->Maybe Stm->Writer [String] ()
@@ -262,7 +286,7 @@ inferExpr env expr = case expr of
       (pos,_)->do
         let ident=gettypid expr
         tell $ [(show pos) ++": " ++ "Cannot use array selection operand in non-array type "++ ident]
-        return((-1,-1),Terror) --sostituire con Terror
+        return((-1,-1),Terror)
   PrePost _ exp->do
     (pos,typ)<-inferExpr env exp
     posTyp<-checkIfIsInt pos typ exp
@@ -316,6 +340,9 @@ inferInfixExpr::Env->InfixOp->Exp->Exp->Writer [String] PosTyp
 inferInfixExpr env infixOp expr1 expr2 = do
   e1@(pos1,typ1)<-inferExpr env expr1
   e2@(pos2,typ2)<-inferExpr env expr2
+  if typ1==Terror || typ2==Terror
+   then return (pos1,Terror)
+  else do     
   genTyp<-genericType typ1 typ2
   gtyp1<-generalize typ1 genTyp
   gtyp2<-generalize typ2 genTyp
@@ -382,8 +409,6 @@ inferInfixExpr env infixOp expr1 expr2 = do
           checkIfIsOrd pos2 gtyp2 expr2
           return (pos1,Tbool)  
 
-
-
 checkIfIsEq::Pos->Typ->Exp->Writer [String] ()
 checkIfIsEq pos typ exp = case typ of
   Tarray _ _ -> do 
@@ -431,7 +456,7 @@ checkIfIsPointerAndReturnType pos typ exp = case typ of
   _ -> do
     let ident=gettypid exp
     tell $ [(show pos) ++":"++"Cannot use operand in non-pointer type "++ident]
-    return ((-1,-1),Terror) --sostituire con Terror
+    return ((-1,-1),Terror)
 
 --controlla numero e tipo dei parametri di una chiamata a funzione
 checkParams::Pos->[Typ]->Int->[Typ]->Int->String->Writer [String] ()
@@ -460,7 +485,7 @@ lookVar::Pident->Env->Writer [String] PosTypMod
 lookVar pident@(Pident (pos,ident)) (Env stack) = case stack of
   [] -> do
    tell $[(show pos) ++ ": variable " ++ ident ++ " out of scope"]
-   return((-1,-1),(Terror,Nothing))--sostituire con Terror
+   return((-1,-1),(Terror,Nothing))
   (current@(BlockEnv _ context _ ):parent) -> do
     maybePosTypMod <- lookVarInContext ident context
     case maybePosTypMod of
@@ -471,7 +496,7 @@ lookFunc::Pident->Env->Writer [String] PosSig
 lookFunc pident@(Pident (pos,ident)) (Env stack) = case stack of
   [] -> do
     tell $[(show pos) ++ ": function " ++ ident ++ " out of scope"]
-    return ((-1,-1),([],Terror,0)) --sostituire con Terror
+    return ((-1,-1),([],Terror,0))
   (current@(BlockEnv sigs _ _ ):parent) -> do
     maybePosTyp <- lookFuncInSigs ident sigs
     case maybePosTyp of

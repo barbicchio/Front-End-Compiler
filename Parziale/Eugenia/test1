@@ -1,15 +1,21 @@
+<<<<<<< HEAD
 function integer main ()
     boolean x=true
     boolean y
     integer r
     x=(x and y)
     return 50
+end=======
+function void main () 
+{2}{4} integer g={{'c','g','r','p'},{5,2,5,7}}
+boolean x = (true)
+boolean y 
+integer r 
+carlo(r)
 end
 
-function float dog ()
-    boolean x=true
-    boolean y
-    integer r
-    x=(x and y)
-    return 50.3
+function integer carlo(integer p)
+main()
+return 0
 end
+>>>>>>> db4bfdaf9637e3bd715c28c500b86dc19f30d85f
