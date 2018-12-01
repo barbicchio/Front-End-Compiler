@@ -1,4 +1,4 @@
 function void main ()
-{2}{4} integer g={{2,5,8},{5,2,5,7}}
-g{2}{4}=3
+{3}{4}integer g
+g{2}{3}=3
 end

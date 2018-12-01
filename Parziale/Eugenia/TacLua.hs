@@ -205,17 +205,6 @@ gettyp typ= case typ of
   Tarray _ subtyp->gettyp subtyp
   otherwise->typ
 
-{--
-opposite::RelOp->InfixOp
-opposite op=case op of
-  Eq-> RelOp Neq
-  Neq-> RelOp Eq
-  Lt->RelOp GtE
-  GtE->RelOp Lt
-  LtE->RelOp Gt
-  Gt->RelOp LtE
---}
-
 --generatori di temporanei e label--
 
 newtemp ::State TacM (Addr)
@@ -500,9 +489,46 @@ genlexp env exp= case exp of
     case typ of
       Tarray _ _ ->return idpos
       otherwise->return(idpos)
-  {--Arraysel id exp->do
-    (pos,(typ,_))<-lookVar id  env
---}
+  Arraysel exp1 exp2->do
+    genArrSel env exp1 exp2
+  --TODO:manca ancora il puntatore
+
+genArrSel::Env->Exp->Exp->State TacM(Addr)
+genArrSel env exp1 exp2= do
+  let (Just id,exps)=getid exp1 []
+      allexp=exps++[exp2] --aggiungo l'espressione più esterna
+  (pos,(typ,_))<-lookVar id env
+  let dims=getsizes typ
+      dimtyp=getdim$gettyp typ
+  getoffset env dimtyp allexp dims
+  return (show id)
+
+getsizes::Typ->[Int]  --tiro fuori le posizioni
+getsizes typ= case typ of
+  Tarray (Just(Eint (Pint (_,num)))) subtyp->(read num:getsizes subtyp)
+  otherwise->[]
+
+getid::Exp->[Exp]->(Maybe Pident,[Exp]) --restituisce ident dell'array e le espressioni della selezione richiesta
+getid exp list= case exp of
+ Evar ident->(Just ident,list)
+ Arraysel subexp indexexp->getid subexp (indexexp:list)
+ 
+getoffset::Env->Int->[Exp]->[Int]->State TacM(Addr)
+getoffset _ _ [] _=return ""
+getoffset env size (exp:exps) (_:dims)=do
+  addr1<-genexp env exp
+  let addr2=show $ foldl (*) size dims
+  tmp<-newtemp
+  addTAC $ [TACBinaryInfixOp tmp addr1 (ArithOp Mul) addr2]
+  getoffset env size exps dims
+  return ""
+getoffset env size (exp:[]) _=do
+  addr<-genexp env exp
+  tmp<-newtemp
+  addTAC $ [TACBinaryInfixOp tmp addr (ArithOp Mul) (show size)]
+  return tmp
+
+
 genparams::Env->[Exp]->State TacM ()
 genparams _ []=return()
 genparams env (exp:exps)= do
