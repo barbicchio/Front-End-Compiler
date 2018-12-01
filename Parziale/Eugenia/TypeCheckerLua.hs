@@ -256,7 +256,7 @@ genericType typ1 typ2 = do
 inferExpr::Env->Exp->Writer [String] PosTyp
 inferExpr env expr = case expr of
 
-  Arr (exp:exprs)-> do
+  Arr list@(exp:exprs)-> do
     (pos,typ)<-inferExpr env exp
     checkArr env pos typ exprs
     return (pos,Tarray Nothing typ) 

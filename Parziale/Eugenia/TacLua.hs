@@ -14,11 +14,12 @@ data TacM = TacM{
         code::TacInst,
         ttff::(Maybe Label,Maybe Label),
         first::Bool,
-        arrayinfo::(Int,Maybe Ident,Maybe Typ,Maybe Typ) --offset,base,type,elemtype
+        offset::Int,
+        arrayinfo::(Maybe Pident,Maybe Typ,Maybe Typ) --offset,base,type,elemtype
           }
   deriving (Show)     
 
-startState = TacM 0 0 [] (Nothing,Nothing) True (0,Nothing,Nothing,Nothing)
+startState = TacM 0 0 [] (Nothing,Nothing) True 0 (Nothing,Nothing,Nothing)
 
 data Env =Env [BlockEnv]  deriving (Eq, Ord, Show, Read)
 
@@ -66,6 +67,7 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
   | TACRet Addr
   | TACInit Typ Ident Pos (Maybe String) (Maybe String)
   | TACCall Label Int
+  | TACArr Addr Int Addr
   | TACParam Addr
  deriving(Show)
 
@@ -186,6 +188,23 @@ gettypid exp=case exp of
   Estring (Pstring(_,id))-> return ("String",id)
   Efloat (Preal(_,id))-> return ("Float",id)
   Echar (Pchar(_,id))-> return ("Char",id)
+
+getdim::Typ->Int
+getdim typ= case typ of
+  Tint->4
+  Tbool->1
+  Tchar->1
+  Tfloat->8
+  Tstring->16
+  Tarray _ subtyp->getdim subtyp
+  Tpointer subtyp->getdim subtyp
+
+gettyp::Typ->Typ
+gettyp typ= case typ of
+  Tpointer subtyp->gettyp subtyp
+  Tarray _ subtyp->gettyp subtyp
+  otherwise->typ
+
 {--
 opposite::RelOp->InfixOp
 opposite op=case op of
@@ -257,13 +276,14 @@ genDecl env dec = case dec of
                 return newEnv  
                False->do --se inizializzazione complessa,allora temporaneo. 
                 case typ of
-                 Tarray exps subtyp -> do
-                  modify (\s->s{arrayinfo=(0,Just id,Just typ,Just subtyp)})
-                  genexp env exp
-                  modify (\s->s{arrayinfo=(0,Nothing,Nothing,Nothing)})
+                 Tarray exps _ -> do
+                  let elemtyp=gettyp typ
+                  modify (\s->s{offset=0,arrayinfo=(Just ident,Just typ,Just elemtyp)})
+                  genexp newEnv exp
+                  modify (\s->s{offset=0,arrayinfo=(Nothing,Nothing,Nothing)})
                   return newEnv
                  otherwise->do 
-                  addr<-genexp env exp
+                  addr<-genexp newEnv exp
                   addTAC $ [TACTmp id pos typ addr]
                   return newEnv
             Nothing-> do --caso dichiarazione senza inizializzazione
@@ -326,7 +346,7 @@ genStm env stm= case stm of
            addrrexp<-genexp env rexp
            addTAC $ [TACBinaryInfixOp addrlexp addr (BoolOp subop) addrrexp]
            return Nothing
-    Valreturn exp-> do
+    Valreturn exp-> do --sarebbe il caso di trovare la label della funzione e mettere "exit funlabel"
         addr<-genexp env exp
         addTAC $[TACRet addr]        
         return Nothing
@@ -457,6 +477,10 @@ genexp env exp = case exp of
     (pos,(_,_,Just lab))<-lookFunc id env
     addTAC $ [TACCall lab num]
     return ""
+  Arr exp-> do
+    genArr env exp
+    modify (\s->s{offset=0,arrayinfo=(Nothing,Nothing,Nothing)})
+    return ""
   Eint (Pint(_,num)) -> return num
   Efloat (Preal(_,num)) -> return num
   Ebool (Pbool(_,val))->return val
@@ -471,9 +495,11 @@ genexp env exp = case exp of
 genlexp::Env->Exp->State TacM(Addr) --TODO
 genlexp env exp= case exp of
   Evar ident@(Pident(_,id))->do
-    (pos,_)<-lookVar ident env
+    (pos,(typ,mod))<-lookVar ident env
     let idpos=id++"_"++(show pos)
-    return(idpos)
+    case typ of
+      Tarray _ _ ->return idpos
+      otherwise->return(idpos)
   {--Arraysel id exp->do
     (pos,(typ,_))<-lookVar id  env
 --}
@@ -486,6 +512,23 @@ genparams env (exp:exps)= do
         addTAC $ [TACParam par]
         genparams env exps
         return()
+
+genArr::Env->[Exp]->State TacM ()  --TODO:se avanza tempo aggiungere i tipi a dx dell' =
+genArr env []=return()
+genArr env (exp:exps)=case exp of
+  Arr subexp->do
+    genArr env subexp
+    genArr env exps
+    return()
+  otherwise->do
+    (Just id@(Pident (pos,ident)),(Just typ),(Just subtyp))<-gets arrayinfo
+    currentoff<-gets offset
+    let arrayaddr=ident++"_"++(show pos)
+    addr<-genexp env exp
+    addTAC $ [TACArr arrayaddr currentoff addr]
+    modify (\s->s{offset=currentoff+(getdim typ)}) 
+    genArr env exps
+    return()
 
 genArithOp::Env->Exp->Exp->InfixOp->State TacM (Addr)
 genArithOp env exp1 exp2 op=do

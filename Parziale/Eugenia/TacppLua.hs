@@ -47,6 +47,7 @@ instance TacPP TAC where
       --prettyPrint (TACCondition left op right)        = nest tab $ text left <> text op <> text right
       --prettyPrint (TACIf tacCondition l1 l2)          = nest tab $ text "if" <+> prettyPrint tacCondition <+> text "goto" <+> text l1 $$ text "goto" <+> text l2
       prettyPrint (TACGoto label)                     = nest tab $ text "goto" <+> text label 
+      prettyPrint (TACArr addr1 offset addr2)  =nest tab$ text addr1<+>text"["<+>text (show offset)<+>text"]"<+>text"="<+>text addr2
       prettyPrint (TACGotoM lab)                     =case lab of
          Nothing->nest tab $ text "goto"
          Just label->nest tab $ text "goto" <+> text label 
@@ -61,7 +62,7 @@ instance TacPP TAC where
       prettyPrint(TACtf addr (Just lab) bool)=case bool of
         True->nest tab $ text "if"<+>text addr<+> text "goto"<+>text lab
         False->nest tab $ text "ifFalse"<+>text addr<+> text "goto"<+>text lab
-      prettyPrint (TACRet addr)                   = nest tab $ text "return" <+> text addr
+      prettyPrint (TACRet addr)                   = nest tab $ text "return" <+> text addr<+>text "\nexit function"
       prettyPrint (TACCall id npar)               = nest tab $ text "call" <+> text id <> text "/" <> text (show npar)
       prettyPrint (TACParam addr)                 = nest tab $ text "parameter"<+> text addr
      -- prettyPrint (TACException label)                = nest tab $ text "on exception goto" <+> text label

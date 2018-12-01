@@ -1,12 +1,5 @@
-function void main () 
-{2}{4} integer g={{'c','g','r','p'},{5,2,5,7}}
-boolean x = (true)
-boolean y 
-integer r 
-carlo(r)
+function void main ()
+{2}{4} integer g={{2,5,8},{5,2,5,7}}
+g{2}{4}=3
 end
 
-function integer carlo(integer p)
-main()
-return 0
-end
