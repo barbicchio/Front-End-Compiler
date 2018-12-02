@@ -53,7 +53,9 @@ type TypMod = (Typ,Mod)
 type PosSig = (Pos,Sig)
 
 data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
+  | TACAssignCast Addr Typ Addr         
   | TACBinaryInfixOp Addr Addr InfixOp Addr
+  | TACBinaryInfixOpCast Addr Typ Addr InfixOp Addr
   | TACSLabel Label --inizio funzione e/o programma
   | TACELabel Label --fine funzione e/o programma
   | TACLabel Label --label generica
@@ -67,6 +69,7 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
   | TACtf Addr (Maybe Label) Bool
   | TACRet Addr
   | TACInit Typ Ident Pos (Maybe String) (Maybe String)
+  | TACInitCast Typ Ident Pos (Maybe String) (Maybe String)
   | TACCall Label Int
   | TACArr Addr Int Addr
   | TACPointer Addr Addr
@@ -262,8 +265,13 @@ genDecl env dec = case dec of
               simplexp<-issimple exp
               case simplexp of --caso inizializzazione con semplice valore,no temporaneo. 
                True->do
+                typ1<-inferExpr env exp
                 (typexp,exp)<-gettypid exp
-                addTAC $ [TACInit typ id pos (Just typexp) (Just exp)]
+                if (typ/=typ1)
+                then do
+                genTyp<-genericType typ1 typ
+                addTAC $ [TACInitCast  genTyp id pos (Just typexp) (Just exp)]
+                else addTAC $ [TACInit typ id pos (Just typexp) (Just exp)]
                 return newEnv  
                False->do --se inizializzazione complessa,allora temporaneo. 
                 case typ of
@@ -321,16 +329,40 @@ genStm env stm= case stm of
         Assign->do
            addrlexp<-genlexp env lexp
            addrrexp<-genexp env rexp
-           addTAC $ [TACAssign addrlexp addrrexp]
+           typlexp<-genlexpTyp env lexp
+           typrexp<-inferExpr env rexp
+           if (typrexp /= typlexp) 
+           then do
+           genTyp<-generalize typrexp typlexp
+           addTAC $ [TACAssignCast addrlexp genTyp addrrexp]
+           else addTAC $ [TACAssign addrlexp addrrexp]
            return Nothing
         AssgnArith subop->do
            addr<-newtemp
            addrlexp<-genlexp env lexp
+           typlexp<-genlexpTyp env lexp
            addTAC $ [TACAssign addr addrlexp]
            addrrexp<-genexp env rexp
-           addTAC $ [TACBinaryInfixOp addrlexp addr (ArithOp subop) addrrexp]
+           typrexp<-inferExpr env rexp
+           if (typrexp == typlexp) 
+           then do
+           genTyp<-generalize typrexp typlexp
+           addTAC $ [TACBinaryInfixOpCast addrlexp genTyp addr (ArithOp subop) addrrexp]
+           else addTAC $ [TACBinaryInfixOp addrlexp addr (ArithOp subop) addrrexp]
            return Nothing
-        AssgnBool subop->do genAssgnBool env lexp rexp subop
+        AssgnBool subop->do --TODO:completare
+           addr<-newtemp
+           addrlexp<-genlexp env lexp
+           typlexp<-genlexpTyp env lexp
+           addTAC $ [TACAssign addr addrlexp]
+           addrrexp<-genexp env rexp
+           typrexp<-inferExpr env rexp
+           if (typrexp /= typlexp) 
+           then do
+           genTyp<-generalize typrexp typlexp
+           addTAC $ [TACBinaryInfixOpCast addrlexp genTyp addr (BoolOp subop) addrrexp]
+           else addTAC $ [TACBinaryInfixOp addrlexp addr (BoolOp subop) addrrexp]
+           return Nothing
     Valreturn exp-> do --sarebbe il caso di trovare la label della funzione e mettere "exit funlabel"
         addr<-genexp env exp
         addTAC $[TACRet addr]        
@@ -531,6 +563,16 @@ genlexp env exp= case exp of
     addr1<-genlexp env exp
     return ("*"++addr1)
 
+genlexpTyp::Env->Exp->State TacM(Typ) 
+genlexpTyp env exp = do
+  typ<-inferExpr env exp
+  return typ 
+
+genexpTyp :: Env->Exp-> State TacM (Typ)
+genexpTyp env exp = do
+  typ<-inferExpr env exp
+  return typ
+
 genArrSel::Env->Exp->Exp->State TacM(Addr)
 genArrSel env exp1 exp2= do
   let (Just id@(Pident(_,name)),exps)=getid exp1 []
@@ -541,6 +583,90 @@ genArrSel env exp1 exp2= do
   offset<-getoffset env dimtyp allexp dims
   let addr=name++"_"++(show pos)++"["++offset++"]"
   return addr
+
+inferExpr::Env->Exp->State TacM(Typ)
+inferExpr env expr = case expr of
+
+  Arr list@(exp:exprs)-> do
+    typ<-inferExpr env exp
+    return (Tarray Nothing typ) 
+
+  InfixOp infixOp expr1 expr2 -> do
+    typ<-inferInfixExpr env infixOp expr1 expr2
+    return typ
+
+  Unary_Op op  exp -> do
+    typ<-inferUnaryExp env op exp
+    return typ
+
+  Addr exp -> do
+    typ<-inferExpr env exp
+    return (Tpointer typ)
+
+  Indirection exp-> do
+    typ<-inferExpr env exp
+    case typ of
+      Tpointer ptyp -> return ptyp
+
+  Arraysel exprArray exprInt -> do 
+    let (Just id@(Pident(_,name)),exps)=getid exprArray []
+    (pos,(typ,_))<-lookVar id env
+    return typ
+
+  PrePost _ exp->do
+    typ<-inferExpr env exp
+    return typ
+
+  Fcall pident@(Pident (pos,ident)) callExprs callNParams ->do
+    (_,(retTyp,defParams,defNParams))<-lookFunc pident env --trova il tipo di ritorno 
+    return retTyp
+
+  Efloat (Preal (pos,val)) -> do
+    return Tfloat
+  Eint (Pint (pos,val)) -> do
+    return Tint
+  Ebool (Pbool (pos,val)) -> do
+    return Tbool
+  Estring (Pstring (pos,val)) -> do
+    return Tstring
+  Echar (Pchar (pos,val)) -> do
+    return Tchar
+  Evar pident@(Pident (pos,ident)) -> do
+    (_,(typ,_))<-lookVar pident env
+    return typ
+
+inferInfixExpr::Env->InfixOp->Exp->Exp->State TacM(Typ)
+inferInfixExpr env infixOp expr1 expr2 = do
+  typ1<-inferExpr env expr1
+  typ2<-inferExpr env expr2
+  genTyp<-genericType typ1 typ2
+  gtyp1<-generalize typ1 genTyp
+  gtyp2<-generalize typ2 genTyp
+  case infixOp of
+    ArithOp op -> do
+      return genTyp
+    BoolOp op->do
+      return Tbool
+    RelOp op->do
+      return Tbool
+
+inferUnaryExp::Env->Unary_Op->Exp->State TacM(Typ)
+inferUnaryExp env op expr = do
+  typ<-inferExpr env expr
+  return typ
+
+generalize::Typ->Typ->State TacM(Typ)
+generalize Tint Tfloat = do
+ return Tfloat
+generalize from to = do
+ return from
+
+genericType::Typ->Typ->State TacM(Typ)
+genericType typ1 typ2 = do
+  genTyp<-generalize typ2 typ1
+  if genTyp==typ1
+  then return genTyp
+  else generalize typ1 typ2
 
 getsizes::Typ->[Int]  --tiro fuori le posizioni
 getsizes typ= case typ of
@@ -604,9 +730,15 @@ genArr env (exp:exps)=case exp of
 genArithOp::Env->Exp->Exp->InfixOp->State TacM (Addr)
 genArithOp env exp1 exp2 op=do
         addr1<-genexp env exp1
+        typ1<-inferExpr env exp1
         addr2<-genexp env exp2
+        typ2<-inferExpr env exp2
         addr<-newtemp
-        addTAC $ [TACBinaryInfixOp addr addr1 op addr2]
+        if(typ1/=typ2)
+        then do 
+        genTyp<-genericType typ1 typ2
+        addTAC $ [TACBinaryInfixOpCast addr genTyp addr1 op addr2]
+        else addTAC $ [TACBinaryInfixOp addr addr1 op addr2]
         return(addr)
 genUnaryOp :: Env->Unary_Op->Exp-> State TacM (Addr)
 genUnaryOp env op exp = case op of
