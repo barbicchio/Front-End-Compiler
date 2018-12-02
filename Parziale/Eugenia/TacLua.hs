@@ -489,6 +489,7 @@ genexp env exp = case exp of
     addTAC $ [TACNewTemp addr typ id (Just pos)]
     return(addr)
   otherwise->genlexp env exp
+
 genlexp::Env->Exp->State TacM(Addr) --TODO
 genlexp env exp= case exp of
   Evar ident@(Pident(_,id))->do
@@ -500,7 +501,8 @@ genlexp env exp= case exp of
   Arraysel exp1 exp2->do
     genArrSel env exp1 exp2
   Indirection exp->do
-    return ""
+    addr1<-genexp env exp
+    return ("*"++addr1)
 
 genArrSel::Env->Exp->Exp->State TacM(Addr)
 genArrSel env exp1 exp2= do

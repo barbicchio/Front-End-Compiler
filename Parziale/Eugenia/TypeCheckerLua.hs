@@ -295,7 +295,7 @@ inferExpr env expr = case expr of
     (pos,typ)<-inferExpr env exp
     posTyp<-checkIfIsInt pos typ exp
     return (pos,typ)
-
+  
   Fcall pident@(Pident (pos,ident)) callExprs callNParams ->do
     posTypLs <- mapM (inferExpr env) callExprs --trova la lista di PosTyp
     callParams <- mapM (\(pos,typ) -> do return typ) posTypLs --Ritorna la lista di Typ dal PosTyp
@@ -307,7 +307,7 @@ inferExpr env expr = case expr of
       checkModality env pident callExprs -- controllo sulla modalità dei parametri attuali rispetto alla definizione di funzione
       return (pos,retTyp)
     else return (pos,retTyp)
-
+  
   Efloat (Preal (pos,val)) -> do
     return (pos,Tfloat)
   Eint (Pint (pos,val)) -> do
@@ -452,7 +452,7 @@ checkIfIsOrd pos typ exp = do
     tell $ [(show pos) ++ ": "++ "Cannot use operand in non-ordered type "++ident]
   else return ()
 
---controlla se il typo passato è un pointer, nel caso lo sia torna il tipo di array,
+--controlla se il typo passato è un pointer, nel caso lo sia torna il tipo "base" del pointer,
 --altrimenti fail
 checkIfIsPointerAndReturnType::Pos->Typ->Exp->Writer [String] PosTyp
 checkIfIsPointerAndReturnType pos typ exp = case typ of

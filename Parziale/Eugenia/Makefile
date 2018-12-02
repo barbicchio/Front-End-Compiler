@@ -3,7 +3,7 @@ HAPPY = happy -gca
 ALEX  = alex -g
 COMP   = ghc --make
 
-tocompile = Par$(base).hs Lex$(base).hs Abs$(base).hs Print$(base).hs Typechecker$(base).hs Tac$(base).hs ErrM.hs
+tocompile = Par$(base).hs Lex$(base).hs Abs$(base).hs Print$(base).hs Typechecker$(base).hs Tac$(base).hs Tacpp$(base).hs ErrM.hs
 
 Test$(base) : Test$(base).hs $(tocompile)
 	$(COMP) $< -o $@
