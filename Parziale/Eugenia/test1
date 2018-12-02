@@ -1,8 +1,5 @@
-integer w=5
-{3} integer g ={0,1,2}
-pointer integer pi=&g{w}
+boolean p=true
+boolean j=false
 function void main ()
-w+=(_pi)++
---[[_pi=w
-w=w+w*_pi
+p|=j and (p or j)
 end

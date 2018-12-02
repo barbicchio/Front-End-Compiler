@@ -330,13 +330,7 @@ genStm env stm= case stm of
            addrrexp<-genexp env rexp
            addTAC $ [TACBinaryInfixOp addrlexp addr (ArithOp subop) addrrexp]
            return Nothing
-        AssgnBool subop->do --TODO:completare
-           addr<-newtemp
-           addrlexp<-genlexp env lexp
-           addTAC $ [TACAssign addr addrlexp]
-           addrrexp<-genexp env rexp
-           addTAC $ [TACBinaryInfixOp addrlexp addr (BoolOp subop) addrrexp]
-           return Nothing
+        AssgnBool subop->do genAssgnBool env lexp rexp subop
     Valreturn exp-> do --sarebbe il caso di trovare la label della funzione e mettere "exit funlabel"
         addr<-genexp env exp
         addTAC $[TACRet addr]        
@@ -394,6 +388,38 @@ genStm env stm= case stm of
         modify(\s->s{ttff=(Nothing,Nothing),first=True})
         addTAC $[TACLabel next]
         return (Just fundecs)
+
+genAssgnBool::Env->Exp->Exp->BoolOp->State TacM(Maybe[(Dec,Env)])
+genAssgnBool env lexp rexp op=case op of
+  And-> do  
+      addrlexp<-genlexp env lexp
+      tt<-newlabel
+      ff<-newlabel
+      next<-newlabel
+      modify(\s->s{ttff=(Just tt,Just ff),first=False})
+      addTAC $ [TACtf addrlexp (Just next) False]
+      addrrexp<-genexp env rexp
+      addr<-newtemp
+      lassign<-newlabel
+      addTAC $ [TACLabel tt]++[TACAssign addr "true"]++[TACGoto lassign]++[TACLabel ff]++[TACAssign addr "false"]
+      addTAC $ [TACLabel lassign]++[TACAssign addrlexp addr]++[TACLabel next]
+      modify(\s->s{ttff=(Nothing,Nothing),first=True})
+      return Nothing
+  Or->  do
+      addrlexp<-genlexp env lexp
+      tt<-newlabel
+      ff<-newlabel
+      next<-newlabel
+      modify(\s->s{ttff=(Just tt,Just ff),first=False})
+      addTAC $ [TACtf addrlexp (Just next) True]
+      addrrexp<-genexp env rexp
+      addr<-newtemp
+      lassign<-newlabel
+      addTAC $ [TACLabel ff]++[TACAssign addr "false"]++[TACGoto lassign]++[TACLabel tt]++[TACAssign addr "true"]
+      addTAC $ [TACLabel lassign]++[TACAssign addrlexp addr]++[TACLabel next]
+      modify(\s->s{ttff=(Nothing,Nothing),first=True})
+      return Nothing
+
 genexp :: Env->Exp-> State TacM (Addr)
 genexp env exp = case exp of 
   InfixOp op exp1 exp2 ->case op of
