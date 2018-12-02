@@ -485,6 +485,7 @@ genexp env exp = case exp of
   Echar (Pchar(_,char))->return char
   Evar ident@(Pident(_,id))->do
     (pos,(typ,_))<-lookVar ident env
+    --let realtyp=gettyp typ  --tipo "base"
     addr<-newtemp
     addTAC $ [TACNewTemp addr typ id (Just pos)]
     return(addr)
@@ -501,7 +502,7 @@ genlexp env exp= case exp of
   Arraysel exp1 exp2->do
     genArrSel env exp1 exp2
   Indirection exp->do
-    addr1<-genexp env exp
+    addr1<-genlexp env exp
     return ("*"++addr1)
 
 genArrSel::Env->Exp->Exp->State TacM(Addr)

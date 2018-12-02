@@ -35,12 +35,16 @@ instance TacPP TAC where
       prettyPrint (TACInit typ id pos typexp exp)= case (typexp,exp) of
         (Nothing,Nothing)-> nest tab $ text(show typ)<+>text id <>text"_"<> text (show pos)
         (Just exptyp,Just exp)->nest tab $ text id<>text("_"++(show pos)) <+> text "="<+> text exptyp<+>text exp 
-      prettyPrint(TACTmp id pos typ addr)              = nest tab $ text id <>text"_"<> text (show pos)<+>text"="<+>text (show typ)<+>text addr
+      prettyPrint(TACTmp id pos typ addr)              = case typ of
+        Tpointer _ ->nest tab $ text id <>text"_"<> text (show pos)<+>text"= addr"<+>text addr
+        otherwise->nest tab $ text id <>text"_"<> text (show pos)<+>text"="<+>text (show typ)<+>text addr
       prettyPrint (TACUnaryOp addr op addr1)           = case op of
         Neg->nest tab $ text addr <+> text "=" <+> text "-" <+> text addr1
         Logneg->nest tab $ text addr <+> text "=" <+> text "not" <+> text addr1
       prettyPrint (TACNewTemp addr typ id pos)=case pos of
-        Just pos->nest tab$ text addr<+> text "="<+>text (show typ)<+>text id<>text"_"<>text (show pos)
+        Just pos->case typ of
+          Tpointer subtyp->nest tab$ text addr<+> text "="<+>text (show subtyp)<+>text"*"<+>text id<>text"_"<>text (show pos)
+          otherwise->nest tab$ text addr<+> text "="<+>text (show typ)<+>text id<>text"_"<>text (show pos)
         otherwise->nest tab$ text addr<+> text "="<+>text (show typ)<+>text id
       prettyPrint(TACIncrDecr addr1 addr2 prepostincr)= nest tab $ text addr1<+>text"="<+>text addr2<+>text(show prepostincr)<+> text"1"
       prettyPrint (TACArr addr1 offset addr2)  =nest tab$ text addr1<+>text"["<+>text (show offset)<+>text"]"<+>text"="<+>text addr2
