@@ -291,9 +291,12 @@ inferExpr env expr = case expr of
         let ident=gettypid expr
         tell $ [(show pos) ++": " ++ "Cannot use array selection operand in non-array type "++ ident]
         return((-1,-1),Terror)
+
   PrePost _ exp->do
     (pos,typ)<-inferExpr env exp
     posTyp<-checkIfIsInt pos typ exp
+    -- controllo costante DOPO controllo interi
+    checkConstVar env exp
     return (pos,typ)
   
   Fcall pident@(Pident (pos,ident)) callExprs callNParams ->do

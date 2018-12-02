@@ -16,7 +16,7 @@ distclean: clean
 	-rm -fv Test$(base) Lex$(base).hs Par$(base).hs
 
 demo: Test$(base)
-	./Test$(base) ./Tests/test8.lua
+	./Test$(base) ./Tests/test0.lua
 .PHONY:demo-error
 
 demo-error: Test$(base)
