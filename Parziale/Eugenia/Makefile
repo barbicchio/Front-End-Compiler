@@ -15,6 +15,14 @@ clean:
 distclean: clean
 	-rm -fv Test$(base) Lex$(base).hs Par$(base).hs
 
+demo: Test$(base)
+	./Test$(base) ./Tests/test8.lua
+.PHONY:demo-error
+
+demo-error: Test$(base)
+		./Test$(base) ./TestErrors/test_error0.lua
+
+
 Par$(base).hs: Par$(base).y
 	$(HAPPY) $<
 
