@@ -81,9 +81,9 @@ data Exp
 
 data InfixOp = ArithOp ArithOp| RelOp RelOp | BoolOp BoolOp
  deriving (Eq, Ord, Show, Read)
-data PrePost= Pre IncrDecr|Post IncrDecr
+data PrePost = Pre IncrDecr|Post IncrDecr
  deriving (Eq, Ord, Show, Read)
-data IncrDecr= Incr|Decr
+data IncrDecr = Incr|Decr
  deriving (Eq, Ord, Show, Read)
 data ArithOp = Add|Sub|Mul|Div|Divint|Mod|Pow
  deriving (Eq, Ord, Show, Read)
