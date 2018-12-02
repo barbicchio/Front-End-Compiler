@@ -16,7 +16,7 @@ import ErrM
 %monad { Err } { thenM } { returnM }
 %tokentype {Token}
 %token
-  '%' { PT _ (TS _ 1) }
+ '%' { PT _ (TS _ 1) }
   '%=' { PT _ (TS _ 2) }
   '&' { PT _ (TS _ 3) }
   '&=' { PT _ (TS _ 4) }
@@ -41,40 +41,39 @@ import ErrM
   '>=' { PT _ (TS _ 23) }
   '^' { PT _ (TS _ 24) }
   '^=' { PT _ (TS _ 25) }
-  'and' { PT _ (TS _ 26) }
-  'boolean' { PT _ (TS _ 27) }
-  'character' { PT _ (TS _ 28) }
-  'const' { PT _ (TS _ 29) }
-  'do' { PT _ (TS _ 30) }
-  'else' { PT _ (TS _ 31) }
-  'end' { PT _ (TS _ 32) }
-  'float' { PT _ (TS _ 33) }
-  'function' { PT _ (TS _ 34) }
-  'if' { PT _ (TS _ 35) }
-  'integer' { PT _ (TS _ 36) }
-  'name' { PT _ (TS _ 37) }
-  'not' { PT _ (TS _ 38) }
-  'or' { PT _ (TS _ 39) }
-  'pointer' { PT _ (TS _ 40) }
-  'ref' { PT _ (TS _ 41) }
-  'repeat' { PT _ (TS _ 42) }
-  'res' { PT _ (TS _ 43) }
-  'return' { PT _ (TS _ 44) }
-  'string' { PT _ (TS _ 45) }
-  'then' { PT _ (TS _ 46) }
-  'until' { PT _ (TS _ 47) }
-  'val' { PT _ (TS _ 48) }
-  'valres' { PT _ (TS _ 49) }
-  'void' { PT _ (TS _ 50) }
-  'while' { PT _ (TS _ 51) }
-  '{' { PT _ (TS _ 52) }
-  '{}' { PT _ (TS _ 53) }
-  '|=' { PT _ (TS _ 54) }
-  '}' { PT _ (TS _ 55) }
-  '~=' { PT _ (TS _ 56) }
+  '_' { PT _ (TS _ 26) }
+  'and' { PT _ (TS _ 27) }
+  'boolean' { PT _ (TS _ 28) }
+  'character' { PT _ (TS _ 29) }
+  'const' { PT _ (TS _ 30) }
+  'do' { PT _ (TS _ 31) }
+  'else' { PT _ (TS _ 32) }
+  'end' { PT _ (TS _ 33) }
+  'float' { PT _ (TS _ 34) }
+  'function' { PT _ (TS _ 35) }
+  'if' { PT _ (TS _ 36) }
+  'integer' { PT _ (TS _ 37) }
+  'name' { PT _ (TS _ 38) }
+  'not' { PT _ (TS _ 39) }
+  'or' { PT _ (TS _ 40) }
+  'pointer' { PT _ (TS _ 41) }
+  'ref' { PT _ (TS _ 42) }
+  'repeat' { PT _ (TS _ 43) }
+  'res' { PT _ (TS _ 44) }
+  'return' { PT _ (TS _ 45) }
+  'string' { PT _ (TS _ 46) }
+  'then' { PT _ (TS _ 47) }
+  'until' { PT _ (TS _ 48) }
+  'val' { PT _ (TS _ 49) }
+  'valres' { PT _ (TS _ 50) }
+  'void' { PT _ (TS _ 51) }
+  'while' { PT _ (TS _ 52) }
+  '{' { PT _ (TS _ 53) }
+  '{}' { PT _ (TS _ 54) }
+  '|=' { PT _ (TS _ 55) }
+  '}' { PT _ (TS _ 56) }
+  '~=' { PT _ (TS _ 57) }
 
-
-L_integ  { PT _ (TI $$) }
 L_Pident { PT _ (T_Pident _) }
 L_Pint { PT _ (T_Pint _) }
 L_Pbool { PT _ (T_Pbool _) }
@@ -104,7 +103,6 @@ L_Pchar { PT _ (T_Pchar _) }
 
 %%
 
-Integer :: {Integer} : L_integ  { (read ( $1)) :: Integer }
 Pident    :: {Pident} : L_Pident { Pident (mkPosToken $1)}
 Pint    :: {Pint} : L_Pint { Pint (mkPosToken $1)}
 Pbool    :: {Pbool} : L_Pbool { Pbool (mkPosToken $1)}
@@ -129,7 +127,7 @@ Type_specifier :'boolean' { Tbool }
           | 'string' { Tstring }
           | 'void'{ Tvoid }
           | 'pointer' Type_specifier { Tpointer $2 }
-          --| '{}' Type_specifier { Tarray Nothing $2 }
+          | '{}' Type_specifier { Tarray Nothing $2 }
           | '{'Exp'}' Type_specifier { Tarray (Just $2) $4 } 
 Argument :: { Argument }
 Argument : Modality Type_specifier Pident { FormPar $1 $2 $3 }
@@ -178,7 +176,7 @@ Exp : Pident '(' ListExp ')' %prec CALL { Fcall $1 $3 (length $3) }
      |Exp '/' Exp {InfixOp (ArithOp Div) $1 $3 }
      |Exp '^' Exp {InfixOp (ArithOp Pow) $1 $3 }
      |Exp '%' Exp {InfixOp (ArithOp Mod)$1 $3 }
-     |'&' Exp  { Addr $2 }
+     |'&' Exp  { Addr $2 } --credo sia lexp
      | '-' Exp %prec NEG { Unary_Op Neg $2}
      | 'not' Exp { Unary_Op Logneg $2 }
      |'{' ListExp '}' { Arr $2 }
@@ -186,7 +184,7 @@ Exp : Pident '(' ListExp ')' %prec CALL { Fcall $1 $3 (length $3) }
      | Preal { Efloat $1 }
      | Pint  { Eint $1 }
      | Pbool { Ebool $1 }
-     | Pstring {Estring $1 }
+     | Pstring { Estring $1 }
      | Pchar { Echar $1 }
      | '++' Lexp  {PrePost (Pre Incr) $2} 
      | '--'Lexp  {PrePost (Pre Decr) $2} 
@@ -199,10 +197,10 @@ ListExp : {- empty -} { [] }
          | Exp ',' ListExp { (:) $1 $3 }
 
 Lexp :: { Exp }
-Lexp :  Pident %prec IDLEXP { Evar $1 } --%prec IDLEXP 
+Lexp :  Pident %prec IDLEXP { Evar $1 } 
      | '('Lexp')' %prec PARLEXP {$2} 
-     | '*' Exp %prec REF  { Indirection $2 } 
-     | Exp '{' Exp '}' { Arraysel $1 $3 }
+     | '_' Exp %prec REF  { Indirection $2 } 
+     | Lexp '{' Exp '}' { Arraysel $1 $3 }
 Assignment_Op :: { Assignment_Op }
 Assignment_Op : '=' { Assign }
               | '*=' { AssgnArith Mul }

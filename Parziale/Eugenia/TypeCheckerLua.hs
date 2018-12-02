@@ -196,9 +196,9 @@ checkReturn (Env ((BlockEnv _ _ blockTyp):stack)) pos returnTyp exp= case blockT
     else return ()
   otherwise->checkReturn (Env stack) pos returnTyp exp
 
-checktyparr::Pos->Typ->Typ->Writer[String]()
-checktyparr pos typ1 typ2=case (typ1,typ2) of
- (Tarray _ subtyp1,Tarray _ subtyp2)->checktyparr pos subtyp1 subtyp2
+checksubtyp::Pos->Typ->Typ->Writer[String]()
+checksubtyp pos typ1 typ2=case (typ1,typ2) of
+ (Tarray _ subtyp1,Tarray _ subtyp2)->checksubtyp pos subtyp1 subtyp2
  otherwise->if (typ1==typ2)
             then return ()
             else do
@@ -213,7 +213,10 @@ checkExpr env typ expr= do
   (pos,exprTyp)<-inferExpr env expr
   case (typ,exprTyp) of
     (Tarray _ subtyp,Tarray _ subexprTyp)-> do
-      checktyparr pos subtyp subexprTyp
+      checksubtyp pos subtyp subexprTyp
+      return env
+    (Tpointer subtyp,Tpointer subexprTyp)->do
+      checksubtyp pos subtyp subexprTyp
       return env
     otherwise->do
      if exprTyp==Terror
@@ -282,6 +285,7 @@ inferExpr env expr = case expr of
     checkExpr env Tint exprInt 
     arrayPosTyp<-inferExpr env exprArray
     case arrayPosTyp of
+      (pos,Terror)->return ((-1,-1),Terror)
       (pos,Tarray _ typ) -> return (pos,typ)
       (pos,_)->do
         let ident=gettypid expr

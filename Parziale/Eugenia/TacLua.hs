@@ -37,6 +37,7 @@ data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ
 type Ident = String
 type Typ = Type_specifier
 type Addr= String
+-- trasformarlo in data |ArrAddr String Pos Int|PosAddr String Pos
 type Label = String
 type Mod = Maybe Modality
 
@@ -44,7 +45,7 @@ type Sigs =Map.Map Ident PosSig
 type Context = Map.Map Ident PosTypMod
 type TacContext = Map.Map (Ident,Pos) Addr
 
-type Sig = (Typ,[TypMod],Maybe Label) --cambiare ordine di typmod e typ
+type Sig = (Typ,[TypMod],Label) --cambiare ordine di typmod e typ
 type Pos = (Int,Int)
 type PosTyp=(Pos,Typ)
 type PosTypMod = (Pos,TypMod)
@@ -68,10 +69,11 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
   | TACInit Typ Ident Pos (Maybe String) (Maybe String)
   | TACCall Label Int
   | TACArr Addr Int Addr
+  | TACPointer Addr Addr
   | TACParam Addr
  deriving(Show)
 
---FCall,puntatori/array (assolutamente domani),relativa gestione parametri vari,cast se non riescono
+--FCall,puntatori,relativa gestione parametri vari,cast se non riescono
 --Assegnamenti booleani -->da fare
 -------------------------------
 --funzioni ausiliarie per ENV--
@@ -83,7 +85,7 @@ addDec env@(Env (current:stack)) dec = case dec of
     return (Env (newBlockEnv:stack))
   Func typ pident@(Pident (pos,ident)) params nparams _  -> do
     let label=ident++(show pos)
-    newBlockEnv<-addFuncDec current ident pos typ (getParamsModTyp params) (Just label)
+    newBlockEnv<-addFuncDec current ident pos typ (getParamsModTyp params) label
     return (Env (newBlockEnv:stack))
 --aggiunge una variabile a un contesto
 addVarDec::BlockEnv->Ident->Pos->Typ->Mod->State TacM(BlockEnv)
@@ -93,7 +95,7 @@ addVarDec (BlockEnv sigs context blockTyp) ident pos@(line,col) typ mod= do
     Nothing -> return (BlockEnv sigs (Map.insert ident (pos,(typ,mod)) context) blockTyp)
 
 --aggiunge una funzione a un contesto
-addFuncDec::BlockEnv->Ident->Pos->Typ->[(Typ,Mod)]->Maybe Label->State TacM(BlockEnv)
+addFuncDec::BlockEnv->Ident->Pos->Typ->[(Typ,Mod)]->Label->State TacM(BlockEnv)
 addFuncDec (BlockEnv sigs context blockTyp)  ident pos@(line,col) returnTyp paramsTyp label = do
   record<-lookFuncInSigs ident sigs
   case record of
@@ -148,15 +150,15 @@ lookFuncInSigs ident sigs= do
 
 createInitialEnv::Env->State TacM(Env) --TODO label funzione==>name+pos
 createInitialEnv (Env (current:stack)) = do
-  newBlockEnv<-addFuncDec current "writeInt" (-1,-1) Tvoid [(Tint,Just Modality_VAL)] Nothing
-  newBlockEnv <- addFuncDec newBlockEnv "writeFloat" (-1,-1) Tvoid [(Tfloat,Just Modality_VAL)] Nothing
-  newBlockEnv <- addFuncDec newBlockEnv "writeChar" (-1,-1) Tvoid [(Tchar,Just Modality_VAL)] Nothing
-  newBlockEnv <- addFuncDec newBlockEnv "writeString" (-1,-1) Tvoid [(Tstring,Just Modality_VAL)] Nothing
+  newBlockEnv<-addFuncDec current "writeInt" (-1,-1) Tvoid [(Tint,Just Modality_VAL)] ("writeInt"++(show (-1,-1)))
+  newBlockEnv <- addFuncDec newBlockEnv "writeFloat" (-1,-1) Tvoid [(Tfloat,Just Modality_VAL)] ("writeFloat"++(show (-1,-1)))
+  newBlockEnv <- addFuncDec newBlockEnv "writeChar" (-1,-1) Tvoid [(Tchar,Just Modality_VAL)] ("writeChar"++(show (-1,-1)))
+  newBlockEnv <- addFuncDec newBlockEnv "writeString" (-1,-1) Tvoid [(Tstring,Just Modality_VAL)] ("writeString"++(show (-1,-1)))
 
-  newBlockEnv <- addFuncDec newBlockEnv "readInt" (-1,-1)  Tint [] Nothing
-  newBlockEnv <- addFuncDec newBlockEnv "readFloat" (-1,-1)  Tfloat [] Nothing
-  newBlockEnv <- addFuncDec newBlockEnv "readChar" (-1,-1)  Tchar [] Nothing
-  newBlockEnv <- addFuncDec newBlockEnv "readString" (-1,-1)  Tstring [] Nothing
+  newBlockEnv <- addFuncDec newBlockEnv "readInt" (-1,-1)  Tint [] ("readInt"++(show (-1,-1)))
+  newBlockEnv <- addFuncDec newBlockEnv "readFloat" (-1,-1)  Tfloat [] ("readFloat"++(show (-1,-1)))
+  newBlockEnv <- addFuncDec newBlockEnv "readChar" (-1,-1)  Tchar [] ("readChar"++(show (-1,-1)))
+  newBlockEnv <- addFuncDec newBlockEnv "readString" (-1,-1)  Tstring [] ("readString"++(show (-1,-1)))
   return (Env ((emptyBlockEnv BTdecs):newBlockEnv:stack))
 
 filterdecs::[Dec]->[Dec]
@@ -197,7 +199,7 @@ getdim typ= case typ of
   Tfloat->8
   Tstring->16
   Tarray _ subtyp->getdim subtyp
-  Tpointer subtyp->getdim subtyp
+  Tpointer subtyp->getdim subtyp -- ?? giusto oppure una cavolata?
 
 gettyp::Typ->Typ
 gettyp typ= case typ of
@@ -457,19 +459,25 @@ genexp env exp = case exp of
       addrlexp<-genlexp env exp
       addTAC $ [TACAssign tmp addrlexp]++[TACIncrDecr addrlexp tmp op]
       return addrlexp
-    Post op->do
-      addrlexp<-genlexp env exp
-      addTAC $ [TACIncrDecr addrlexp addrlexp op]
-      return addrlexp
+    Post op->do 
+      addrlexp<-genlexp env exp 
+      tmp<-newtemp --temporaneo con il valore prima dell'incremento/decremento
+      addTAC $ [TACAssign tmp addrlexp]++[TACIncrDecr addrlexp addrlexp op]
+      return tmp
   Fcall id@(Pident (pos,ident)) pars num-> do
     genparams env pars -- TODO: in questo caso gestire le diverse modalità parametri
-    (pos,(_,_,Just lab))<-lookFunc id env
+    (pos,(_,_,lab))<-lookFunc id env
     addTAC $ [TACCall lab num]
     return ""
   Arr exp-> do
     genArr env exp
     modify (\s->s{offset=0,arrayinfo=(Nothing,Nothing,Nothing)})
     return ""
+  Addr exp-> do
+    addr<-genlexp env exp
+    tmp<-newtemp
+    addTAC$ [TACPointer tmp addr]
+    return tmp
   Eint (Pint(_,num)) -> return num
   Efloat (Preal(_,num)) -> return num
   Ebool (Pbool(_,val))->return val
@@ -491,7 +499,8 @@ genlexp env exp= case exp of
       otherwise->return(idpos)
   Arraysel exp1 exp2->do
     genArrSel env exp1 exp2
-  --TODO:manca ancora il puntatore
+  Indirection exp->do
+    return ""
 
 genArrSel::Env->Exp->Exp->State TacM(Addr)
 genArrSel env exp1 exp2= do
@@ -517,7 +526,7 @@ getid exp list= case exp of
 getoffset::Env->Int->[Exp]->[Int]->State TacM(Addr)
 getoffset env dimtyp allexp dims = do
   addrs<-listaddr env dimtyp allexp dims []
-  addr<-sumaddr addrs
+  addr<-sumaddr (reverse addrs)
   return addr
 
 listaddr::Env->Int->[Exp]->[Int]->[Addr]->State TacM([Addr])
@@ -528,11 +537,6 @@ listaddr env size (exp:exps) (_:dims) list=do
   tmp<-newtemp
   addTAC $ [TACBinaryInfixOp tmp addr1 (ArithOp Mul) addr2]
   listaddr env size exps dims (tmp:list)
-{--listaddr env size (exp:[]) dims list=do
-  addr<-genexp env exp
-  tmp<-newtemp
-  addTAC $ [TACBinaryInfixOp tmp addr (ArithOp Mul) (show size)]
-  listaddr env size [] dims (tmp:list)--}
 
 sumaddr::[Addr]->State TacM(Addr)
 sumaddr (addr:[])=return addr
@@ -582,11 +586,27 @@ genUnaryOp env op exp = case op of
       addr<-newtemp
       addTAC $[TACUnaryOp addr op addr1]
       return addr
-    Logneg->do     --TODO:rivedere ed eventualmente correggere
-      addr1<-genexp env exp
-      addr<-newtemp
-      addTAC $[TACUnaryOp addr op addr1]
-      return addr
+    Logneg->do 
+      first<-gets first    --TODO:rivedere ed eventualmente correggere
+      case first of
+        True->do
+          addr1<-genexp env exp
+          addr<-newtemp
+          addTAC $[TACUnaryOp addr op addr1]
+          return addr
+        False->do
+          (tt,ff)<-gets ttff
+          modify (\s->s{ttff=(ff,tt)})
+          addr1<-genexp env exp
+          case addr1 of
+            "true"->addTAC $ [TACGotoM ff]
+            "false"->addTAC $ [TACGotoM tt]
+            otherwise->return()
+          case exp of
+           Evar _ ->addTAC$[TACtf addr1 ff True] ++[TACtf addr1 tt False] --controllare tac pp
+           otherwise->return()
+          modify (\s->s{ttff=(tt,ff)})
+          return ""
 
 genRelOp::Env->Exp->Exp->RelOp->State TacM(Addr) 
 genRelOp env exp1 exp2 op= do

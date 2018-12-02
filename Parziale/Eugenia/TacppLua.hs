@@ -27,7 +27,6 @@ instance TacPP TAC where
          Neq->nest tab $ text adr<+>text"="<+>text adr1<+>text "~="<+> text adr2
          GtE->nest tab $ text adr<+>text"="<+>text adr1<+>text "=>"<+> text adr2
          LtE->nest tab $ text adr<+>text"="<+>text adr1<+>text "<="<+> text adr2
-
         BoolOp subop->case subop of
           And->nest tab $ text adr<+>text"="<+>text adr1<+>text "and"<+> text adr2
           Or->nest tab $ text adr<+>text"="<+>text adr1<+>text "or"<+> text adr2
@@ -44,13 +43,11 @@ instance TacPP TAC where
         Just pos->nest tab$ text addr<+> text "="<+>text (show typ)<+>text id<>text"_"<>text (show pos)
         otherwise->nest tab$ text addr<+> text "="<+>text (show typ)<+>text id
       prettyPrint(TACIncrDecr addr1 addr2 prepostincr)= nest tab $ text addr1<+>text"="<+>text addr2<+>text(show prepostincr)<+> text"1"
-      --prettyPrint (TACCondition left op right)        = nest tab $ text left <> text op <> text right
-      --prettyPrint (TACIf tacCondition l1 l2)          = nest tab $ text "if" <+> prettyPrint tacCondition <+> text "goto" <+> text l1 $$ text "goto" <+> text l2
-      prettyPrint (TACGoto label)                     = nest tab $ text "goto" <+> text label 
       prettyPrint (TACArr addr1 offset addr2)  =nest tab$ text addr1<+>text"["<+>text (show offset)<+>text"]"<+>text"="<+>text addr2
       prettyPrint (TACGotoM lab)                     =case lab of
          Nothing->nest tab $ text "goto"
-         Just label->nest tab $ text "goto" <+> text label 
+         Just label->nest tab $ text "goto" <+> text label
+      prettyPrint (TACGoto lab)                     =nest tab $ text "goto" <+> text lab --da eliminare
       prettyPrint (TACJump addr1 addr2 op lab)   = case op of
        RelOp subop-> case (subop,addr2) of
         (Gt,addr2)->nest tab $ text "if"<+>text addr1<+>text ">"<+>text addr2<+>text "goto"<+>text lab
@@ -65,7 +62,7 @@ instance TacPP TAC where
       prettyPrint (TACRet addr)                   = nest tab $ text "return" <+> text addr<+>text "\nexit function"
       prettyPrint (TACCall id npar)               = nest tab $ text "call" <+> text id <> text "/" <> text (show npar)
       prettyPrint (TACParam addr)                 = nest tab $ text "parameter"<+> text addr
-     -- prettyPrint (TACException label)                = nest tab $ text "on exception goto" <+> text label
+      prettyPrint (TACPointer addr1 addr2)        = nest tab $ text addr1 <+> text "= addr" <+>text addr2
 
 class TacPP a where
   prettyPrint :: a -> Doc

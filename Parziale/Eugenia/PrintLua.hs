@@ -177,14 +177,13 @@ instance Print Exp where
     Lexp lexp -> prPrec i 17 (concatD [prt 0 lexp])
     Addr exp-> prPrec i 0 (concatD [doc (showString "&"), prt 14 exp])
     Evar pident -> prPrec i 0 (concatD [prt 0 pident])
-    Indirection exp -> prPrec i 0 (concatD [doc (showString "*"), prt 0 exp])
+    Indirection exp -> prPrec i 0 (concatD [doc (showString "_"), prt 0 exp])
     Arr exps->prPrec i 0 (concatD [doc (showString "{"),prt 0 exps,doc (showString "}")])
     Arraysel pident exp -> prPrec i 0 (concatD [prt 0 pident, doc (showString "{"), prt 0 exp, doc (showString "}")])
     PrePost prepost lexp -> case prepost of
       Pre op-> prPrec i 0 (concatD [prt 0 op, prt 0 lexp])
       Post op -> prPrec i 0 (concatD [prt 0 lexp,prt 0 op])
-
-      
+    
   prtList _ [] = (concatD [])
   prtList _ [x] = (concatD [prt 0 x])
   prtList _ (x:xs) = (concatD [prt 0 x, doc (showString ","), prt 0 xs])
