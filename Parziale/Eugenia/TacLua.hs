@@ -33,18 +33,17 @@ data BlockEnv = BlockEnv {
 data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ
   deriving (Eq, Ord, Show, Read)
 
-data Addr= SAddr String | AddrMod Addr Pos Mod | AddrArr Addr Pos Int 
- deriving (Eq, Ord, Show, Read)
 
 type Ident = String
 type Typ = Type_specifier
+type Addr= String
 -- trasformarlo in data |ArrAddr String Pos Int|PosAddr String Pos
 type Label = String
 type Mod = Maybe Modality
 
 type Sigs =Map.Map Ident PosSig
 type Context = Map.Map Ident PosTypMod
---type TacContext = Map.Map (Ident,Pos) Addr
+type TacContext = Map.Map (Ident,Pos) Addr
 
 type Sig = (Typ,[TypMod],Label) --cambiare ordine di typmod e typ
 type Pos = (Int,Int)
@@ -54,15 +53,15 @@ type TypMod = (Typ,Mod)
 type PosSig = (Pos,Sig)
 
 data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
-  | TACAssignCast Addr Typ Addr         --cast tra address di tipo diverso
-  | TACBinaryInfixOp Addr Addr InfixOp Addr 
+  | TACAssignCast Addr Typ Addr         
+  | TACBinaryInfixOp Addr Addr InfixOp Addr
   | TACBinaryInfixOpCast Addr Typ Addr InfixOp Addr
   | TACSLabel Label --inizio funzione e/o programma
   | TACELabel Label --fine funzione e/o programma
   | TACLabel Label --label generica
   | TACTmp Ident Pos Typ Addr --temporaneo relativo a left expression
   | TACUnaryOp Addr Unary_Op Addr --operazioni unarie
-  | TACNewTemp Addr Typ Ident (Maybe Pos) Mod
+  | TACNewTemp Addr Typ Ident (Maybe Pos) Mod --posso avere sia label che ident
   | TACNewTempCall Addr Typ Label --temporaneo associato ad una chiamata a funzione
   | TACIncrDecr Addr Addr IncrDecr  --decrementi incrementi
   | TACJump Addr Addr InfixOp Label
@@ -217,7 +216,7 @@ newtemp ::State TacM (Addr)
 newtemp = do
           c<-gets kaddr
           modify $ \s->s{kaddr=c+1}
-          return $ (SAddr't':(show c))
+          return $'t':(show c)
 
 newlabel ::State TacM (Label)
 newlabel = do 
@@ -294,14 +293,16 @@ genDecl env dec = case dec of
           let label=id++(show pos)
           pushEnv<-(pushNewBlocktoEnv env (BTfun retTyp))
           pushEnv<-addParams pushEnv params --porto dentro i parametri
+          --TODO:creare copia nell'eventualità ci siano parametri VALRES
           addTAC $ [TACSLabel label]
           (pushEnv,list)<-genDecStmts pushEnv decstmts   --genero codice body escluse dichiarazioni di fun 
+          --TODO:creare copia nell'eventualità ci siano RES e/o VALRES
           if (retTyp==Tvoid)
             then addTAC $ [TACRet "void"] --se non c'è tipo ritorno stampo return void
             else return()
           addTAC $ [TACELabel label]
           let (funcs,envs)=unzip list
-          genFunDecls funcs envs --genero codice funzioni
+          genFunDecls funcs envs --genero codice funzioni locali(lista al contrario mi pare)
           return env
          
 genDecStmts::Env->[DecStm]->State TacM((Env),[(Dec,Env)])
@@ -552,7 +553,7 @@ genexp env exp = case exp of
   Ebool (Pbool(_,val))->return val
   Estring (Pstring(_,string))->return string
   Echar (Pchar(_,char))->return char
-  Evar ident@(Pident(_,id))->do  --variabile come rexp
+  Evar ident@(Pident(_,id))->do
     (pos,(typ,mod))<-lookVar ident env
     --let realtyp=gettyp typ  --tipo "base"
     addr<-newtemp
@@ -562,9 +563,14 @@ genexp env exp = case exp of
 
 genlexp::Env->Exp->State TacM(Addr) 
 genlexp env exp= case exp of
-  Evar ident@(Pident(_,id))->do --variabile come lexp
+  Evar ident@(Pident(_,id))->do
     (pos,(typ,mod))<-lookVar ident env
-    let idpos=id++"_"++(show pos)
+    let idpos=ifModreq++id++"_"++(show pos) --se modalità richiede faccio una copia
+        ifModreq=case mod of
+          Just Modality_RES->"copyOf"
+          Just Modality_VALRES->"copyOf"
+          Just Modality_REF->"*"
+          otherwise->""
     case typ of
       Tarray _ _ -> return idpos --TODO:se ho g={0,1,2,3} devo inizializzare l'offset
       otherwise->return(idpos)
@@ -821,8 +827,8 @@ genBoolOp env exp1 exp2 op= case op of
      modify (\s->s{ttff=(Just tt,ff)}) 
      addr2<-genexp env exp2
      case addr2 of
-      (SAddr "")->return()
-      (SAddr "false")->addTAC $ [TACGoto tt]
-      (SAddr "true")->return()
+      ""->return()
+      "false"->addTAC $ [TACGoto tt]
+      "true"->return()
       otherwise->addTAC $ [TACtf addr2 (Just tt) True]++[TACGotoM ff]
-     return (SAddr "")
+     return ""
