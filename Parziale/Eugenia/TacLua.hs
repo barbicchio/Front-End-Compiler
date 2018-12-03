@@ -62,6 +62,7 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
   | TACTmp Ident Pos Typ Addr --temporaneo relativo a left expression
   | TACUnaryOp Addr Unary_Op Addr --operazioni unarie
   | TACNewTemp Addr Typ Ident (Maybe Pos)
+  | TACNewTmpCast Addr Typ  Typ  Addr
   | TACIncrDecr Addr Addr IncrDecr  --decrementi incrementi
   | TACJump Addr Addr InfixOp Label
   | TACGoto Label
@@ -69,7 +70,7 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
   | TACtf Addr (Maybe Label) Bool
   | TACRet Addr
   | TACInit Typ Ident Pos (Maybe String) (Maybe String)
-  | TACInitCast Typ Ident Pos (Maybe String) (Maybe String)
+  | TACInitCast Typ Ident Pos (Maybe String)
   | TACCall Label Int
   | TACArr Addr Int Addr
   | TACPointer Addr Addr
@@ -270,7 +271,7 @@ genDecl env dec = case dec of
                 if (typ/=typ1)
                 then do
                 genTyp<-genericType typ1 typ
-                addTAC $ [TACInitCast  genTyp id pos (Just typexp) (Just exp)]
+                addTAC $ [TACInitCast  genTyp id pos  (Just exp)]
                 else addTAC $ [TACInit typ id pos (Just typexp) (Just exp)]
                 return newEnv  
                False->do --se inizializzazione complessa,allora temporaneo. 
@@ -739,11 +740,35 @@ genArithOp env exp1 exp2 op=do
         typ2<-inferExpr env exp2
         addr<-newtemp
         if(typ1/=typ2)
-        then do 
+        then do
         genTyp<-genericType typ1 typ2
-        addTAC $ [TACBinaryInfixOpCast addr genTyp addr1 op addr2]
-        else addTAC $ [TACBinaryInfixOp addr addr1 op addr2]
+        temp<-newtemp
+        if(typ1/=genTyp)
+        then do 
+        simplexp1<-issimple exp1
+        case simplexp1 of 
+          True->do 
+            addTAC $ [TACBinaryInfixOpCast addr genTyp addr1 op addr2]
+            return addr
+          False->do
+            addTAC $ [TACNewTmpCast addr typ1 genTyp addr1]
+            addTAC $ [TACBinaryInfixOpCast temp genTyp addr op addr2]
+            return temp
+        else do 
+        simplexp2<-issimple exp2
+        case simplexp2 of 
+          True->do
+            addTAC $ [TACBinaryInfixOpCast addr genTyp addr1 op addr2]
+            return addr
+          False->do
+
+            addTAC $ [TACNewTmpCast addr typ2 genTyp addr2]
+            addTAC $ [TACBinaryInfixOpCast temp genTyp addr1 op addr]
+            return temp
+        else do 
+        addTAC $ [TACBinaryInfixOp addr addr1 op addr2]
         return(addr)
+        
 genUnaryOp :: Env->Unary_Op->Exp-> State TacM (Addr)
 genUnaryOp env op exp = case op of
     Neg->do
