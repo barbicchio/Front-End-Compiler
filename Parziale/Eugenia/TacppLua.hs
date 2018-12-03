@@ -32,7 +32,7 @@ instance TacPP TAC where
           And->nest tab $ text adr<+>text"="<+>text adr1<+>text "and"<+> text adr2
           Or->nest tab $ text adr<+>text"="<+>text adr1<+>text "or"<+> text adr2
       prettyPrint (TACBinaryInfixOpCast adr typ adr1 op adr2) =case op of
-        ArithOp subop-> nest tab $ text adr<+>text"="<+>text(show typ)<+>text adr1<+>text(show subop)<+> text adr2
+        ArithOp subop-> nest tab $ text adr<+>text"="<+>text(show typ)<+>text"("<+>text adr1<+>text(show subop)<+> text adr2<+>text")"
         RelOp subop->case subop of
          Gt-> nest tab $ text adr<+>text"="<+>text(show typ)<+>text adr1<+>text ">"<+> text adr2
          Lt-> nest tab $ text adr<+>text"="<+>text(show typ)<+>text adr1<+>text "<"<+> text adr2
@@ -44,13 +44,15 @@ instance TacPP TAC where
          And->nest tab $ text adr<+>text"="<+>text(show typ)<+>text adr1<+>text "and"<+> text adr2
          Or->nest tab $ text adr<+>text"="<+>text(show typ)<+>text adr1<+>text "or"<+> text adr2
       
+      
+      prettyPrint(TACNewTmpCast temp typ1 genTyp addr1) = nest tab $ text temp<+> text "="<+> text "Cast"<+>text (show typ1) <+> text "To"<+>text (show genTyp)<+>text"("<+>text addr1<+>text")"
       --prettyPrint (TACInt num)                        = nest tab $ text (show num)
       prettyPrint (TACInit typ id pos typexp exp)= case (typexp,exp) of
         (Nothing,Nothing)-> nest tab $ text(show typ)<+>text id <>text"_"<> text (show pos)
         (Just exptyp,Just exp)->nest tab $ text id<>text("_"++(show pos)) <+> text "="<+> text exptyp<+>text exp 
-      prettyPrint (TACInitCast typ id pos typexp exp)= case (typexp,exp) of
-        (Nothing,Nothing)-> nest tab $ text(show typ)<+>text id <>text"_"<> text (show pos)
-        (Just exptyp,Just exp)->nest tab $ text id<>text("_"++(show pos)) <+> text "="<+>text(show typ) <+>text exptyp<+>text exp 
+      prettyPrint (TACInitCast typ id pos  exp)= case exp of
+        Nothing-> nest tab $ text(show typ)<+>text id <>text"_"<> text (show pos)
+        Just exp->nest tab $ text id<>text("_"++(show pos)) <+> text "="<+>text(show typ)<+>text"("<+>text exp <+>text")"
       prettyPrint(TACTmp id pos typ addr)              = case typ of
         Tpointer _ ->nest tab $ text id <>text"_"<> text (show pos)<+>text"= addr"<+>text addr
         otherwise->nest tab $ text id <>text"_"<> text (show pos)<+>text"="<+>text (show typ)<+>text addr

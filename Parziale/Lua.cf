@@ -87,7 +87,7 @@ ActParam.    ActPar::=[Exp];
 separator Exp ",";
 
 Evar.        Lexp ::= Pident;
-Indirection. Lexp ::= "*"Exp ;
+Indirection. Lexp ::= "_"Exp ;
 Arraysel.    Lexp ::= Pident "{"Exp"}" ;
 PreInc.      Lexp ::= "++" Lexp ;
 PreDecr.     Lexp ::= "--" Lexp ;
