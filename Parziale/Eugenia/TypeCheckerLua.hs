@@ -85,7 +85,6 @@ filterdecstmts  (decstm:decstmts) = case decstm of
   Dec dec@(Func _ _ _ _ _)  -> dec: (filterdecstmts  decstmts)
   otherwise -> filterdecstmts decstmts
 
-
 checkDecStm::Env->DecStm->Writer [String] Env
 checkDecStm env decStm = case decStm of
              Dec dec -> do
@@ -198,7 +197,7 @@ checkReturn (Env ((BlockEnv _ _ blockTyp):stack)) pos returnTyp exp= case blockT
       else return ()
   otherwise->checkReturn (Env stack) pos returnTyp exp
 
-checkretArr::Pos->Typ->Typ->Writer[String]()
+checkretArr::Pos->Typ->Typ->Writer[String]() --migliorare la stampa dell'errore
 checkretArr pos typ1 typ2=case (typ1,typ2) of
  (Tarray _ subtyp1,Tarray _ subtyp2)->checkretArr pos subtyp1 subtyp2
  otherwise->if (typ1==typ2)
@@ -216,14 +215,14 @@ checksubtyp pos typ1 typ2=case (typ1,typ2) of
             tell $ [(show pos) ++ ": Type mismatch in array. Expected type->" ++ (show typ1) ++ ". Actual type->" ++ (show typ2)]
             return()
 
-
-
 --controlla l'expression. 
 checkExpr::Env->Typ->Exp->Writer [String] (Env)
 checkExpr env typ expr= do
   (pos,exprTyp)<-inferExpr env expr
   case (typ,exprTyp) of
-    (Tarray _ subtyp,Tarray _ subexprTyp)-> do
+    (Tarray dim1 subtyp,Tarray dim2 subexprTyp)-> do
+      let dimensions = getsizes typ
+      inferExprArr env pos dimensions expr
       checksubtyp pos subtyp subexprTyp
       return env
     (Tpointer subtyp,Tpointer subexprTyp)->do
@@ -242,7 +241,6 @@ checkExpr env typ expr= do
        tell $[(show pos) ++ ": Type mismatch. Expected type->" ++ (show typ) ++ ". Actual type token "++ident++ "-> " ++ (show exprTyp)]
        return env
 
-
 checkDefaultStm::Env->Maybe Stm->Writer [String] ()
 checkDefaultStm env defaultStm = case defaultStm of
   Just stm-> do
@@ -251,9 +249,11 @@ checkDefaultStm env defaultStm = case defaultStm of
   Nothing -> do return ()
 
 --Generalizzazione dei tipi
-generalize::Typ->Typ->Writer [String] Typ --fare un case
+generalize::Typ->Typ->Writer [String] Typ
 generalize Tint Tfloat = do
  return Tfloat
+--generalize (Tarray Nothing Tint) (Tarray Nothing Tfloat) = do --generalizzazione e cast per array
+ --return (Tarray Nothing Tfloat)
 generalize from to = do
  return from --nel caso non si possa generalizzare
 
@@ -265,9 +265,21 @@ genericType typ1 typ2 = do
   then return genTyp
   else generalize typ1 typ2
 
+--checkArrDim::Env->Pos->Int->Exp->Writer [String] ()
+--checkArrDim env pos len exp = 
+
+inferExprArr::Env->Pos->[Int]->Exp->Writer [String] () --al momento fa solo il controllo sulla prima lista
+inferExprArr env pos dimensions@(dim1:dims) (Arr list@(exp1:exprs)) = do
+    if dim1 == (length list) 
+    then do
+      mapM (\x -> inferExprArr env pos dims x) list
+      return ()
+    else do
+    tell $ [""]
+    return ()
+inferExprArr _ _ [] genexp=return()
 inferExpr::Env->Exp->Writer [String] PosTyp
 inferExpr env expr = case expr of
-
   Arr list@(exp:exprs)-> do
     (pos,typ)<-inferExpr env exp
     checkArr env pos typ exprs
@@ -289,7 +301,7 @@ inferExpr env expr = case expr of
     (pos,typ)<-inferExpr env exp
     posTyp<-checkIfIsPointerAndReturnType pos typ exp
     return posTyp
-
+  -- selezione elementi dentro array
   Arraysel exprArray exprInt -> do --investigare su exprArray 
     checkExpr env Tint exprInt 
     arrayPosTyp<-inferExpr env exprArray
@@ -336,9 +348,8 @@ inferExpr env expr = case expr of
 
 checkArr::Env->Pos->Typ->[Exp]->Writer [String] ()
 checkArr env pos typ exprs = case exprs of
-  []->return ()
+  [] -> return ()
   (expr:expss)-> do
-    checkExpr env typ expr
     checkArr env pos typ expss
 
 inferUnaryExp::Env->Unary_Op->Exp->Writer [String] PosTyp
@@ -526,7 +537,12 @@ lookVarInContext ident context= do
 
 lookFuncInSigs::Ident->Sigs->Writer [String] (Maybe PosSig)
 lookFuncInSigs ident sigs= do
-  return (Map.lookup ident sigs)    
+  return (Map.lookup ident sigs)  
+
+getsizes::Typ->[Int]  --tiro fuori le posizioni
+getsizes typ = case typ of
+  Tarray (Just(Eint (Pint (_,num)))) subtyp->(read num:getsizes subtyp)
+  otherwise->[]  
 
 ---------------------
 ----ENV FUNCTIONS----

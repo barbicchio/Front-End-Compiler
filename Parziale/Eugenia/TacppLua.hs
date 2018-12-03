@@ -82,7 +82,7 @@ instance TacPP TAC where
       prettyPrint (TACRet addr)                   = nest tab $ text "return" <+> text addr<+>text "\nexit function"
       prettyPrint (TACCall id npar)               = nest tab $ text "call" <+> text id <> text "/" <> text (show npar)
       prettyPrint (TACParam addr)                 = nest tab $ text "parameter"<+> text addr
-      prettyPrint (TACPointer addr1 addr2)        = nest tab $ text addr1 <+> text "= addr" <+>text addr2
+      prettyPrint (TACPointer addr1 addr2)        = nest tab $ text addr1 <+> text "= addr &"<>text addr2
 
 class TacPP a where
   prettyPrint :: a -> Doc

@@ -330,8 +330,8 @@ genStm env stm= case stm of
            addrlexp<-genlexp env lexp
            addrrexp<-genexp env rexp
            typlexp<-genlexpTyp env lexp
-           case typlexp of --se ho qualcosa come g={0,1,2,3} devo poter calcolare offset
-            {--Tarray exp _ ->do 
+           {--case typlexp of --se ho qualcosa come g={0,1,2,3} devo poter calcolare offset
+            Tarray exp _ ->do 
                  let elemtyp=gettyp typ
                  modify (\s->s{offset=0,arrayinfo=(Just ident,Just typ,Just elemtyp)})--}
            typrexp<-inferExpr env rexp
@@ -515,7 +515,7 @@ genexp env exp = case exp of
         return result
        otherwise->genBoolOp env exp1 exp2 subop
   Unary_Op subop exp->genUnaryOp env subop exp
-  PrePost prepost exp->case prepost of
+  PrePost prepost exp->case prepost of --controllare che secondo me fa casino
     Pre op->do
       tmp<-newtemp
       addrlexp<-genlexp env exp

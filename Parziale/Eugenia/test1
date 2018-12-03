@@ -1,5 +1,6 @@
-function {}{} integer main ()
-{2}{3} integer g={{2,3,5},{43}}
-g={{1,2,3},{3,4,5}}
-return g
+integer k=3
+integer p=2
+
+function void main() 
+k=p++*p++ +p++ +2
 end
