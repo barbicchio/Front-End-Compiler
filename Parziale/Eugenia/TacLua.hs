@@ -354,8 +354,19 @@ genStm env stm= case stm of
            if (typrexp /= typlexp) 
            then do
            genTyp<-generalize typrexp typlexp
-           addTAC $ [TACBinaryInfixOpCast addrlexp genTyp addr (ArithOp subop) addrrexp]
-           else addTAC $ [TACBinaryInfixOp addrlexp addr (ArithOp subop) addrrexp]
+           simplexp1<-issimple rexp
+           case simplexp1 of 
+            True->do 
+              addTAC $ [TACBinaryInfixOp addrlexp addr (ArithOp subop) addrrexp]
+              return Nothing
+            False->do
+              temp1<-newtemp
+              addTAC $ [TACNewTmpCast temp1 typrexp genTyp addrrexp]
+              temp2<-newtemp
+              addTAC $ [TACBinaryInfixOpCast temp2 genTyp addr (ArithOp subop) temp1]
+              return Nothing
+           else do 
+           addTAC $ [TACBinaryInfixOp addrlexp addr (ArithOp subop) addrrexp]
            return Nothing
         AssgnBool subop->do 
            addr<-newtemp
