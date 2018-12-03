@@ -9,14 +9,14 @@ import Debug.Trace
 type TacInst=[TAC]
 
 data TacM = TacM{
-        kaddr::Int,
-        klab::Int,
-        code::TacInst,
-        ttff::(Maybe Label,Maybe Label),
-        first::Bool,
+        kaddr::Int, --contatore temporanei
+        klab::Int,  --contatore label
+        code::TacInst, --TAC
+        ttff::(Maybe Label,Maybe Label), --Etichette true,false
+        first::Bool, --Se è falso sto valutando una guardia oppure una sottoespressione di un assegnamento di tipo booleano
         offset::Int, --offset array
         arrayinfo::(Maybe Pident,Maybe Typ,Maybe Typ) --(base,type,elemtype) dell'array corrente
-          }
+        }
   deriving (Show)     
 
 startState = TacM 0 0 [] (Nothing,Nothing) True 0 (Nothing,Nothing,Nothing)
@@ -33,17 +33,18 @@ data BlockEnv = BlockEnv {
 data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ
   deriving (Eq, Ord, Show, Read)
 
+data Addr= SAddr String | AddrMod Addr Pos Mod | AddrArr Addr Pos Int 
+ deriving (Eq, Ord, Show, Read)
 
 type Ident = String
 type Typ = Type_specifier
-type Addr= String
 -- trasformarlo in data |ArrAddr String Pos Int|PosAddr String Pos
 type Label = String
 type Mod = Maybe Modality
 
 type Sigs =Map.Map Ident PosSig
 type Context = Map.Map Ident PosTypMod
-type TacContext = Map.Map (Ident,Pos) Addr
+--type TacContext = Map.Map (Ident,Pos) Addr
 
 type Sig = (Typ,[TypMod],Label) --cambiare ordine di typmod e typ
 type Pos = (Int,Int)
@@ -53,15 +54,16 @@ type TypMod = (Typ,Mod)
 type PosSig = (Pos,Sig)
 
 data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
-  | TACAssignCast Addr Typ Addr         
-  | TACBinaryInfixOp Addr Addr InfixOp Addr
+  | TACAssignCast Addr Typ Addr         --cast tra address di tipo diverso
+  | TACBinaryInfixOp Addr Addr InfixOp Addr 
   | TACBinaryInfixOpCast Addr Typ Addr InfixOp Addr
   | TACSLabel Label --inizio funzione e/o programma
   | TACELabel Label --fine funzione e/o programma
   | TACLabel Label --label generica
   | TACTmp Ident Pos Typ Addr --temporaneo relativo a left expression
   | TACUnaryOp Addr Unary_Op Addr --operazioni unarie
-  | TACNewTemp Addr Typ Ident (Maybe Pos)
+  | TACNewTemp Addr Typ Ident (Maybe Pos) Mod
+  | TACNewTempCall Addr Typ Label --temporaneo associato ad una chiamata a funzione
   | TACIncrDecr Addr Addr IncrDecr  --decrementi incrementi
   | TACJump Addr Addr InfixOp Label
   | TACGoto Label
@@ -70,14 +72,13 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
   | TACRet Addr
   | TACInit Typ Ident Pos (Maybe String) (Maybe String)
   | TACInitCast Typ Ident Pos (Maybe String) (Maybe String)
-  | TACCall Label Int
+  | TACCall Label Int -- chiamata a procedura
   | TACArr Addr Int Addr
   | TACPointer Addr Addr
   | TACParam Addr
  deriving(Show)
 
---FCall,puntatori,relativa gestione parametri vari,cast se non riescono
---Assegnamenti booleani -->da fare
+--FCall,puntatori,relativa gestione parametri vari.
 -------------------------------
 --funzioni ausiliarie per ENV--
 -------------------------------
@@ -151,7 +152,7 @@ lookFuncInSigs ident sigs= do
   return (Map.lookup ident sigs)
 
 
-createInitialEnv::Env->State TacM(Env) --TODO label funzione==>name+pos
+createInitialEnv::Env->State TacM(Env)
 createInitialEnv (Env (current:stack)) = do
   newBlockEnv<-addFuncDec current "writeInt" (-1,-1) Tvoid [(Tint,Just Modality_VAL)] ("writeInt"++(show (-1,-1)))
   newBlockEnv <- addFuncDec newBlockEnv "writeFloat" (-1,-1) Tvoid [(Tfloat,Just Modality_VAL)] ("writeFloat"++(show (-1,-1)))
@@ -216,7 +217,7 @@ newtemp ::State TacM (Addr)
 newtemp = do
           c<-gets kaddr
           modify $ \s->s{kaddr=c+1}
-          return $'t':(show c)
+          return $ (SAddr't':(show c))
 
 newlabel ::State TacM (Label)
 newlabel = do 
@@ -330,7 +331,7 @@ genStm env stm= case stm of
            addrlexp<-genlexp env lexp
            addrrexp<-genexp env rexp
            typlexp<-genlexpTyp env lexp
-           {--case typlexp of --se ho qualcosa come g={0,1,2,3} devo poter calcolare offset
+           {--case typlexp of --se ho qualcosa come g={0,1,2,3} devo poter calcolare offset --TODO
             Tarray exp _ ->do 
                  let elemtyp=gettyp typ
                  modify (\s->s{offset=0,arrayinfo=(Just ident,Just typ,Just elemtyp)})--}
@@ -354,7 +355,7 @@ genStm env stm= case stm of
            addTAC $ [TACBinaryInfixOpCast addrlexp genTyp addr (ArithOp subop) addrrexp]
            else addTAC $ [TACBinaryInfixOp addrlexp addr (ArithOp subop) addrrexp]
            return Nothing
-        AssgnBool subop->do --TODO:completare
+        AssgnBool subop->do 
            addr<-newtemp
            addrlexp<-genlexp env lexp
            typlexp<-genlexpTyp env lexp
@@ -482,8 +483,8 @@ genexp env exp = case exp of
         genRelOp env exp1 exp2 subop
         result<-newtemp
         next<-newlabel
-        addTAC $ [TACLabel tt]++[TACNewTemp result Tbool "true" Nothing]++[TACGoto next] --se dentro guardia diverso...
-        addTAC $ [TACLabel ff]++[TACNewTemp result Tbool "false" Nothing]++[TACLabel next]
+        addTAC $ [TACLabel tt]++[TACNewTemp result Tbool "true" Nothing Nothing]++[TACGoto next] --se dentro guardia diverso...
+        addTAC $ [TACLabel ff]++[TACNewTemp result Tbool "false" Nothing Nothing]++[TACLabel next]
         modify (\s->s{first=True,ttff=(Nothing,Nothing)})
         return result
        otherwise->genRelOp env exp1 exp2 subop
@@ -509,8 +510,8 @@ genexp env exp = case exp of
         genBoolOp env exp1 exp2 subop
         result<-newtemp
         next<-newlabel
-        addTAC $ [TACLabel tt]++[TACNewTemp result Tbool "true" Nothing]++[TACGoto next] --se dentro guardia diverso...
-        addTAC $ [TACLabel ff]++[TACNewTemp result Tbool "false" Nothing]++[TACLabel next]
+        addTAC $ [TACLabel tt]++[TACNewTemp result Tbool "true" Nothing Nothing]++[TACGoto next] --se dentro guardia diverso...
+        addTAC $ [TACLabel ff]++[TACNewTemp result Tbool "false" Nothing Nothing]++[TACLabel next]
         modify (\s->s{first=True,ttff=(Nothing,Nothing)})
         return result
        otherwise->genBoolOp env exp1 exp2 subop
@@ -528,9 +529,15 @@ genexp env exp = case exp of
       return tmp
   Fcall id@(Pident (pos,ident)) pars num-> do
     genparams env pars -- TODO: in questo caso gestire le diverse modalità parametri
-    (pos,(_,_,lab))<-lookFunc id env
-    addTAC $ [TACCall lab num]
-    return ""
+    (pos,(retTyp,_,lab))<-lookFunc id env
+    case retTyp of
+      Tvoid->do
+       addTAC $ [TACCall lab num]
+       return""
+      otherwise->do
+       addr<-newtemp
+       addTAC$[TACNewTempCall addr retTyp lab]
+       return addr
   Arr exp-> do
     genArr env exp
     modify (\s->s{offset=0,arrayinfo=(Nothing,Nothing,Nothing)})
@@ -545,17 +552,17 @@ genexp env exp = case exp of
   Ebool (Pbool(_,val))->return val
   Estring (Pstring(_,string))->return string
   Echar (Pchar(_,char))->return char
-  Evar ident@(Pident(_,id))->do
-    (pos,(typ,_))<-lookVar ident env
+  Evar ident@(Pident(_,id))->do  --variabile come rexp
+    (pos,(typ,mod))<-lookVar ident env
     --let realtyp=gettyp typ  --tipo "base"
     addr<-newtemp
-    addTAC $ [TACNewTemp addr typ id (Just pos)]
+    addTAC $ [TACNewTemp addr typ id (Just pos) mod]
     return(addr)
   otherwise->genlexp env exp
 
 genlexp::Env->Exp->State TacM(Addr) 
 genlexp env exp= case exp of
-  Evar ident@(Pident(_,id))->do
+  Evar ident@(Pident(_,id))->do --variabile come lexp
     (pos,(typ,mod))<-lookVar ident env
     let idpos=id++"_"++(show pos)
     case typ of
@@ -707,10 +714,9 @@ sumaddr (addr1:addr2:other)= do
 genparams::Env->[Exp]->State TacM ()
 genparams _ []=return()
 genparams env (exp:exps)= do
-        par<-newtemp
         addr<-genexp env exp
-        addTAC $ [TACAssign par addr]
-        addTAC $ [TACParam par]
+        --addTAC $ [TACAssign par addr]
+        addTAC $ [TACParam addr]
         genparams env exps
         return()
 
@@ -752,7 +758,7 @@ genUnaryOp env op exp = case op of
       addTAC $[TACUnaryOp addr op addr1]
       return addr
     Logneg->do 
-      first<-gets first    --TODO:rivedere ed eventualmente correggere
+      first<-gets first   
       case first of
         True->do
           addr1<-genexp env exp
@@ -815,8 +821,8 @@ genBoolOp env exp1 exp2 op= case op of
      modify (\s->s{ttff=(Just tt,ff)}) 
      addr2<-genexp env exp2
      case addr2 of
-      ""->return()
-      "false"->addTAC $ [TACGoto tt]
-      "true"->return()
+      (SAddr "")->return()
+      (SAddr "false")->addTAC $ [TACGoto tt]
+      (SAddr "true")->return()
       otherwise->addTAC $ [TACtf addr2 (Just tt) True]++[TACGotoM ff]
-     return ""
+     return (SAddr "")

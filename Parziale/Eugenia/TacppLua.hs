@@ -57,11 +57,25 @@ instance TacPP TAC where
       prettyPrint (TACUnaryOp addr op addr1)           = case op of
         Neg->nest tab $ text addr <+> text "=" <+> text "-" <+> text addr1
         Logneg->nest tab $ text addr <+> text "=" <+> text "not" <+> text addr1
-      prettyPrint (TACNewTemp addr typ id pos)=case pos of
-        Just pos->case typ of
+      prettyPrint (TACNewTemp addr typ id pos mod)=case (pos,mod) of
+        (Just pos,Nothing)->case typ of
           Tpointer subtyp->nest tab$ text addr<+> text "="<+>text (show subtyp)<+>text"*"<+>text id<>text"_"<>text (show pos)
           otherwise->nest tab$ text addr<+> text "="<+>text (show typ)<+>text id<>text"_"<>text (show pos)
+        (Just pos,Just mod1)->case typ of
+          Tpointer subtyp-> case mod1 of
+            Modality_RES->nest tab$ text addr<+> text "="<+>text (show subtyp)<+>text"*"<+>text"copyOf"<+>text id<>text"_"<>text (show pos)
+            Modality_VALRES->nest tab$ text addr<+> text "="<+>text (show subtyp)<+>text"*"<+>text"copyOf"<+>text id<>text"_"<>text (show pos)
+            otherwise->nest tab$ text addr<+> text "="<+>text (show subtyp)<+>text"*"<+>text id<>text"_"<>text (show pos)
+          otherwise-> case mod1 of
+            Modality_RES->nest tab$ text addr<+> text "="<+>text (show typ)<+>text"copyOf"<+>text id<>text"_"<>text (show pos)
+            Modality_VALRES->nest tab$ text addr<+> text "="<+>text (show typ)<+>text"copyOf"<+>text id<>text"_"<>text (show pos)
+            otherwise->nest tab$ text addr<+> text "="<+>text (show typ)<+>text id<>text"_"<>text (show pos)
+        (Nothing,Just mod1)->case mod1 of
+            Modality_RES->nest tab$ text addr<+> text "="<+>text (show typ)<+>text"copyOf"<+>text id<>text"_"<>text (show pos)
+            Modality_VALRES->nest tab$ text addr<+> text "="<+>text (show typ)<+>text"copyOf"<+>text id<>text"_"<>text (show pos)
+            otherwise->nest tab$ text addr<+> text "="<+>text (show typ)<+>text id<>text"_"<>text (show pos)
         otherwise->nest tab$ text addr<+> text "="<+>text (show typ)<+>text id
+      prettyPrint (TACNewTempCall addr typ lab)=nest tab$ text addr<+> text "="<+>text (show typ)<+>text"callFunc"<+>text lab
       prettyPrint(TACIncrDecr addr1 addr2 prepostincr)= nest tab $ text addr1<+>text"="<+>text addr2<+>text(show prepostincr)<+> text"1"
       prettyPrint (TACArr addr1 offset addr2)  =nest tab$ text addr1<+>text"["<+>text (show offset)<+>text"]"<+>text"="<+>text addr2
       prettyPrint (TACGotoM lab)                     =case lab of
