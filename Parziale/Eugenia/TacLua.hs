@@ -350,7 +350,7 @@ genStm env stm= case stm of
            addTAC $ [TACAssign addr addrlexp]
            addrrexp<-genexp env rexp
            typrexp<-inferExpr env rexp
-           if (typrexp == typlexp) 
+           if (typrexp /= typlexp) 
            then do
            genTyp<-generalize typrexp typlexp
            addTAC $ [TACBinaryInfixOpCast addrlexp genTyp addr (ArithOp subop) addrrexp]
