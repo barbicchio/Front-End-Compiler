@@ -1,4 +1,5 @@
 function {}{} integer main ()
 {2}{3} integer g={{2,3,5},{43}}
+g={{1,2,3},{3,4,5}}
 return g
 end

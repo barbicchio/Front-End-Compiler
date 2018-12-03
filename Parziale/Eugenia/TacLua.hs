@@ -14,8 +14,8 @@ data TacM = TacM{
         code::TacInst,
         ttff::(Maybe Label,Maybe Label),
         first::Bool,
-        offset::Int,
-        arrayinfo::(Maybe Pident,Maybe Typ,Maybe Typ) --offset,base,type,elemtype
+        offset::Int, --offset array
+        arrayinfo::(Maybe Pident,Maybe Typ,Maybe Typ) --(base,type,elemtype) dell'array corrente
           }
   deriving (Show)     
 
@@ -60,7 +60,7 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
   | TACELabel Label --fine funzione e/o programma
   | TACLabel Label --label generica
   | TACTmp Ident Pos Typ Addr --temporaneo relativo a left expression
-  | TACUnaryOp Addr Unary_Op Addr
+  | TACUnaryOp Addr Unary_Op Addr --operazioni unarie
   | TACNewTemp Addr Typ Ident (Maybe Pos)
   | TACIncrDecr Addr Addr IncrDecr  --decrementi incrementi
   | TACJump Addr Addr InfixOp Label
@@ -330,6 +330,10 @@ genStm env stm= case stm of
            addrlexp<-genlexp env lexp
            addrrexp<-genexp env rexp
            typlexp<-genlexpTyp env lexp
+           case typlexp of --se ho qualcosa come g={0,1,2,3} devo poter calcolare offset
+            {--Tarray exp _ ->do 
+                 let elemtyp=gettyp typ
+                 modify (\s->s{offset=0,arrayinfo=(Just ident,Just typ,Just elemtyp)})--}
            typrexp<-inferExpr env rexp
            if (typrexp /= typlexp) 
            then do
@@ -549,13 +553,13 @@ genexp env exp = case exp of
     return(addr)
   otherwise->genlexp env exp
 
-genlexp::Env->Exp->State TacM(Addr) --TODO
+genlexp::Env->Exp->State TacM(Addr) 
 genlexp env exp= case exp of
   Evar ident@(Pident(_,id))->do
     (pos,(typ,mod))<-lookVar ident env
     let idpos=id++"_"++(show pos)
     case typ of
-      Tarray _ _ ->return idpos
+      Tarray _ _ -> return idpos --TODO:se ho g={0,1,2,3} devo inizializzare l'offset
       otherwise->return(idpos)
   Arraysel exp1 exp2->do
     genArrSel env exp1 exp2
