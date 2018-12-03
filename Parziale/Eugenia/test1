@@ -1,5 +1,4 @@
-boolean p=true
-boolean j=false
-function void main ()
-p|=j and (p or j)
+function {}{} integer main ()
+{2}{3} integer g={{2,3,5},{43}}
+return g
 end

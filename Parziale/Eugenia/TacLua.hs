@@ -59,10 +59,10 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
   | TACSLabel Label --inizio funzione e/o programma
   | TACELabel Label --fine funzione e/o programma
   | TACLabel Label --label generica
-  | TACTmp Ident Pos Typ Addr
+  | TACTmp Ident Pos Typ Addr --temporaneo relativo a left expression
   | TACUnaryOp Addr Unary_Op Addr
   | TACNewTemp Addr Typ Ident (Maybe Pos)
-  | TACIncrDecr Addr Addr IncrDecr
+  | TACIncrDecr Addr Addr IncrDecr  --decrementi incrementi
   | TACJump Addr Addr InfixOp Label
   | TACGoto Label
   | TACGotoM (Maybe Label)

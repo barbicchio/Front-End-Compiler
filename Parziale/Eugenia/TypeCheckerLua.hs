@@ -187,14 +187,25 @@ checkStm env stm = case stm of
 --controlla che il valore tornato dal return sia compatibile con quello della dichiarazione
 checkReturn::Env->Pos->Typ->Exp->Writer [String] ()
 checkReturn (Env ((BlockEnv _ _ blockTyp):stack)) pos returnTyp exp= case blockTyp of
-  BTfun decTyp -> do
-    genTyp<-generalize returnTyp decTyp
-    if genTyp/=decTyp
-    then do
+  BTfun decTyp -> case decTyp of
+    Tarray _ _->checkretArr pos decTyp returnTyp
+    otherwise->do
+      genTyp<-generalize returnTyp decTyp 
+      if genTyp/=decTyp
+      then do
       let ident=gettypid exp
       tell $ [(show pos) ++ ": Type mismatch in return statement. Expected type->" ++ (show decTyp) ++ ". Actual type->" ++ (show returnTyp)++" in token "++ident]
-    else return ()
+      else return ()
   otherwise->checkReturn (Env stack) pos returnTyp exp
+
+checkretArr::Pos->Typ->Typ->Writer[String]()
+checkretArr pos typ1 typ2=case (typ1,typ2) of
+ (Tarray _ subtyp1,Tarray _ subtyp2)->checkretArr pos subtyp1 subtyp2
+ otherwise->if (typ1==typ2)
+            then return ()
+            else do
+            tell $ [(show pos) ++ ": Type mismatch in return value. Expected type->" ++ (show typ1) ++ ". Actual type->" ++ (show typ2)]
+            return()
 
 checksubtyp::Pos->Typ->Typ->Writer[String]()
 checksubtyp pos typ1 typ2=case (typ1,typ2) of
@@ -240,11 +251,9 @@ checkDefaultStm env defaultStm = case defaultStm of
   Nothing -> do return ()
 
 --Generalizzazione dei tipi
-generalize::Typ->Typ->Writer [String] Typ
+generalize::Typ->Typ->Writer [String] Typ --fare un case
 generalize Tint Tfloat = do
  return Tfloat
---generalize (Tarray Nothing Tint) (Tarray Nothing Tfloat) = do --generalizzazione e cast per array
- --return (Tarray Nothing Tfloat)
 generalize from to = do
  return from --nel caso non si possa generalizzare
 
