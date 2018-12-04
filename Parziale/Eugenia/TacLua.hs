@@ -837,7 +837,20 @@ genRelOp env exp1 exp2 op= do
   (Just tt,Just ff)<-gets ttff
   addr1<-genexp env exp1
   addr2<-genexp env exp2
-  addTAC $ [TACJump addr1 addr2 (RelOp op) tt]++[TACGoto ff]
+  typ1<-inferExpr env exp1
+  typ2<-inferExpr env exp2
+  if(typ1/=typ2)
+    then do
+      genTyp<-genericType typ1 typ2
+      temp<-newtemp
+      if(typ1/=genTyp)
+        then do 
+        addTAC $ [TACNewTmpCast temp typ1 genTyp addr1]
+        addTAC $ [TACJump temp addr2 (RelOp op) tt]++[TACGoto ff] 
+      else do 
+        addTAC $ [TACNewTmpCast temp typ2 genTyp addr2]
+        addTAC $ [TACJump addr1 temp (RelOp op) tt]++[TACGoto ff] 
+  else addTAC $ [TACJump addr1 addr2 (RelOp op) tt]++[TACGoto ff]
   return ""
 genBoolOp::Env->Exp->Exp->BoolOp->State TacM(Addr)
 genBoolOp env exp1 exp2 op= case op of
