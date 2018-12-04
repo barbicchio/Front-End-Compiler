@@ -11,6 +11,10 @@ function integer restrepo(ref integer k,valres float r,valres integer pluto)
 pluto=31
 point=&pluto
 pluto++
+if(k==y==k)
+then
+pluto--
+end
 k++
 k=b+32
 r=k-r

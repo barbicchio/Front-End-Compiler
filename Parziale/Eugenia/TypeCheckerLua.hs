@@ -12,7 +12,7 @@ import ErrM
 import Debug.Trace
 
 data Env = Env [BlockEnv]
-  deriving (Eq, Ord, Show, Read)--elenco typeclass
+  deriving (Eq, Ord, Show, Read)
 
 data BlockEnv = BlockEnv {
   funDefs :: Sigs, --funDefs ha tipo Sigs
@@ -89,7 +89,7 @@ checkDecStm::Env->DecStm->Writer [String] Env
 checkDecStm env decStm = case decStm of
              Dec dec -> do
               newEnv<-checkDec env dec
-              return newEnv --controllare che ritorni l'ambiente corretto
+              return newEnv
              Stmt stm -> do
               checkStm env stm
               return env
@@ -203,7 +203,7 @@ checkretArr pos typ1 typ2=case (typ1,typ2) of
  otherwise->if (typ1==typ2)
             then return ()
             else do
-            tell $ [(show pos) ++ ": Type mismatch in return value. Expected type->" ++ (show typ1) ++ ". Actual type->" ++ (show typ2)]
+            tell $ [(show pos) ++ ": Type mismatch in return value. Expected array type->" ++ (show typ1) ++ ". Actual array type->" ++ (show typ2)]
             return()
 
 checksubtyp::Pos->Typ->Typ->Writer[String]()
@@ -265,17 +265,14 @@ genericType typ1 typ2 = do
   then return genTyp
   else generalize typ1 typ2
 
---checkArrDim::Env->Pos->Int->Exp->Writer [String] ()
---checkArrDim env pos len exp = 
-
-inferExprArr::Env->Pos->[Int]->Exp->Writer [String] () --al momento fa solo il controllo sulla prima lista
+inferExprArr::Env->Pos->[Int]->Exp->Writer [String] ()
 inferExprArr env pos dimensions@(dim1:dims) (Arr list@(exp1:exprs)) = do
     if dim1 == (length list) 
     then do
       mapM (\x -> inferExprArr env pos dims x) list
       return ()
     else do
-    tell $ [""]
+    tell $ [(show pos) ++ ": Expected length of array-> "++(show dim1)++". Actual length of array-> "++(show (length list))]
     return ()
 inferExprArr _ _ [] genexp=return()
 inferExpr::Env->Exp->Writer [String] PosTyp

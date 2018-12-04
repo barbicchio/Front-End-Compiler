@@ -9,9 +9,9 @@ character c = 'f'
 character e = "pluto"--[ok segnalato
 
 --[Test sulla visibilità delle funzioni
-{}integer arr1 = {1,2,3,4}  --[problemi di parser se inserisco la dimensione, da controllare la selezione di un elem. dell'array
-{}{}integer arr2  --[problemi di parser se inserisco la dimensione
-{}{}{}integer arr3  --[problemi di parser se inserisco la dimensione
+{5}integer arr1 = {1,2,3,4}  --[problemi di parser se inserisco la dimensione, da controllare la selezione di un elem. dell'array
+{2}{3}integer arr2  --[problemi di parser se inserisco la dimensione
+{3}{2}{1}integer arr3  --[problemi di parser se inserisco la dimensione
 function integer f (integer n1, integer n2, integer n3)
 n1 = g(4,5)
 n2 = h(1,2)--[segnala l'out of scope ma bisogna utilizzare il Terror

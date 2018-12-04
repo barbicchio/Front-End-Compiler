@@ -213,7 +213,7 @@ getdim typ= case typ of
   Tfloat->8
   Tstring->16
   Tarray _ subtyp->getdim subtyp
-  Tpointer subtyp->getdim subtyp -- ?? giusto oppure una cavolata?
+  Tpointer subtyp->getdim subtyp -- ??? controllare
 
 gettyp::Typ->Typ
 gettyp typ= case typ of
