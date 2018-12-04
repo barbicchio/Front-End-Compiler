@@ -52,7 +52,7 @@ type PosTypMod = (Pos,TypMod)
 type TypMod = (Typ,Mod)
 type PosSig = (Pos,Sig)
 
-data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
+data TAC= TACAssign Addr Addr          
   | TACAssignCast Addr Typ Addr         
   | TACBinaryInfixOp Addr Addr InfixOp Addr
   | TACBinaryInfixOpCast Addr Typ Addr InfixOp Addr
@@ -60,22 +60,24 @@ data TAC= TACAssign Addr Addr           --modificare tutto con le posizioni
   | TACELabel Label --fine funzione e/o programma
   | TACLabel Label --label generica
   | TACTmp Ident Pos Typ Addr --temporaneo relativo a left expression
-  | TACUnaryOp Addr Unary_Op Addr --operazioni unarie
-  | TACNewTemp Addr Typ Ident (Maybe Pos) Mod --posso avere sia label che ident
+  | TACUnaryOp Addr Unary_Op Addr
+  | TACNewTemp Addr Typ Ident (Maybe Pos) Mod 
   | TACNewTempCall Addr Typ Label --temporaneo associato ad una chiamata a funzione
   | TACIncrDecr Addr Addr IncrDecr  --decrementi incrementi
-  | TACNewTmpCast Addr Typ  Typ  Addr
-  | TACJump Addr Addr InfixOp Label
+  | TACNewTmpCast Addr Typ Typ Addr
+  | TACJump Addr Addr InfixOp Label --salti per relop
+  | TACCopy String Pos Typ Int --int 0 se entrata,1 se uscita
   | TACGoto Label
-  | TACGotoM (Maybe Label)
-  | TACtf Addr (Maybe Label) Bool
-  | TACRet Addr
+  | TACGotoM (Maybe Label)  --unificare queste due
+  | TACtf Addr (Maybe Label) Bool --se sono in un ciclo salto se addr=valore Bool salto alla label
+  | TACRet Addr 
+  | TACExit --esco dalla funzione,potenzialmente estendibile.
   | TACInit Typ Ident Pos (Maybe String) (Maybe String)
   | TACInitCast Typ Ident Pos (Maybe String)
   | TACCall Label Int -- chiamata a procedura
   | TACArr Addr Int Addr
-  | TACPointer Addr Addr
-  | TACParam Addr
+  | TACPointer Addr Addr 
+  | TACParam Addr --parametro indirizzo
  deriving(Show)
 
 --FCall,puntatori,relativa gestione parametri vari.
@@ -105,14 +107,22 @@ addFuncDec (BlockEnv sigs context blockTyp)  ident pos@(line,col) returnTyp para
   case record of
     Nothing -> return (BlockEnv (Map.insert ident (pos,(returnTyp,paramsTyp,label)) sigs) context blockTyp)
 
-addParams::Env->[Argument]->State TacM(Env)
-addParams env parameters = foldM addParam env parameters
+addParams::Env->[Argument]->State TacM(Env,[(String,Pos,Typ)])
+addParams env parameters = foldM addParam (env,[]) parameters
  
-addParam::Env->Argument->State TacM(Env) --modalità diverse possono avere anche tac associato
-addParam (Env (current:stack)) pars = case pars of
-    FormPar mod typ (Pident (pos,ident)) -> do
-      newBlockEnv<-addVarDec current ident pos typ (Just mod)
-      return (Env (newBlockEnv:stack))
+addParam::(Env,[(String,Pos,Typ)])->Argument->State TacM(Env,[(String,Pos,Typ)]) --modalità diverse possono avere anche tac associato
+addParam ((Env (current:stack)),list) pars = case pars of
+    FormPar mod typ (Pident (pos,ident)) -> case mod of
+      Modality_VALRES->do
+           addTAC $ [TACCopy ident pos typ 0]
+           newBlockEnv<-addVarDec current ident pos typ (Just mod)
+           return ((Env (newBlockEnv:stack)),((ident,pos,typ):list))
+      Modality_RES-> do
+           newBlockEnv<-addVarDec current ident pos typ (Just mod)
+           return ((Env (newBlockEnv:stack)),((ident,pos,typ):list))
+      otherwise->do
+           newBlockEnv<-addVarDec current ident pos typ (Just mod)
+           return ((Env (newBlockEnv:stack)),list)
 
 emptyEnv = Env [emptyBlockEnv BTroot]
 emptyBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp 
@@ -292,19 +302,20 @@ genDecl env dec = case dec of
               return newEnv
       Func retTyp ident@(Pident(pos,id)) params _ decstmts -> do  
           let label=id++(show pos)
-          pushEnv<-(pushNewBlocktoEnv env (BTfun retTyp))
-          pushEnv<-addParams pushEnv params --porto dentro i parametri
-          --TODO:creare copia nell'eventualità ci siano parametri VALRES
           addTAC $ [TACSLabel label]
+          pushEnv<-(pushNewBlocktoEnv env (BTfun retTyp))
+          (pushEnv,copiedparams)<-addParams pushEnv params --env e eventuali parametri res/valres
           (pushEnv,list)<-genDecStmts pushEnv decstmts   --genero codice body escluse dichiarazioni di fun 
-          --TODO:creare copia nell'eventualità ci siano RES e/o VALRES
-          if (retTyp==Tvoid)
+          mapM assigncopy (reverse copiedparams) --in presenza di parametri RES/VAL
+          if(retTyp==Tvoid)
             then addTAC $ [TACRet "void"] --se non c'è tipo ritorno stampo return void
             else return()
           addTAC $ [TACELabel label]
           let (funcs,envs)=unzip list
           genFunDecls funcs envs --genero codice funzioni locali(lista al contrario mi pare)
           return env
+            where assigncopy (ident,pos,typ) =do
+                  addTAC $ [TACCopy ident pos typ 1]
          
 genDecStmts::Env->[DecStm]->State TacM((Env),[(Dec,Env)])
 genDecStmts env decstmts= do
@@ -326,7 +337,7 @@ genDecStm (env,envdec) decstm= case decstm of
         Nothing->return (env,envdec)
         Just list->return (env,(list++envdec))
 
-genStm::Env->Stm->State TacM (Maybe[(Dec,Env)]) --controllare come viene fatta codifica espressioni
+genStm::Env->Stm->State TacM (Maybe[(Dec,Env)])
 genStm env stm= case stm of
     Assgn op lexp rexp-> case op of
         Assign->do
@@ -541,8 +552,10 @@ genexp env exp = case exp of
       addTAC $ [TACAssign tmp addrlexp]++[TACIncrDecr addrlexp addrlexp op]
       return tmp
   Fcall id@(Pident (pos,ident)) pars num-> do
-    genparams env pars -- TODO: in questo caso gestire le diverse modalità parametri
-    (pos,(retTyp,_,lab))<-lookFunc id env
+    (pos,(retTyp,infoparams,lab))<-lookFunc id env
+    let (_,modalityinfo)=unzip infoparams
+    genparams env pars modalityinfo -- TODO: in questo caso gestire le diverse modalità parametri
+    --(pos,(retTyp,_,lab))<-lookFunc id env
     case retTyp of
       Tvoid->do
        addTAC $ [TACCall lab num]
@@ -729,13 +742,13 @@ sumaddr (addr1:addr2:other)= do
   addTAC $ [TACBinaryInfixOp tmp addr1 (ArithOp Add) addr2]
   sumaddr(tmp:other)
 
-genparams::Env->[Exp]->State TacM ()
-genparams _ []=return()
-genparams env (exp:exps)= do
+genparams::Env->[Exp]->[Mod]->State TacM () --TODO:capire come generare parametro
+genparams _ [] []=return()
+genparams env (exp:exps) (mod:mods)= do
         addr<-genexp env exp
         --addTAC $ [TACAssign par addr]
         addTAC $ [TACParam addr]
-        genparams env exps
+        genparams env exps mods
         return()
 
 genArr::Env->[Exp]->State TacM ()  --TODO:se avanza tempo aggiungere i tipi a dx dell' =
@@ -784,7 +797,6 @@ genArithOp env exp1 exp2 op=do
             addTAC $ [TACBinaryInfixOpCast addr genTyp addr1 op addr2]
             return addr
           False->do
-
             addTAC $ [TACNewTmpCast addr typ2 genTyp addr2]
             addTAC $ [TACBinaryInfixOpCast temp genTyp addr1 op addr]
             return temp

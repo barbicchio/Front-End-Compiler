@@ -42,15 +42,12 @@ instance TacPP TAC where
          LtE->nest tab $ text adr<+>text"="<+>text(show typ)<+>text adr1<+>text "<="<+> text adr2
         BoolOp subop->case subop of
          And->nest tab $ text adr<+>text"="<+>text(show typ)<+>text adr1<+>text "and"<+> text adr2
-         Or->nest tab $ text adr<+>text"="<+>text(show typ)<+>text adr1<+>text "or"<+> text adr2
-      
-      
+         Or->nest tab $ text adr<+>text"="<+>text(show typ)<+>text adr1<+>text "or"<+> text adr2   
       prettyPrint(TACNewTmpCast temp typ1 genTyp addr1) = nest tab $ text temp<+> text "="<+> text "Cast"<+>text (show typ1) <+> text "To"<+>text (show genTyp)<+>text"("<+>text addr1<+>text")"
-      --prettyPrint (TACInt num)                        = nest tab $ text (show num)
       prettyPrint (TACInit typ id pos typexp exp)= case (typexp,exp) of
         (Nothing,Nothing)-> nest tab $ text(show typ)<+>text id <>text"_"<> text (show pos)
         (Just exptyp,Just exp)->nest tab $ text id<>text("_"++(show pos)) <+> text "="<+> text exptyp<+>text exp 
-      prettyPrint (TACInitCast typ id pos  exp)= case exp of
+      prettyPrint (TACInitCast typ id pos exp)= case exp of
         Nothing-> nest tab $ text(show typ)<+>text id <>text"_"<> text (show pos)
         Just exp->nest tab $ text id<>text("_"++(show pos)) <+> text "="<+>text(show typ)<+>text"("<+>text exp <+>text")"
       prettyPrint(TACTmp id pos typ addr)              = case typ of
@@ -95,10 +92,14 @@ instance TacPP TAC where
       prettyPrint(TACtf addr (Just lab) bool)=case bool of
         True->nest tab $ text "if"<+>text addr<+> text "goto"<+>text lab
         False->nest tab $ text "ifFalse"<+>text addr<+> text "goto"<+>text lab
-      prettyPrint (TACRet addr)                   = nest tab $ text "return" <+> text addr<+>text "\nexit function"
+      prettyPrint (TACRet addr)                   = nest tab $ text "return" <+> text addr
       prettyPrint (TACCall id npar)               = nest tab $ text "call" <+> text id <> text "/" <> text (show npar)
       prettyPrint (TACParam addr)                 = nest tab $ text "parameter"<+> text addr
       prettyPrint (TACPointer addr1 addr2)        = nest tab $ text addr1 <+> text "= addr &"<>text addr2
+      prettyPrint (TACCopy id pos typ flag) =case flag of
+        0->nest tab $ text"copyOf"<+>idpos<+>text "="<>text(show typ)<+>text "*"<+>idpos
+        1->nest tab $ text "*"<+>idpos<+>text "="<>text(show typ)<+>text"copyOf"<+>idpos
+       where idpos=text id<>text"_"<>text (show pos)
 
 class TacPP a where
   prettyPrint :: a -> Doc
