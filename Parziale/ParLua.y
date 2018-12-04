@@ -16,7 +16,7 @@ import ErrM
 %monad { Err } { thenM } { returnM }
 %tokentype {Token}
 %token
-  '%' { PT _ (TS _ 1) }
+ '%' { PT _ (TS _ 1) }
   '%=' { PT _ (TS _ 2) }
   '&' { PT _ (TS _ 3) }
   '&=' { PT _ (TS _ 4) }
@@ -41,38 +41,39 @@ import ErrM
   '>=' { PT _ (TS _ 23) }
   '^' { PT _ (TS _ 24) }
   '^=' { PT _ (TS _ 25) }
-  'and' { PT _ (TS _ 26) }
-  'boolean' { PT _ (TS _ 27) }
-  'character' { PT _ (TS _ 28) }
-  'const' { PT _ (TS _ 29) }
-  'do' { PT _ (TS _ 30) }
-  'else' { PT _ (TS _ 31) }
-  'end' { PT _ (TS _ 32) }
-  'float' { PT _ (TS _ 33) }
-  'function' { PT _ (TS _ 34) }
-  'if' { PT _ (TS _ 35) }
-  'integer' { PT _ (TS _ 36) }
-  'name' { PT _ (TS _ 37) }
-  'not' { PT _ (TS _ 38) }
-  'or' { PT _ (TS _ 39) }
-  'pointer' { PT _ (TS _ 40) }
-  'ref' { PT _ (TS _ 41) }
-  'repeat' { PT _ (TS _ 42) }
-  'res' { PT _ (TS _ 43) }
-  'return' { PT _ (TS _ 44) }
-  'string' { PT _ (TS _ 45) }
-  'then' { PT _ (TS _ 46) }
-  'until' { PT _ (TS _ 47) }
-  'val' { PT _ (TS _ 48) }
-  'valres' { PT _ (TS _ 49) }
-  'while' { PT _ (TS _ 50) }
-  '{' { PT _ (TS _ 51) }
-  '{}' { PT _ (TS _ 52) }
-  '|=' { PT _ (TS _ 53) }
-  '}' { PT _ (TS _ 54) }
-  '~=' { PT _ (TS _ 55) }
+  '_' { PT _ (TS _ 26) }
+  'and' { PT _ (TS _ 27) }
+  'boolean' { PT _ (TS _ 28) }
+  'character' { PT _ (TS _ 29) }
+  'const' { PT _ (TS _ 30) }
+  'do' { PT _ (TS _ 31) }
+  'else' { PT _ (TS _ 32) }
+  'end' { PT _ (TS _ 33) }
+  'float' { PT _ (TS _ 34) }
+  'function' { PT _ (TS _ 35) }
+  'if' { PT _ (TS _ 36) }
+  'integer' { PT _ (TS _ 37) }
+  'name' { PT _ (TS _ 38) }
+  'not' { PT _ (TS _ 39) }
+  'or' { PT _ (TS _ 40) }
+  'pointer' { PT _ (TS _ 41) }
+  'ref' { PT _ (TS _ 42) }
+  'repeat' { PT _ (TS _ 43) }
+  'res' { PT _ (TS _ 44) }
+  'return' { PT _ (TS _ 45) }
+  'string' { PT _ (TS _ 46) }
+  'then' { PT _ (TS _ 47) }
+  'until' { PT _ (TS _ 48) }
+  'val' { PT _ (TS _ 49) }
+  'valres' { PT _ (TS _ 50) }
+  'void' { PT _ (TS _ 51) }
+  'while' { PT _ (TS _ 52) }
+  '{' { PT _ (TS _ 53) }
+  '{}' { PT _ (TS _ 54) }
+  '|=' { PT _ (TS _ 55) }
+  '}' { PT _ (TS _ 56) }
+  '~=' { PT _ (TS _ 57) }
 
-L_integ  { PT _ (TI $$) }
 L_Pident { PT _ (T_Pident _) }
 L_Pint { PT _ (T_Pint _) }
 L_Pbool { PT _ (T_Pbool _) }
@@ -80,149 +81,136 @@ L_Pstring { PT _ (T_Pstring _) }
 L_Preal { PT _ (T_Preal _) }
 L_Pchar { PT _ (T_Pchar _) }
 
+%left ASS
+%left EXP
+%left EXPINLEXP
+%left IDLEXP
+%left CALL
+%left 'not'
+%left 'or' 'and'
+%right '('
+%right ')'
+%right '{'
+%nonassoc '==' '~=' '<' '<=' '>' '>=' '='
+%left '+' '-'
+%left '*' '/' '%'
+%left '^' 
+%right REF  '&'
+%left NEG
+%nonassoc '++' '--'
+%nonassoc UNTIL RET
+%left PARLEXP
 
 %%
 
-Integer :: { Integer } : L_integ  { (read ( $1)) :: Integer }
-Pident    :: { Pident} : L_Pident { Pident (mkPosToken $1)}
-Pint    :: { Pint} : L_Pint { Pint (mkPosToken $1)}
-Pbool    :: { Pbool} : L_Pbool { Pbool (mkPosToken $1)}
-Pstring    :: { Pstring} : L_Pstring { Pstring (mkPosToken $1)}
-Preal    :: { Preal} : L_Preal { Preal (mkPosToken $1)}
-Pchar    :: { Pchar} : L_Pchar { Pchar (mkPosToken $1)}
+Pident    :: {Pident} : L_Pident { Pident (mkPosToken $1)}
+Pint    :: {Pint} : L_Pint { Pint (mkPosToken $1)}
+Pbool    :: {Pbool} : L_Pbool { Pbool (mkPosToken $1)}
+Pstring    :: {Pstring} : L_Pstring { Pstring (mkPosToken $1)}
+Preal    :: {Preal} : L_Preal { Preal (mkPosToken $1)}
+Pchar    :: {Pchar} : L_Pchar { Pchar (mkPosToken $1)}
 
 Program :: { Program }
-Program : ListDec { AbsLua.Progr $1 }
+Program : ListDec {Progr (reverse $1)}
 ListDec :: { [Dec] }
-ListDec : {- empty -} { [] }
-        | Dec ListDec { (:) $1 $2 }
-        | {- empty -} { [] }
-        | Dec ListDec { (:) $1 $2 }
+ListDec : {- empty -} { [] } | ListDec Dec { flip (:) $1 $2 }
 Dec :: { Dec }
-Dec : Function_def { AbsLua.DecFunction $1 }
-    | Type_specifier Pident { AbsLua.VarDeclar $1 $2 }
-    | Type_specifier Pident '=' Exp { AbsLua.InitDeclarI $1 $2 $4 }
+Dec : 'function' Type_specifier Pident '('ListArgument')'ListDecStm 'end' { Func $2 $3 $5 (length $5)  (reverse $7) }
+    |'function' Pident '('ListArgument')'ListDecStm 'end' { Func Tvoid $2 $4 (length $4) (reverse $6) }
+    | Type_specifier Pident {VarDeclar $1 $2 Nothing}
+    | Type_specifier Pident '=' Exp { VarDeclar $1 $2 (Just $4) }
 Type_specifier :: { Type_specifier }
-Type_specifier : BasicType { AbsLua.Typespec $1 }
-               | ComplexType { AbsLua.Typecompl $1 }
-BasicType :: { BasicType }
-BasicType : 'integer' { AbsLua.Tinteger }
-          | 'boolean' { AbsLua.Tboolean }
-          | 'float' { AbsLua.Tfloat }
-          | 'character' { AbsLua.Tchar }
-          | 'string' { AbsLua.Tstring }
-          | {- empty -} { AbsLua.Tvoid }
-ComplexType :: { ComplexType }
-ComplexType : '{}' Type_specifier { AbsLua.Tarray $2 }
-            | '{' Integer '}' Type_specifier { AbsLua.Tarraydef $2 $4 }
-            | 'pointer' Type_specifier { AbsLua.Tpointer $2 }
-Function_def :: { Function_def }
-Function_def : 'function' Type_specifier Pident '(' ListArgument ')' Chunk_stm 'end' { AbsLua.Func $2 $3 $5 $7 }
+Type_specifier :'boolean' { Tbool }
+          | 'character' { Tchar }
+          | 'float' { Tfloat }
+          | 'integer' { Tint }
+          | 'string' { Tstring }
+          | 'void'{ Tvoid }
+          | 'pointer' Type_specifier { Tpointer $2 }
+          | '{}' Type_specifier { Tarray Nothing $2 }
+          | '{'Exp'}' Type_specifier { Tarray (Just $2) $4 } 
 Argument :: { Argument }
-Argument : Modality Type_specifier Pident { AbsLua.ParamInt $1 $2 $3 }
-Modality :: { Modality }
-Modality : {- empty -} { AbsLua.Modality1 }
-         | 'val' { AbsLua.Modality_val }
-         | 'res' { AbsLua.Modality_res }
-         | 'valres' { AbsLua.Modality_valres }
-         | 'name' { AbsLua.Modality_name }
-         | 'const' { AbsLua.Modality_const }
-         | 'ref' { AbsLua.Modality_ref }
+Argument : Modality Type_specifier Pident { FormPar $1 $2 $3 }
 ListArgument :: { [Argument] }
 ListArgument : {- empty -} { [] }
-             | Argument { (:[]) $1 }
-             | Argument ',' ListArgument { (:) $1 $3 }
+              | Argument { (:[]) $1 }
+              | Argument ',' ListArgument { (:) $1 $3 }
+Modality :: { Modality }
+Modality : {- empty -} {  Modality_VAL }
+         | 'val' { Modality_VAL }
+         | 'res' { Modality_RES }
+         | 'valres' { Modality_VALRES }
+         | 'name' { Modality_NAME }
+         | 'const' { Modality_CONST }
+         | 'ref' { Modality_REF }
 Stm :: { Stm }
-Stm : Chunk_stm { AbsLua.CompStm $1 }
-    | Return_stm { AbsLua.ReturnStm $1 }
-    | Exp { AbsLua.ExpStm $1 }
-    | Cond_stm { AbsLua.IterStm $1 }
+Stm : Lexp Assignment_Op Exp %prec ASS {Assgn $2 $1 $3 }
+    | 'return' Exp %prec RET { Valreturn $2 }
+    |  Exp %prec EXP { SExp $1 }
+    | 'if' Exp 'then' ListDecStm 'end' {SimpleIf $2 (reverse $4) }
+    | 'if' Exp 'then' ListDecStm 'else' ListDecStm 'end' { IfThElse $2 (reverse $4) (reverse $6) }
+    | 'while' Exp 'do' ListDecStm 'end' { While $2 (reverse $4) }
+    | 'repeat' ListDecStm 'until' Exp %prec UNTIL { DoWhile $2 $4 } 
+
+DecStm :: { DecStm }
+DecStm : Dec { Dec $1 } | Stm { Stmt $1 }
+
+ListDecStm :: { [DecStm] }
+ListDecStm : {- empty -} { [] }
+           | ListDecStm DecStm { flip (:) $1 $2 }
+
+Exp :: { Exp }
+Exp : Pident '(' ListExp ')' %prec CALL { Fcall $1 $3 (length $3) }
+     |'('Exp')' {$2}
+     |Exp 'or' Exp {InfixOp (BoolOp Or) $1 $3 }
+     |Exp 'and' Exp { InfixOp (BoolOp And) $1 $3 }
+     |Exp '==' Exp { InfixOp (RelOp Eq) $1 $3 }
+     |Exp '~=' Exp { InfixOp (RelOp Neq) $1 $3 }
+     |Exp '<' Exp { InfixOp (RelOp Lt) $1 $3 }
+     |Exp '>' Exp { InfixOp (RelOp Gt) $1 $3 }
+     |Exp '<=' Exp { InfixOp (RelOp LtE) $1 $3 }
+     |Exp '>=' Exp { InfixOp (RelOp GtE) $1 $3 }
+     |Exp '+' Exp { InfixOp (ArithOp Add) $1 $3 }
+     |Exp '-' Exp { InfixOp (ArithOp Sub)$1 $3 }
+     |Exp '*' Exp {InfixOp (ArithOp Mul) $1 $3 }
+     |Exp '/' Exp {InfixOp (ArithOp Div) $1 $3 }
+     |Exp '^' Exp {InfixOp (ArithOp Pow) $1 $3 }
+     |Exp '%' Exp {InfixOp (ArithOp Mod)$1 $3 }
+     |'&' Exp  { Addr $2 } --credo sia lexp
+     | '-' Exp %prec NEG { Unary_Op Neg $2}
+     | 'not' Exp { Unary_Op Logneg $2 }
+     |'{' ListExp '}' { Arr $2 }
+     | Lexp %prec EXPINLEXP { $1 }
+     | Preal { Efloat $1 }
+     | Pint  { Eint $1 }
+     | Pbool { Ebool $1 }
+     | Pstring { Estring $1 }
+     | Pchar { Echar $1 }
+     | '++' Lexp  {PrePost (Pre Incr) $2} 
+     | '--'Lexp  {PrePost (Pre Decr) $2} 
+     | Lexp '++'{PrePost (Post Incr) $1} 
+     | Lexp '--'  {PrePost (Post Decr) $1} 
+
 ListExp :: { [Exp] }
 ListExp : {- empty -} { [] }
-        | Exp ListExp { (:) $1 $2 }
-        | {- empty -} { [] }
-        | Exp { (:[]) $1 }
-        | Exp ',' ListExp { (:) $1 $3 }
-Cond_stm :: { Cond_stm }
-Cond_stm : 'if' Exp 'then' Chunk_stm 'end' { AbsLua.If $2 $4 }
-         | 'if' Exp 'then' Chunk_stm 'else' Chunk_stm 'end' { AbsLua.IfThenElse $2 $4 $6 }
-         | 'while' Exp 'do' Chunk_stm 'end' { AbsLua.While $2 $4 }
-         | 'repeat' Chunk_stm 'until' Exp { AbsLua.DoWhile $2 $4 }
-Chunk_stm :: { Chunk_stm }
-Chunk_stm : ListDec ListStm { AbsLua.Chunkstm $1 (reverse $2) }
-Return_stm :: { Return_stm }
-Return_stm : 'return' Exp { AbsLua.ReturnStm1 $2 }
-ListStm :: { [Stm] }
-ListStm : {- empty -} { [] } | ListStm Stm { flip (:) $1 $2 }
-Exp :: { Exp }
-Exp : Pident '(' ActPar ')' { AbsLua.Fcall $1 $3 } | Exp1 { $1 }
-Exp1 :: { Exp }
-Exp1 : Lexp Assignment_op Exp { AbsLua.Eassign $1 $2 $3 }
-     | Exp2 { $1 }
-Exp2 :: { Exp }
-Exp2 : Exp2 'or' Exp3 { AbsLua.Elor $1 $3 } | Exp3 { $1 }
-Exp3 :: { Exp }
-Exp3 : Exp3 'and' Exp4 { AbsLua.Eland $1 $3 } | Exp4 { $1 }
-Exp4 :: { Exp }
-Exp4 : Exp4 '==' Exp5 { AbsLua.Eeq $1 $3 } | Exp5 { $1 }
-Exp5 :: { Exp }
-Exp5 : Exp5 '~=' Exp6 { AbsLua.Eneq $1 $3 } | Exp6 { $1 }
-Exp6 :: { Exp }
-Exp6 : Exp6 '<' Exp7 { AbsLua.Elthen $1 $3 } | Exp7 { $1 }
-Exp7 :: { Exp }
-Exp7 : Exp7 '>' Exp8 { AbsLua.Egrthen $1 $3 } | Exp8 { $1 }
-Exp8 :: { Exp }
-Exp8 : Exp8 '<=' Exp9 { AbsLua.Elt $1 $3 } | Exp9 { $1 }
-Exp9 :: { Exp }
-Exp9 : Exp9 '>=' Exp10 { AbsLua.Egt $1 $3 } | Exp10 { $1 }
-Exp10 :: { Exp }
-Exp10 : Exp10 '+' Exp11 { AbsLua.Eplus $1 $3 } | Exp11 { $1 }
-Exp11 :: { Exp }
-Exp11 : Exp11 '-' Exp12 { AbsLua.Eminus $1 $3 } | Exp12 { $1 }
-Exp12 :: { Exp }
-Exp12 : Exp12 '*' Exp13 { AbsLua.Etimes $1 $3 } | Exp13 { $1 }
-Exp13 :: { Exp }
-Exp13 : Exp13 '/' Exp14 { AbsLua.Ediv $1 $3 } | Exp14 { $1 }
-Exp14 :: { Exp }
-Exp14 : Exp14 '%' Exp15 { AbsLua.Emod $1 $3 } | Exp15 { $1 }
-Exp15 :: { Exp }
-Exp15 : Exp15 '^' Exp16 { AbsLua.EPow $1 $3 } | Exp16 { $1 }
-Exp16 :: { Exp }
-Exp16 : Unary_operator Exp14 { AbsLua.Epreop $1 $2 } | Exp17 { $1 }
-Exp17 :: { Exp }
-Exp17 : Preal { AbsLua.Efloat $1 }
-      | Pint { AbsLua.Einteger $1 }
-      | Pbool { AbsLua.Eboolean $1 }
-      | Pstring { AbsLua.Estring $1 }
-      | Pchar { AbsLua.Echar $1 }
-      | Lexp { AbsLua.Lexp $1 }
-      | Exp18 { $1 }
-Exp18 :: { Exp }
-Exp18 : '{' ListExp '}' { AbsLua.ArrayExp $2 } | '(' Exp ')' { $2 }
-ActPar :: { ActPar }
-ActPar : ListExp { AbsLua.ActParam $1 }
-Lexp :: { Lexp }
-Lexp : Pident { AbsLua.Evar $1 }
-     | '*' Exp { AbsLua.Indirection $2 }
-     | Pident '{' Exp '}' { AbsLua.Arraysel $1 $3 }
-     | '++' Lexp { AbsLua.PreInc $2 }
-     | '--' Lexp { AbsLua.PreDecr $2 }
-     | Lexp '++' { AbsLua.PostInc $1 }
-     | Lexp '--' { AbsLua.PostDecr $1 }
-Unary_operator :: { Unary_operator }
-Unary_operator : '&' { AbsLua.Address }
-               | 'not' { AbsLua.Logicalneg }
-               | '-' { AbsLua.Negnum }
-Assignment_op :: { Assignment_op }
-Assignment_op : '=' { AbsLua.Assign }
-              | '*=' { AbsLua.AssignMul }
-              | '/=' { AbsLua.AssignDiv }
-              | '%=' { AbsLua.AssignMod }
-              | '+=' { AbsLua.AssignAdd }
-              | '-=' { AbsLua.AssignSub }
-              | '^=' { AbsLua.AssgnPow }
-              | '&=' { AbsLua.AssgnAnd }
-              | '|=' { AbsLua.AssgnOr }
+         | Exp { (:[]) $1 }
+         | Exp ',' ListExp { (:) $1 $3 }
+
+Lexp :: { Exp }
+Lexp :  Pident %prec IDLEXP { Evar $1 } 
+     | '('Lexp')' %prec PARLEXP {$2} 
+     | '_' Exp %prec REF  { Indirection $2 } 
+     | Lexp '{' Exp '}' { Arraysel $1 $3 }
+Assignment_Op :: { Assignment_Op }
+Assignment_Op : '=' { Assign }
+              | '*=' { AssgnArith Mul }
+              | '/=' { AssgnArith Div }
+              | '%=' { AssgnArith Mod }
+              | '+=' { AssgnArith Add }
+              | '-=' { AssgnArith Sub }
+              | '^=' { AssgnArith Pow }
+              | '&=' { AssgnBool And }
+              | '|=' { AssgnBool Or}
 {
 
 returnM :: a -> Err a
