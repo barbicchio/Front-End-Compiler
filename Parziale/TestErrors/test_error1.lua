@@ -6,7 +6,7 @@ end
 
 
 function integer main () 
-    {}{} integer numbers = {{1,2},{3,4},{5,6},{7,8}}
+    {3}{2} integer numbers = {{1,2},{3,4},{5,6},{7,8}}
     integer i = 0
 
     {4} boolean positive

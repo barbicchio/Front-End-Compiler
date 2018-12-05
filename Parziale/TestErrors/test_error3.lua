@@ -20,8 +20,8 @@ function integer main ()
     x=(y or x or x or x)
     integer sasso = 8
     temporary(5, sasso)
-    {} float sad = {2, 324.343241}
-    {} integer mandi = {2}
+    {2} float sad = {2, 324.343241}
+    {1} integer mandi = {2}
     
     return 0
 end

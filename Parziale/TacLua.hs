@@ -45,7 +45,7 @@ type Sigs =Map.Map Ident PosSig
 type Context = Map.Map Ident PosTypMod
 type TacContext = Map.Map (Ident,Pos) Addr
 
-type Sig = (Typ,[TypMod],Label) --cambiare ordine di typmod e typ
+type Sig = (Typ,[TypMod],Label)
 type Pos = (Int,Int)
 type PosTyp=(Pos,Typ)
 type PosTypMod = (Pos,TypMod)
@@ -197,7 +197,7 @@ issimple exp= case exp of
   Echar _-> return True
   otherwise->return False
 
-gettypid::Exp->State TacM(String,String)   --forse meglio ritornare (Typ,String)
+gettypid::Exp->State TacM(String,String)  
 gettypid exp=case exp of
   Eint (Pint(_,id))-> return ("Int",id)
   Ebool (Pbool(_,id))-> return ("Bool",id)
@@ -392,7 +392,7 @@ genStm env stm= case stm of
            addTAC $ [TACBinaryInfixOpCast addrlexp genTyp addr (BoolOp subop) addrrexp]
            else addTAC $ [TACBinaryInfixOp addrlexp addr (BoolOp subop) addrrexp]
            return Nothing
-    Valreturn exp-> do --sarebbe il caso di trovare la label della funzione e mettere "exit funlabel"
+    Valreturn exp-> do --TODO: aggiungere allo stato una label per saltare all'eventuale postambolo della funzione "exit function"
         addr<-genexp env exp
         addTAC $[TACRet addr]        
         return Nothing
@@ -431,7 +431,7 @@ genStm env stm= case stm of
         pushEnv<-pushNewBlocktoEnv env BTloop
         addTAC $ [TACLabel bodywhile]
         (_,fundecs)<-genDecStmts pushEnv decstms
-        modify(\s->s{ttff=(Just next,Just bodywhile),first=False}) --repeat B until E, E not true
+        modify(\s->s{ttff=(Just next,Just bodywhile),first=False}) --repeat B until E, if not E->loop,else exit loop
         genexp env exp
         modify(\s->s{ttff=(Nothing,Nothing),first=True})
         addTAC $ [TACLabel next]
@@ -597,7 +597,7 @@ genlexp env exp= case exp of
           Just Modality_REF->"ref "
           otherwise->""
     case typ of
-      Tarray _ _ -> return idpos --TODO:se ho g={0,1,2,3} devo inizializzare l'offset
+      Tarray _ _ -> return idpos --TODO:se ho g={0,1,2,3} devo inizializzare l'offset somehow
       otherwise->return(idpos)
   Arraysel exp1 exp2->do
     genArrSel env exp1 exp2
@@ -710,7 +710,7 @@ genericType typ1 typ2 = do
   then return genTyp
   else generalize typ1 typ2
 
-getsizes::Typ->[Int]  --tiro fuori le posizioni
+getsizes::Typ->[Int] 
 getsizes typ= case typ of
   Tarray (Just(Eint (Pint (_,num)))) subtyp->(read num:getsizes subtyp)
   otherwise->[]
@@ -742,7 +742,7 @@ sumaddr (addr1:addr2:other)= do
   addTAC $ [TACBinaryInfixOp tmp addr1 (ArithOp Add) addr2]
   sumaddr(tmp:other)
 
-genparams::Env->[Exp]->[Mod]->State TacM () --TODO:capire come generare parametro
+genparams::Env->[Exp]->[Mod]->State TacM ()
 genparams _ [] []=return()
 genparams env (exp:exps) (mod:mods)= do
         addr<-genexp env exp

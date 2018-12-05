@@ -536,7 +536,7 @@ lookFuncInSigs::Ident->Sigs->Writer [String] (Maybe PosSig)
 lookFuncInSigs ident sigs= do
   return (Map.lookup ident sigs)  
 
-getsizes::Typ->[Int]  --tiro fuori le posizioni
+getsizes::Typ->[Int]  --tiro fuori le dimensioni di un array
 getsizes typ = case typ of
   Tarray (Just(Eint (Pint (_,num)))) subtyp->(read num:getsizes subtyp)
   otherwise->[]  
