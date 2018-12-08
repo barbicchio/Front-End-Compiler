@@ -222,7 +222,12 @@ checkExpr env typ expr= do
   case (typ,exprTyp) of
     (Tarray dim1 subtyp,Tarray dim2 subexprTyp)-> do
       let dimensions = getsizes typ
-      inferExprArr env pos dimensions expr
+      error<-inferExprArr env pos dimensions expr
+      if error || dimensions==[]
+        then return()
+        else do 
+          tell $ [(show pos)++": Dimension required by the array is "++(show dimensions)]
+          return()
       checksubtyp pos subtyp subexprTyp
       return env
     (Tpointer subtyp,Tpointer subexprTyp)->do
@@ -265,16 +270,19 @@ genericType typ1 typ2 = do
   then return genTyp
   else generalize typ1 typ2
 
-inferExprArr::Env->Pos->[Int]->Exp->Writer [String] ()
+inferExprArr::Env->Pos->[Int]->Exp->Writer [String] (Bool)
 inferExprArr env pos dimensions@(dim1:dims) (Arr list@(exp1:exprs)) = do
     if dim1 == (length list) 
     then do
-      mapM (\x -> inferExprArr env pos dims x) list
-      return ()
+      returns<-mapM (\x -> inferExprArr env pos dims x) list
+      return $ and returns
     else do
     tell $ [(show pos) ++ ": Expected length of array-> "++(show dim1)++". Actual length of array-> "++(show (length list))]
-    return ()
-inferExprArr _ _ [] genexp=return()
+    return False
+inferExprArr _ pos [] (Arr exps)=do
+  tell $[(show pos) ++"Array dimension shoud be specified by an integer literal"]
+  return False
+inferExprArr _ _ [] exp=return True
 inferExpr::Env->Exp->Writer [String] PosTyp
 inferExpr env expr = case expr of
   Arr list@(exp:exprs)-> do

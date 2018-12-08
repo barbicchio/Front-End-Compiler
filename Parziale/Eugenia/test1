@@ -1,27 +1,6 @@
-float i=5
-float a=1
-integer b=2
-float c=a+b+7
-integer resto=32
-float carlo=50.0
-integer arco=32
-pointer integer point=&b
-
-function integer restrepo(ref integer k,valres float r,valres integer pluto)
-pluto=31
-point=&pluto
-pluto++
-if(k==y==k)
-then
-pluto--
-end
-k++
-k=b+32
-r=k-r
-r=41.3
-return pluto
+{k}{k}integer a={{1,2},{3,6},{1,2,3}}
+pointer {}{} integer m
+pointer float r
+function void restrepo()
 end
 
-function void main() 
-b=restrepo(resto,carlo,arco)
-end

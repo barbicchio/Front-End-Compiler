@@ -43,7 +43,6 @@ type Mod = Maybe Modality
 
 type Sigs =Map.Map Ident PosSig
 type Context = Map.Map Ident PosTypMod
-type TacContext = Map.Map (Ident,Pos) Addr
 
 type Sig = (Typ,[TypMod],Label) --cambiare ordine di typmod e typ
 type Pos = (Int,Int)
@@ -540,16 +539,15 @@ genexp env exp = case exp of
         return result
        otherwise->genBoolOp env exp1 exp2 subop
   Unary_Op subop exp->genUnaryOp env subop exp
-  PrePost prepost exp->case prepost of --controllare che secondo me fa casino
-    Pre op->do
-      tmp<-newtemp
+  PrePost prepost exp->case prepost of 
+    Pre op->do --non serve generare temporaneo per tenere il valore dell'exp pre incremento
       addrlexp<-genlexp env exp
-      addTAC $ [TACAssign tmp addrlexp]++[TACIncrDecr addrlexp tmp op]
+      addTAC $ [TACIncrDecr addrlexp addrlexp op]
       return addrlexp
     Post op->do 
       addrlexp<-genlexp env exp 
       tmp<-newtemp --temporaneo con il valore prima dell'incremento/decremento
-      addTAC $ [TACAssign tmp addrlexp]++[TACIncrDecr addrlexp addrlexp op]
+      addTAC $ [TACAssign tmp addrlexp]++[TACIncrDecr addrlexp tmp op]
       return tmp
   Fcall id@(Pident (pos,ident)) pars num-> do
     (pos,(retTyp,infoparams,lab))<-lookFunc id env
