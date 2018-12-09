@@ -15,11 +15,12 @@ data TacM = TacM{
         ttff::(Maybe Label,Maybe Label), --Etichette true,false
         first::Bool, --Se è falso sto valutando una guardia oppure una sottoespressione di un assegnamento di tipo booleano
         offset::Int, --offset array
-        arrayinfo::(Maybe Pident,Maybe Typ,Maybe Typ) --(base,type,elemtype) dell'array corrente
+        arrayinfo::(Maybe Pident,Maybe Typ,Maybe Typ), --(base,type,elemtype) dell'array corrente
+        exit::Label --punta l'eventuale postambolo di funzione
         }
   deriving (Show)     
 
-startState = TacM 0 0 [] (Nothing,Nothing) True 0 (Nothing,Nothing,Nothing)
+startState = TacM 0 0 [] (Nothing,Nothing) True 0 (Nothing,Nothing,Nothing) ""
 
 data Env =Env [BlockEnv]  deriving (Eq, Ord, Show, Read)
 
@@ -55,8 +56,7 @@ data TAC= TACAssign Addr Addr
   | TACAssignCast Addr Typ Addr         
   | TACBinaryInfixOp Addr Addr InfixOp Addr
   | TACBinaryInfixOpCast Addr Typ Addr InfixOp Addr
-  | TACSLabel Label --inizio funzione e/o programma
-  | TACELabel Label --fine funzione e/o programma
+  | TACDLabel Label Int--inizio funzione e/o programma 0 inizio,1 fine
   | TACLabel Label --label generica
   | TACTmp Ident Pos Typ Addr --temporaneo relativo a left expression
   | TACUnaryOp Addr Unary_Op Addr
@@ -66,8 +66,7 @@ data TAC= TACAssign Addr Addr
   | TACNewTmpCast Addr Typ Typ Addr
   | TACJump Addr Addr InfixOp Label --salti per relop
   | TACCopy String Pos Typ Int --int 0 se entrata,1 se uscita
-  | TACGoto Label
-  | TACGotoM (Maybe Label)  --unificare queste due
+  | TACGotoM (Maybe Label) 
   | TACtf Addr (Maybe Label) Bool --se sono in un ciclo salto se addr=valore Bool salto alla label
   | TACRet Addr 
   | TACExit --esco dalla funzione,potenzialmente estendibile.
@@ -247,10 +246,10 @@ tacGenerator program = execState (genProgram program) startState
 
 genProgram :: Program -> State TacM ()
 genProgram (Progr decls) = do
-    addTAC $ [TACSLabel "Program"]
+    addTAC $ [TACDLabel "Program" 0]
     env<-createInitialEnv emptyEnv
     genDecls env decls
-    addTAC $ [TACELabel "Program\n"]
+    addTAC $ [TACDLabel "Program\n" 1]
     return ()
 
 genDecls :: Env->[Dec] -> State TacM(Env)
@@ -289,7 +288,6 @@ genDecl env dec = case dec of
                   let elemtyp=gettyp typ
                   modify (\s->s{offset=0,arrayinfo=(Just ident,Just typ,Just elemtyp)})
                   genexp newEnv exp
-                  modify (\s->s{offset=0,arrayinfo=(Nothing,Nothing,Nothing)})
                   return newEnv
                  otherwise->do 
                   addr<-genexp newEnv exp
@@ -301,15 +299,18 @@ genDecl env dec = case dec of
               return newEnv
       Func retTyp ident@(Pident(pos,id)) params _ decstmts -> do  
           let label=id++(show pos)
-          addTAC $ [TACSLabel label]
+          addTAC $ [TACDLabel label 0]
           pushEnv<-(pushNewBlocktoEnv env (BTfun retTyp))
           (pushEnv,copiedparams)<-addParams pushEnv params --env e eventuali parametri res/valres
+          postamble<-newlabel
+          modify(\s->s{exit=postamble})
           (pushEnv,list)<-genDecStmts pushEnv decstmts   --genero codice body escluse dichiarazioni di fun 
+          addTAC $[TACLabel postamble] --in caso di return prematuro salto al postambolo (potenzialmente vuoto)
           mapM assigncopy (reverse copiedparams) --in presenza di parametri RES/VAL
           if(retTyp==Tvoid)
             then addTAC $ [TACRet "void"] --se non c'è tipo ritorno stampo return void
             else return()
-          addTAC $ [TACELabel label]
+          addTAC $ [TACDLabel label 1]
           let (funcs,envs)=unzip list
           genFunDecls funcs envs --genero codice funzioni locali(lista al contrario mi pare)
           return env
@@ -393,7 +394,8 @@ genStm env stm= case stm of
            return Nothing
     Valreturn exp-> do --sarebbe il caso di trovare la label della funzione e mettere "exit funlabel"
         addr<-genexp env exp
-        addTAC $[TACRet addr]        
+        postamble<-gets exit
+        addTAC $[TACRet addr]++[TACGotoM (Just postamble)]        
         return Nothing
     SExp exp-> do
         genexp env exp
@@ -420,7 +422,7 @@ genStm env stm= case stm of
         pushEnvElse<-pushNewBlocktoEnv env BTifEls
         addTAC $[TACLabel bodyif]
         (_,fundecs1)<-genDecStmts pushEnvIf decstms1
-        addTAC $[TACGoto next]++[TACLabel bodyelse]
+        addTAC $[TACGotoM (Just next)]++[TACLabel bodyelse]
         (_,fundecs2)<-genDecStmts pushEnvElse decstms2
         addTAC $ [TACLabel next]
         return (Just (fundecs1++fundecs2))
@@ -440,7 +442,7 @@ genStm env stm= case stm of
         next<-newlabel --S.next
         guard<-newlabel
         pushEnv<-pushNewBlocktoEnv env BTloop
-        addTAC $[TACGoto guard]++[TACLabel bodywhile]
+        addTAC $[TACGotoM (Just guard)]++[TACLabel bodywhile]
         (_,fundecs)<-genDecStmts pushEnv decstms
         modify(\s->s{ttff=(Just bodywhile,Just next),first=False})
         addTAC $ [TACLabel guard]
@@ -461,7 +463,7 @@ genAssgnBool env lexp rexp op=case op of
       addrrexp<-genexp env rexp
       addr<-newtemp
       lassign<-newlabel
-      addTAC $ [TACLabel tt]++[TACAssign addr "true"]++[TACGoto lassign]++[TACLabel ff]++[TACAssign addr "false"]
+      addTAC $ [TACLabel tt]++[TACAssign addr "true"]++[TACGotoM (Just lassign)]++[TACLabel ff]++[TACAssign addr "false"]
       addTAC $ [TACLabel lassign]++[TACAssign addrlexp addr]++[TACLabel next]
       modify(\s->s{ttff=(Nothing,Nothing),first=True})
       return Nothing
@@ -475,7 +477,7 @@ genAssgnBool env lexp rexp op=case op of
       addrrexp<-genexp env rexp
       addr<-newtemp
       lassign<-newlabel
-      addTAC $ [TACLabel ff]++[TACAssign addr "false"]++[TACGoto lassign]++[TACLabel tt]++[TACAssign addr "true"]
+      addTAC $ [TACLabel ff]++[TACAssign addr "false"]++[TACGotoM (Just lassign)]++[TACLabel tt]++[TACAssign addr "true"]
       addTAC $ [TACLabel lassign]++[TACAssign addrlexp addr]++[TACLabel next]
       modify(\s->s{ttff=(Nothing,Nothing),first=True})
       return Nothing
@@ -506,7 +508,7 @@ genexp env exp = case exp of
         genRelOp env exp1 exp2 subop
         result<-newtemp
         next<-newlabel
-        addTAC $ [TACLabel tt]++[TACNewTemp result Tbool "true" Nothing Nothing]++[TACGoto next] --se dentro guardia diverso...
+        addTAC $ [TACLabel tt]++[TACNewTemp result Tbool "true" Nothing Nothing]++[TACGotoM (Just next)] --se dentro guardia diverso...
         addTAC $ [TACLabel ff]++[TACNewTemp result Tbool "false" Nothing Nothing]++[TACLabel next]
         modify (\s->s{first=True,ttff=(Nothing,Nothing)})
         return result
@@ -533,14 +535,14 @@ genexp env exp = case exp of
         genBoolOp env exp1 exp2 subop
         result<-newtemp
         next<-newlabel
-        addTAC $ [TACLabel tt]++[TACNewTemp result Tbool "true" Nothing Nothing]++[TACGoto next] --se dentro guardia diverso...
+        addTAC $ [TACLabel tt]++[TACNewTemp result Tbool "true" Nothing Nothing]++[TACGotoM (Just next)] --se dentro guardia diverso...
         addTAC $ [TACLabel ff]++[TACNewTemp result Tbool "false" Nothing Nothing]++[TACLabel next]
         modify (\s->s{first=True,ttff=(Nothing,Nothing)})
         return result
        otherwise->genBoolOp env exp1 exp2 subop
   Unary_Op subop exp->genUnaryOp env subop exp
   PrePost prepost exp->case prepost of 
-    Pre op->do --non serve generare temporaneo per tenere il valore dell'exp pre incremento
+    Pre op->do --non serve generare temporaneo per l'exp pre incremento
       addrlexp<-genlexp env exp
       addTAC $ [TACIncrDecr addrlexp addrlexp op]
       return addrlexp
@@ -553,7 +555,6 @@ genexp env exp = case exp of
     (pos,(retTyp,infoparams,lab))<-lookFunc id env
     let (_,modalityinfo)=unzip infoparams
     genparams env pars modalityinfo -- TODO: in questo caso gestire le diverse modalità parametri
-    --(pos,(retTyp,_,lab))<-lookFunc id env
     case retTyp of
       Tvoid->do
        addTAC $ [TACCall lab num]
@@ -595,7 +596,10 @@ genlexp env exp= case exp of
           Just Modality_REF->"ref "
           otherwise->""
     case typ of
-      Tarray _ _ -> return idpos --TODO:se ho g={0,1,2,3} devo inizializzare l'offset
+      Tarray exps _ -> do
+        let elemtyp=gettyp typ
+        modify (\s->s{offset=0,arrayinfo=(Just ident,Just typ,Just elemtyp)})
+        return idpos
       otherwise->return(idpos)
   Arraysel exp1 exp2->do
     genArrSel env exp1 exp2
@@ -844,11 +848,11 @@ genRelOp env exp1 exp2 op= do
       if(typ1/=genTyp)
         then do 
         addTAC $ [TACNewTmpCast temp typ1 genTyp addr1]
-        addTAC $ [TACJump temp addr2 (RelOp op) tt]++[TACGoto ff] 
+        addTAC $ [TACJump temp addr2 (RelOp op) tt]++[TACGotoM (Just ff)] 
       else do 
         addTAC $ [TACNewTmpCast temp typ2 genTyp addr2]
-        addTAC $ [TACJump addr1 temp (RelOp op) tt]++[TACGoto ff] 
-  else addTAC $ [TACJump addr1 addr2 (RelOp op) tt]++[TACGoto ff]
+        addTAC $ [TACJump addr1 temp (RelOp op) tt]++[TACGotoM (Just ff)] 
+  else addTAC $ [TACJump addr1 addr2 (RelOp op) tt]++[TACGotoM (Just ff)]
   return ""
 genBoolOp::Env->Exp->Exp->BoolOp->State TacM(Addr)
 genBoolOp env exp1 exp2 op= case op of
@@ -859,7 +863,7 @@ genBoolOp env exp1 exp2 op= case op of
      addr1<-genexp env exp1
      case addr1 of
       ""->return()
-      "false"->addTAC $ [TACGoto ff]
+      "false"->addTAC $ [TACGotoM (Just ff)]
       "true"->return()
       otherwise->addTAC $ [TACtf addr1 (Just ff) False]
      addTAC $[TACLabel newtt] --lab(B1.tt)
@@ -867,7 +871,7 @@ genBoolOp env exp1 exp2 op= case op of
      addr2<-genexp env exp2
      case addr2 of
       ""->return()
-      "false"->addTAC $ [TACGoto ff]
+      "false"->addTAC $ [TACGotoM (Just ff)]
       "true"->return()
       otherwise->addTAC $ [TACtf addr2 (Just ff) False]++[TACGotoM tt]
      return ""
@@ -879,14 +883,14 @@ genBoolOp env exp1 exp2 op= case op of
      case addr1 of
       ""->return()
       "false"->return()
-      "true"->addTAC $ [TACGoto tt]
+      "true"->addTAC $ [TACGotoM (Just tt)]
       otherwise->addTAC $ [TACtf addr1 (Just tt) True]
      addTAC $[TACLabel newff] --lab(B1.tt)
      modify (\s->s{ttff=(Just tt,ff)}) 
      addr2<-genexp env exp2
      case addr2 of
       ""->return()
-      "false"->addTAC $ [TACGoto tt]
+      "false"->addTAC $ [TACGotoM (Just tt)]
       "true"->return()
       otherwise->addTAC $ [TACtf addr2 (Just tt) True]++[TACGotoM ff]
      return ""

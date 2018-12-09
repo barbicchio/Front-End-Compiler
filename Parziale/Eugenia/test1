@@ -1,6 +1,9 @@
-{k}{k}integer a={{1,2},{3,6},{1,2,3}}
+{3}{2} string a={{"ciao","hello"},{"bonjour","konichiwa"},{"moin","hola"}}
+{3}{2} integer b={{1,2},{3,6},{1,2}}
 pointer {}{} integer m
-pointer float r
-function void restrepo()
+float r
+function integer restrepo()
+return 50
+a={{"ciao","hello"},{"bonjour","konichiwa"},{"moin","hola"}}
 end
 

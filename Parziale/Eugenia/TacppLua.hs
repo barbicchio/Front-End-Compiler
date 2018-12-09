@@ -13,8 +13,9 @@ instance TacPP TacInst where
       prettyPrint tac = vcat . map prettyPrint $ tac
 
 instance TacPP TAC where
-      prettyPrint (TACSLabel label)                    = text "Start"<+>text label <> colon
-      prettyPrint (TACELabel label)                    = text "End of"<+>text label
+      prettyPrint (TACDLabel label int)= case int of
+        1->text "End of"<+>text label
+        0->text "Start of"<+>text label <> colon
       prettyPrint (TACLabel label)                     = text label <> colon
       --prettyPrint (TACBinaryOp id left op right)     = nest tab $ text id <+> text "=" <+> text left <+> text op <+> text right
       prettyPrint (TACAssign id var)                  = nest tab $ text id <+> text "=" <+> text var
@@ -80,7 +81,6 @@ instance TacPP TAC where
       prettyPrint (TACGotoM lab)                     =case lab of
          Nothing->nest tab $ text "goto"
          Just label->nest tab $ text "goto" <+> text label
-      prettyPrint (TACGoto lab)                     =nest tab $ text "goto" <+> text lab --da eliminare
       prettyPrint (TACJump addr1 addr2 op lab)   = case op of
        RelOp subop-> case (subop,addr2) of
         (Gt,addr2)->nest tab $ text "if"<+>text addr1<+>text ">"<+>text addr2<+>text "goto"<+>text lab
