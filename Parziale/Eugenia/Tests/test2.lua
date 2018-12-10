@@ -1,4 +1,4 @@
-function integer main (const integer i) 
+function integer main ( integer i) 
     i++
     return i
 end
