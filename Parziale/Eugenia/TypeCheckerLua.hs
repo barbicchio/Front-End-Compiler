@@ -699,7 +699,7 @@ checkConstVar env expr = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST
-            then  tell $ [show pos ++ ":" ++ "Cannot assign a value "++ident++ " to a CONST variable"]
+            then  tell $ [show pos ++ ":" ++ "Constant variable "++ident++ " cannot be modified"]
             else return ()
         otherwise->return ()
     Arraysel exprArray _ -> do
