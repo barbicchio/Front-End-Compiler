@@ -9,10 +9,10 @@ import Debug.Trace
 type TacInst=[TAC]
 
 data TacM = TacM{
-        kaddr::Int, --contatore temporanei
-        klab::Int,  --contatore label
-        code::TacInst, --TAC
-        ttff::(Maybe Label,Maybe Label), --Etichette true,false
+        kaddr::Int, 
+        klab::Int, 
+        code::TacInst,
+        ttff::(Maybe Label,Maybe Label),
         first::Bool, --Se è falso sto valutando una guardia oppure una sottoespressione di un assegnamento di tipo booleano
         offset::Int, --offset array
         arrayinfo::(Maybe Pident,Maybe Typ,Maybe Typ), --(base,type,elemtype) dell'array corrente
@@ -45,7 +45,7 @@ type Mod = Maybe Modality
 type Sigs =Map.Map Ident PosSig
 type Context = Map.Map Ident PosTypMod
 
-type Sig = (Typ,[TypMod],Label) --cambiare ordine di typmod e typ
+type Sig = (Typ,[TypMod],Label)
 type Pos = (Int,Int)
 type PosTyp=(Pos,Typ)
 type PosTypMod = (Pos,TypMod)
@@ -65,11 +65,10 @@ data TAC= TACAssign Addr Addr
   | TACIncrDecr Addr Addr IncrDecr  --decrementi incrementi
   | TACNewTmpCast Addr Typ Typ Addr
   | TACJump Addr Addr InfixOp Label --salti per relop
-  | TACCopy String Pos Typ Int --int 0 se entrata,1 se uscita
+  | TACCopy String Pos Typ Int --0 se preambolo,1 se postambolo
   | TACGotoM (Maybe Label) 
   | TACtf Addr (Maybe Label) Bool --se sono in un ciclo salto se addr=valore Bool salto alla label
   | TACRet Addr 
-  | TACExit --esco dalla funzione,potenzialmente estendibile.
   | TACInit Typ Ident Pos (Maybe String) (Maybe String)
   | TACInitCast Typ Ident Pos (Maybe String)
   | TACCall Label Int -- chiamata a procedura
@@ -344,10 +343,6 @@ genStm env stm= case stm of
            addrlexp<-genlexp env lexp
            addrrexp<-genexp env rexp
            typlexp<-genlexpTyp env lexp
-           {--case typlexp of --se ho qualcosa come g={0,1,2,3} devo poter calcolare offset --TODO
-            Tarray exp _ ->do 
-                 let elemtyp=gettyp typ
-                 modify (\s->s{offset=0,arrayinfo=(Just ident,Just typ,Just elemtyp)})--}
            typrexp<-inferExpr env rexp
            if (typrexp /= typlexp) 
            then do

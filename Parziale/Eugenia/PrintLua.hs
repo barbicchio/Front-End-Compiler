@@ -153,7 +153,7 @@ instance Print Stm where
     While exp chunkstm -> prPrec i 0 (concatD [doc (showString "while"), prt 0 exp, doc (showString "do"), prt 0 chunkstm, doc (showString "end")])
     DoWhile chunkstm exp -> prPrec i 0 (concatD [doc (showString "repeat\n"), prt 0 chunkstm, doc (showString "until"), prt 0 exp, doc (showString "\n")])
     Valreturn returnstm -> prPrec i 0 (concatD [doc (showString "return"),prt 0 returnstm,nl])
-    SExp exp -> prPrec i 0 (concatD [prt 0 exp])
+    SExp exp -> prPrec i 0 (concatD [prt 0 exp,nl])
   prtList _ [] = (concatD [])
   prtList _ (x:xs) = (concatD [prt 0 x, prt 0 xs])
 
