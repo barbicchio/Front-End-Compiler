@@ -272,6 +272,7 @@ checkExpr env typ expr= do
     (Tpointer subtyp,Tpointer subexprTyp)->do
       checksubtyp pos subtyp subexprTyp
       return env
+
     otherwise->do
      if exprTyp==Terror
       then return env
@@ -322,6 +323,7 @@ inferExprArr _ pos [] (Arr exps)=do
   tell $[(show pos) ++"Array dimension shoud be specified by an integer literal"]
   return False
 inferExprArr _ _ [] exp=return True
+
 inferExpr::Env->Exp->Writer [String] PosTyp
 inferExpr env expr = case expr of
   Arr list@(exp:exprs)-> do
@@ -357,12 +359,14 @@ inferExpr env expr = case expr of
         tell $ [(show pos) ++": " ++ "Cannot use array selection operand in non-array type "++ ident]
         return((-1,-1),Terror)
 
-  --PrePost _ exp->do
-  --  (pos,typ)<-inferExpr env exp
-  --  posTyp<-checkIfIsInt pos typ exp
-    -- controllo costante DOPO controllo interi
-  --  checkConstVar env exp
-  --  return (pos,typ)
+  TernaryOp exp1 exp2 exp3 -> do
+    checkExpr env Tbool exp1
+    (pos2,typ2)<-inferExpr env exp2
+    (pos3,typ3)<-inferExpr env exp3
+    genTyp<-genericType typ2 typ3
+    return(pos2,genTyp)
+
+ 
   
   Fcall pident@(Pident (pos,ident)) callExprs callNParams ->do
     posTypLs <- mapM (inferExpr env) callExprs --trova la lista di PosTyp
