@@ -1,0 +1,25 @@
+float i=5
+float a=1
+integer b=2
+--[[const integer vero=10
+float c=a+b+7
+pointer integer point=&b
+integer arco=32
+integer resto=32
+float carlo=50.0
+
+function integer restrepo(ref integer k,valres float r,res integer pluto,integer orla)
+pluto=31
+point=&pluto
+pluto++
+k++
+k=b+32
+r=k-r
+r=41.3
+return pluto
+end
+
+function void main() 
+b=restrepo(resto,carlo,arco,b)
+end
+
