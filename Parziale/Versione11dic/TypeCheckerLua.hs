@@ -136,7 +136,7 @@ findReturnInStm decstm = case decstm of
       return (returnIf || returnElse)
     Stmt(While _  decstmts) -> findReturnInDecStms decstmts
     Stmt(RepeatUntil decstmts _) -> findReturnInDecStms decstmts
-    Stmt(For _ _ _ decstmts) -> findReturnInDecStms decstmts
+    Stmt(For _ _ _ _ decstmts) -> findReturnInDecStms decstmts
     Stmt(TryCatch decstmts1 decstmts2) -> do
       return1 <- findReturnInDecStms decstmts1
       return2 <- findReturnInDecStms decstmts2
@@ -180,20 +180,21 @@ checkStm env stm = case stm of
     checkDecStms pushEnv decsStms
     return env
 
-  For pident@(Pident (pos,ident)) iniExpr limitExpr decsStms -> do
+  For pident@(Pident (pos,ident)) iniExpr limitExpr step decsStms -> do
     pushEnv@(Env (current:stack)) <- pushNewBlocktoEnv env BTfor
-    newBlock <- addVarDec current ident pos Tint (Just Modality_CONST)
-    newPushEnv <- (Env (newBlock:stack))
+    newBlock <- addVarDec current ident pos (Tint, Just Modality_CONST)
+    let newPushEnv = (Env (newBlock:stack))
     checkExpr env Tint iniExpr
     checkExpr env Tint limitExpr
+    checkExpr env Tint step
     checkDecStms newPushEnv decsStms
     return env
   
-  Break (Ploop (pos,_)) ->do
+  Break (Pbreak (pos,_)) ->do
     checkBreakContinue env pos
     return env
 
-  Continue (Ploop (pos,_)) ->do
+  Continue (Pcontinue (pos,_)) ->do
     checkBreakContinue env pos
     return env
 
@@ -205,6 +206,12 @@ checkStm env stm = case stm of
     checkReturn env pos typ expr
     return env
   
+  TryCatch decsTry decsCatch -> do
+    pushEnvTry <- pushNewBlocktoEnv env BTtryCatch
+    pushEnvCatch <- pushNewBlocktoEnv env BTtryCatch
+    checkDecStms pushEnvTry decsTry
+    checkDecStms pushEnvCatch decsCatch
+    return env
   
   
 
@@ -692,7 +699,7 @@ checkLexpr (pos,expr,(typ,Just modal)) = do
 --controlla se la Modality richiede una L-expr, se sì restituisco True, altrimenti False
 modalityRequiresLexpr::Modality->Bool
 modalityRequiresLexpr modal =
-  if modal== modal==Modality_REF
+  if modal==Modality_REF
     then True
     else False
   

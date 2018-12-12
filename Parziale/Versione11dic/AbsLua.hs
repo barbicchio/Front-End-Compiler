@@ -55,7 +55,7 @@ data Stm
     | SimpleIf Exp [DecStm]
     | IfThElse Exp [DecStm] [DecStm]
     | While Exp [DecStm]
-    | DoWhile [DecStm] Exp
+    | RepeatUntil [DecStm] Exp
     | Break Pbreak
     | Continue Pcontinue
     | For Pident Exp Exp Exp [DecStm]
