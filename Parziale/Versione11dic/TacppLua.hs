@@ -109,8 +109,6 @@ printAddr addr= case addr of
   SAddr subaddr->text subaddr
   PointAddr subaddr ->text "*"<+> printAddr subaddr
   PosAddr subaddr pos mod -> case mod of
-    Just Modality_RES->text "copyOf"<+>text subaddr<>text "_"<>printPos pos
-    Just Modality_VALRES->text "copyOf"<+>text subaddr<>text "_"<>printPos pos
     Just Modality_REF-> text "*"<>text subaddr<>text "_"<>printPos pos
     otherwise->text subaddr<>text "_"<>printPos pos
       where maybepos=printPos

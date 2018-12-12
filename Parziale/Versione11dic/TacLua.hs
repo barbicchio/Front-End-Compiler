@@ -16,11 +16,11 @@ data TacM = TacM{
         first::Bool, --Se è falso sto valutando una guardia oppure una sottoespressione di un assegnamento di tipo booleano
         offset::Int, --offset array
         arrayinfo::(Maybe Pident,Maybe Typ,Maybe Typ), --(base,type,elemtype) dell'array corrente
-        next::Label --quello che segue il loop
+        bbcc::(Maybe Label,Maybe Label) --salti di break e continue
         }
   deriving (Show)     
 
-startState = TacM 0 0 [] (Nothing,Nothing) True 0 (Nothing,Nothing,Nothing) ""
+startState = TacM 0 0 [] (Nothing,Nothing) True 0 (Nothing,Nothing,Nothing) (Nothing,Nothing)
 
 data Env =Env [BlockEnv]  deriving (Eq, Ord, Show, Read)
 
@@ -287,7 +287,7 @@ genDecl env dec = case dec of
                   addTAC $ [TACTmp id pos typ addr]
                   return newEnv
             Nothing-> do --caso dichiarazione senza inizializzazione
-              addTAC $ [TACInit typ id pos Nothing Nothing] --se possibile migliorare il tipo che viene stampato (soprattutto per gli array)
+              addTAC $ [TACInit typ id pos Nothing Nothing] 
               newEnv <- addDec env dec
               return newEnv
       Func retTyp ident@(Pident(pos,id)) params _ decstmts -> do  
@@ -435,9 +435,29 @@ genStm env stm= case stm of
         modify(\s->s{ttff=(Nothing,Nothing),first=True})
         addTAC $[TACLabel next]
         return (Just fundecs)
-    --For exp1 exp2 exp3->do
-      --  pushEnv<-pushNewBlocktoEnv env BTloop
-       -- return Nothing
+    Break _ ->do
+        (bb,_)<-gets bbcc
+        addTAC $[TACGotoM bb]
+        return Nothing
+    Continue _ ->do
+        (_,cc)<-gets bbcc
+        addTAC $[TACGotoM cc]
+        return Nothing
+    For ident@(Pident(pos,id)) init limit incr decstms->do
+        guard<-newlabel
+        bodyfor<-newlabel
+        pushEnv@(Env (current:stack))<-pushNewBlocktoEnv env BTloop
+        newBlock<- addVarDec current id pos Tint (Just Modality_CONST)
+        let newpushEnv= Env (newBlock:stack)   
+        addTAC $ [TACInit Tint id pos (Just "Int") (Just (show init))]
+        addTAC $ [TACGotoM (Just guard)]++[TACLabel bodyfor]
+        (_,fundecs)<-genDecStmts newpushEnv decstms
+        addrident<-genexp newpushEnv (Evar ident)
+        addrlimit<-genexp newpushEnv limit
+        addrincr<-genexp newpushEnv incr
+        addTAC $ [TACBinaryInfixOp addrident Tint addrident (ArithOp Add) addrincr]++[TACLabel guard]++[TACJump addrident addrlimit (RelOp LtE) bodyfor]
+        return (Just fundecs)
+    {--TryCatch decstm1 decstm2 --}
 
 genAssgnBool::Env->Exp->Exp->BoolOp->State TacM(Maybe[(Dec,Env)])
 genAssgnBool env lexp rexp op=case op of

@@ -182,7 +182,7 @@ Exp : Pident '(' ListExp ')' %prec CALL { Fcall $1 $3 (length $3) }
      |Exp '/' Exp {InfixOp (ArithOp Div) $1 $3 }
      |Exp '^' Exp {InfixOp (ArithOp Pow) $1 $3 }
      |Exp '%' Exp {InfixOp (ArithOp Mod)$1 $3 }
-     |'if' Exp 'then' ListDecStm 'else' ListDecStm 'end'{ $2 (reverse $4) (reverse $6) }
+     |'if' Exp 'then' ListDecStm 'else' ListDecStm 'end'{ TernaryOp $2 (reverse $4) (reverse $6) }
      |'&' Exp  { Addr $2 } --credo sia lexp
      | '-' Exp %prec NEG { Unary_Op Neg $2}
      | 'not' Exp { Unary_Op Logneg $2 }
