@@ -80,7 +80,6 @@ instance TacPP TAC where
         otherwise->nest tab$ printAddr addr<+> text "="<+>text (show typ)<+>text id
       --}
       prettyPrint (TACNewTempCall addr typ lab)=nest tab$ printAddr addr<+> text "="<+>text (show typ)<+>text"callFunc"<+>text lab
-      prettyPrint(TACIncrDecr addr1 addr2 prepostincr)= nest tab $ printAddr addr1<+>text"="<+>printAddr addr2<+>text(show prepostincr)<+> text"1"
       prettyPrint (TACArr addr1 offset addr2)  =nest tab$ printAddr addr1<+>text"["<+>text (show offset)<+>text"]"<+>text"="<+>printAddr addr2
       prettyPrint (TACGotoM lab)                     =case lab of
          Nothing->nest tab $ text "goto"

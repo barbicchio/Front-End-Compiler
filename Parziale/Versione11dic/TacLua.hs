@@ -16,7 +16,7 @@ data TacM = TacM{
         first::Bool, --Se è falso sto valutando una guardia oppure una sottoespressione di un assegnamento di tipo booleano
         offset::Int, --offset array
         arrayinfo::(Maybe Pident,Maybe Typ,Maybe Typ), --(base,type,elemtype) dell'array corrente
-        exit::Label --punta l'eventuale postambolo di funzione
+        next::Label --quello che segue il loop
         }
   deriving (Show)     
 
@@ -62,7 +62,6 @@ data TAC= TACAssign Addr Typ Addr
   | TACUnaryOp Addr Unary_Op Addr
   | TACNewTemp Addr Typ Addr--Ident (Maybe Pos) Mod 
   | TACNewTempCall Addr Typ Label --temporaneo associato ad una chiamata a funzione
-  | TACIncrDecr Addr Addr IncrDecr  --decrementi incrementi
   | TACNewTmpCast Addr Typ Typ Addr
   | TACJump Addr Addr InfixOp Label --salti per relop
   | TACCopy String Pos Typ Int --0 se preambolo,1 se postambolo
@@ -103,22 +102,13 @@ addFuncDec (BlockEnv sigs context blockTyp)  ident pos@(line,col) returnTyp para
   case record of
     Nothing -> return (BlockEnv (Map.insert ident (pos,(returnTyp,paramsTyp,label)) sigs) context blockTyp)
 
-addParams::Env->[Argument]->State TacM(Env,[(String,Pos,Typ)])
-addParams env parameters = foldM addParam (env,[]) parameters
+addParams::Env->[Argument]->State TacM(Env)
+addParams env parameters = foldM addParam env parameters
  
-addParam::(Env,[(String,Pos,Typ)])->Argument->State TacM(Env,[(String,Pos,Typ)]) --modalità diverse possono avere anche tac associato
-addParam ((Env (current:stack)),list) pars = case pars of
-    FormPar mod typ (Pident (pos,ident)) -> case mod of
-      Modality_VALRES->do
-           addTAC $ [TACCopy ident pos typ 0]
+addParam::(Env)->Argument->State TacM(Env) --modalità diverse possono avere anche tac associato
+addParam (Env (current:stack)) (FormPar mod typ (Pident (pos,ident))) = do
            newBlockEnv<-addVarDec current ident pos typ (Just mod)
-           return ((Env (newBlockEnv:stack)),((ident,pos,typ):list))
-      Modality_RES-> do
-           newBlockEnv<-addVarDec current ident pos typ (Just mod)
-           return ((Env (newBlockEnv:stack)),((ident,pos,typ):list))
-      otherwise->do
-           newBlockEnv<-addVarDec current ident pos typ (Just mod)
-           return ((Env (newBlockEnv:stack)),list)
+           return $ Env (newBlockEnv:stack)
 
 emptyEnv = Env [emptyBlockEnv BTroot]
 emptyBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp 
@@ -208,7 +198,7 @@ getdim typ= case typ of
   Tfloat->8
   Tstring->16
   Tarray _ subtyp->getdim subtyp
-  Tpointer subtyp->getdim subtyp -- ??? controllare
+  Tpointer subtyp->32
 
 gettyp::Typ->Typ
 gettyp typ= case typ of
@@ -304,15 +294,12 @@ genDecl env dec = case dec of
           let label=id++(show pos)
           addTAC $ [TACDLabel label 0]
           pushEnv<-(pushNewBlocktoEnv env (BTfun retTyp))
-          (pushEnv,copiedparams)<-addParams pushEnv params --env e eventuali parametri res/valres
+          pushEnv<-addParams pushEnv params
           postamble<-newlabel
-          modify(\s->s{exit=postamble})
           (pushEnv,list)<-genDecStmts pushEnv decstmts   --genero codice body escluse dichiarazioni di funzioni
           if(retTyp==Tvoid)
             then addTAC $ [TACRet (SAddr"void")] --se non c'è tipo ritorno stampo return void
             else return()
-          addTAC $[TACLabel postamble] --in caso di return prematuro salto al postambolo (potenzialmente vuoto)
-          mapM assigncopy (reverse copiedparams) --in presenza di parametri RES/VAL
           addTAC $ [TACDLabel label 1]
           let (funcs,envs)=unzip list
           genFunDecls funcs envs --genero codice funzioni locali(lista al contrario mi pare)
@@ -393,8 +380,7 @@ genStm env stm= case stm of
            return Nothing
     Valreturn exp-> do
         addr<-genexp env exp
-        postamble<-gets exit
-        addTAC $[TACRet addr]++[TACGotoM (Just postamble)]  --salto all'eventuale postambolo      
+        addTAC $[TACRet addr]     
         return Nothing
     SExp exp-> do
         genexp env exp
@@ -449,6 +435,9 @@ genStm env stm= case stm of
         modify(\s->s{ttff=(Nothing,Nothing),first=True})
         addTAC $[TACLabel next]
         return (Just fundecs)
+    For exp1 exp2 exp3->do
+        pushEnv<-pushNewBlocktoEnv env BTloop
+        return Nothing
 
 genAssgnBool::Env->Exp->Exp->BoolOp->State TacM(Maybe[(Dec,Env)])
 genAssgnBool env lexp rexp op=case op of
@@ -540,17 +529,6 @@ genexp env exp = case exp of
         return result
        otherwise->genBoolOp env exp1 exp2 subop
   Unary_Op subop exp->genUnaryOp env subop exp
-  PrePost prepost exp->case prepost of 
-    Pre op->do --non serve generare temporaneo per l'exp pre incremento
-      addrlexp<-genlexp env exp
-      addTAC $ [TACIncrDecr addrlexp addrlexp op]
-      return addrlexp
-    Post op->do 
-      addrlexp<-genlexp env exp
-      typ<-inferExpr env exp 
-      tmp<-newtemp --temporaneo con il valore prima dell'incremento/decremento
-      addTAC $ [TACAssign tmp typ addrlexp]++[TACIncrDecr addrlexp tmp op]
-      return tmp
   Fcall id@(Pident (pos,ident)) pars num-> do
     (pos,(retTyp,infoparams,lab))<-lookFunc id env
     let (_,modalityinfo)=unzip infoparams
@@ -651,9 +629,6 @@ inferExpr env expr = case expr of
     let (Just id@(Pident(_,name)),exps)=getid exprArray []
     (pos,(typ,_))<-lookVar id env
     return typ
-  PrePost _ exp->do
-    typ<-inferExpr env exp
-    return typ
   Fcall pident@(Pident (pos,ident)) callExprs callNParams ->do
     (_,(retTyp,defParams,defNParams))<-lookFunc pident env --trova il tipo di ritorno 
     return retTyp
@@ -663,7 +638,7 @@ inferExpr env expr = case expr of
     return Tint
   Ebool (Pbool (pos,val)) -> do
     return Tbool
-  Estring (Pstring (pos,val)) -> do
+  Estring (Pstring (pos,val)) -> do --vedere di aggiungere un temporaneo
     return Tstring
   Echar (Pchar (pos,val)) -> do
     return Tchar
@@ -740,20 +715,6 @@ sumaddr (addr1:addr2:other) typ = do
 genparams::Env->[Exp]->[Mod]->State TacM () --TODO:capire come generare parametro correttamente
 genparams _ [] []=return()
 genparams env (exp:exps) (mod:mods)= case mod of
-  Just Modality_VALRES-> do
-        tmp<-newtemp
-        addr<-genlexp env exp
-        addTAC $ [TACPointer tmp addr]
-        addTAC $ [TACParam tmp]
-        genparams env exps mods
-        return()
-  Just Modality_RES ->do 
-        tmp<-newtemp
-        addr<-genlexp env exp
-        addTAC $ [TACPointer tmp addr]
-        addTAC $ [TACParam tmp]
-        genparams env exps mods
-        return()
   Just Modality_REF-> do
         tmp<-newtemp
         addr<-genlexp env exp
@@ -763,7 +724,6 @@ genparams env (exp:exps) (mod:mods)= case mod of
         return()
   otherwise->do 
         addr<-genexp env exp
-        --addTAC $ [TACAssign par addr]
         addTAC $ [TACParam addr]
         genparams env exps mods
         return()

@@ -8,6 +8,8 @@ newtype Pint = Pint ((Int,Int),String)
   deriving (Eq, Ord, Show, Read)
 newtype Pbool = Pbool ((Int,Int),String)
   deriving (Eq, Ord, Show, Read)
+newtype Ploop = Ploop ((Int,Int),String)
+  deriving (Eq, Ord, Show, Read)
 newtype Pstring = Pstring ((Int,Int),String)
   deriving (Eq, Ord, Show, Read)
 newtype Preal = Preal ((Int,Int),String)
@@ -55,6 +57,7 @@ data Stm
     | IfThElse Exp [DecStm] [DecStm]
     | While Exp [DecStm]
     | DoWhile [DecStm] Exp
+    | BreakContinue
   deriving (Eq, Ord, Show, Read)
 
 data DecStm = Dec Dec | Stmt Stm
