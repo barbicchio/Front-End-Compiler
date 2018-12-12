@@ -99,10 +99,6 @@ instance TacPP TAC where
       prettyPrint (TACCall id npar)               = nest tab $ text "call" <+> text id <> text "/" <> text (show npar)
       prettyPrint (TACParam addr)                 = nest tab $ text "parameter"<+> printAddr addr
       prettyPrint (TACPointer addr1 addr2)        = nest tab $ printAddr addr1 <+> text "= addr &"<>printAddr addr2
-      prettyPrint (TACCopy id pos typ flag) =case flag of
-        0->nest tab $ text"copyOf"<+>idpos<+>text "="<>text(show typ)<+>text "*"<+>idpos
-        1->nest tab $ text "*"<+>idpos<+>text "="<>text(show typ)<+>text"copyOf"<+>idpos
-       where idpos=text id<>text"_"<>text (show pos)
 
 printAddr::Addr->Doc
 printAddr addr= case addr of

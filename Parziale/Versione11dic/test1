@@ -1,6 +1,7 @@
-integer k=23
+integer var=23
 function integer restrepo(ref integer k,float r,integer pluto,integer orla)
-k=3+k>10?3:k+1
+var=3+var>10?3:k+1
+return 2
 end
 
 

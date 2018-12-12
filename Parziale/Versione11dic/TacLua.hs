@@ -64,7 +64,6 @@ data TAC= TACAssign Addr Typ Addr
   | TACNewTempCall Addr Typ Label --temporaneo associato ad una chiamata a funzione
   | TACNewTmpCast Addr Typ Typ Addr
   | TACJump Addr Addr InfixOp Label --salti per relop
-  | TACCopy String Pos Typ Int --0 se preambolo,1 se postambolo
   | TACGotoM (Maybe Label) 
   | TACtf Addr (Maybe Label) Bool --se sono in un ciclo salto se addr=valore Bool salto alla label
   | TACRet Addr 
@@ -304,8 +303,6 @@ genDecl env dec = case dec of
           let (funcs,envs)=unzip list
           genFunDecls funcs envs --genero codice funzioni locali(lista al contrario mi pare)
           return env
-            where assigncopy (ident,pos,typ) =do
-                  addTAC $ [TACCopy ident pos typ 1]
          
 genDecStmts::Env->[DecStm]->State TacM((Env),[(Dec,Env)])
 genDecStmts env decstmts= do
@@ -570,9 +567,17 @@ genexp env exp = case exp of
     modify (\s->s{ttff=(Just toexp2,Just toexp3),first=False})
     genexp env exp1
     modify (\s->s{ttff=(tt,ff),first=True})
-    genexp env exp2
-    genexp env exp3
-    return $ SAddr ""
+    addr<-newtemp
+    next<-newlabel
+    addTAC $[TACLabel toexp2]
+    exp2addr<-genexp env exp2
+    typ2<-inferExpr env exp2
+    addTAC $ [TACAssign addr typ2 exp2addr]++[TACGotoM (Just next)]
+    addTAC $ [TACLabel toexp3]
+    exp3addr<-genexp env exp3
+    typ3<-inferExpr env exp3
+    addTAC $ [TACAssign addr typ3 exp3addr]++[TACLabel next]
+    return addr
   Arr exp-> do
     genArr env exp
     modify (\s->s{offset=0,arrayinfo=(Nothing,Nothing,Nothing)})
@@ -651,6 +656,11 @@ inferExpr env expr = case expr of
     typ<-inferExpr env exp
     case typ of
       Tpointer ptyp -> return ptyp
+  TernaryOp exp1 exp2 exp3 -> do
+    typ2<-inferExpr env exp2
+    typ3<-inferExpr env exp3
+    genTyp<-genericType typ2 typ3
+    return genTyp
   Arraysel exprArray exprInt -> do 
     let (Just id@(Pident(_,name)),exps)=getid exprArray []
     (pos,(typ,_))<-lookVar id env
