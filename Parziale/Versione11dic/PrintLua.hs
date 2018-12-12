@@ -151,7 +151,7 @@ instance Print Stm where
     SimpleIf exp chunkstm -> prPrec i 0 (concatD [doc (showString "if"), prt 0 exp, doc (showString "then"), prt 0 chunkstm, doc (showString "end")])
     IfThElse exp chunkstm1 chunkstm2 -> prPrec i 0 (concatD [doc (showString "if"), prt 0 exp, doc (showString "then"), prt 0 chunkstm1, doc (showString "else"), prt 0 chunkstm2, doc (showString "end")])
     While exp chunkstm -> prPrec i 0 (concatD [doc (showString "while"), prt 0 exp, doc (showString "do"), prt 0 chunkstm, doc (showString "end")])
-    DoWhile chunkstm exp -> prPrec i 0 (concatD [doc (showString "repeat\n"), prt 0 chunkstm, doc (showString "until"), prt 0 exp, doc (showString "\n")])
+    RepeatUntil chunkstm exp -> prPrec i 0 (concatD [doc (showString "repeat\n"), prt 0 chunkstm, doc (showString "until"), prt 0 exp, doc (showString "\n")])
     Valreturn returnstm -> prPrec i 0 (concatD [doc (showString "return"),prt 0 returnstm,nl])
     For ident exp1 exp2 exp3 chunkstm -> prPrec i 0 (concatD [doc (showString "For"), prt 0 ident, doc (showString "="), prt 0 exp1, doc (showString ","), prt 0 exp2, doc (showString ","), prt 0 exp3, doc (showString "do"), prt 0 chunkstm, doc (showString "end")])
     TryCatch chunkstm1 chunkstm2 -> prPrec i 0 (concatD [doc (showString "try"), prt 0 chunkstm1, doc (showString "catch"), prt 0 chunkstm2, doc (showString "end")])

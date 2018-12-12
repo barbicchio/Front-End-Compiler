@@ -411,15 +411,17 @@ genStm env stm= case stm of
         (_,fundecs2)<-genDecStmts pushEnvElse decstms2
         addTAC $ [TACLabel next]
         return (Just (fundecs1++fundecs2))
-    DoWhile decstms exp-> do
+    RepeatUntil decstms exp-> do
         bodywhile<-newlabel --B.tt
         next<-newlabel --B.ff
+        guard<-newlabel --check guard
         pushEnv<-pushNewBlocktoEnv env BTloop
         addTAC $ [TACLabel bodywhile]
         (_,fundecs)<-genDecStmts pushEnv decstms
-        modify(\s->s{ttff=(Just next,Just bodywhile),first=False}) --repeat B until E, E not true
+        modify(\s->s{ttff=(Just next,Just bodywhile),first=False,bbcc=(Just next,Just guard)}) --repeat B until E, E not true
+        addTAC $ [TACLabel guard]
         genexp env exp
-        modify(\s->s{ttff=(Nothing,Nothing),first=True})
+        modify(\s->s{ttff=(Nothing,Nothing),first=True,bbcc=(Nothing,Nothing)})
         addTAC $ [TACLabel next]
         return (Just fundecs)
     While exp decstms-> do 
@@ -429,7 +431,7 @@ genStm env stm= case stm of
         pushEnv<-pushNewBlocktoEnv env BTloop
         addTAC $[TACGotoM (Just guard)]++[TACLabel bodywhile]
         (_,fundecs)<-genDecStmts pushEnv decstms
-        modify(\s->s{ttff=(Just bodywhile,Just next),first=False})
+        modify(\s->s{ttff=(Just bodywhile,Just next),first=False,bbcc=(Just next,Just guard)})
         addTAC $ [TACLabel guard]
         genexp env exp
         modify(\s->s{ttff=(Nothing,Nothing),first=True})
@@ -552,7 +554,7 @@ genexp env exp = case exp of
   Fcall id@(Pident (pos,ident)) pars num-> do
     (pos,(retTyp,infoparams,lab))<-lookFunc id env
     let (_,modalityinfo)=unzip infoparams
-    genparams env pars modalityinfo -- TODO: in questo caso gestire le diverse modalità parametri
+    genparams env pars modalityinfo 
     case retTyp of
       Tvoid->do --chiamata del tipo g(...)
        addTAC $ [TACCall lab num]
@@ -561,10 +563,10 @@ genexp env exp = case exp of
        addr<-newtemp
        addTAC$[TACNewTempCall addr retTyp lab]
        return addr
-  {--IfThenExp exp1 exp2 exp3->do
+  {--TernaryOp exp1 exp2 exp3->do
     (tt,ff)<-gets ttff
-    addr1<-genexp exp1--}
-
+    
+    modify (\s->s{ttff=(tt,ff))--}
   Arr exp-> do
     genArr env exp
     modify (\s->s{offset=0,arrayinfo=(Nothing,Nothing,Nothing)})
@@ -593,12 +595,6 @@ genlexp::Env->Exp->State TacM(Addr)
 genlexp env exp= case exp of
   Evar ident@(Pident(_,id))->do
     (pos,(typ,mod))<-lookVar ident env
-   {-- let idpos=ifModreq++id++"_"++(show pos) --se modalità richiede faccio una copia
-        ifModreq=case mod of
-          Just Modality_RES->"copyOf"
-          Just Modality_VALRES->"copyOf"
-          Just Modality_REF->"ref "
-          otherwise->""--}
     case typ of
       Tarray exps _ -> do
         let elemtyp=gettyp typ
