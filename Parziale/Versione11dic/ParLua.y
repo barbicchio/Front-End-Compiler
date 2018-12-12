@@ -157,6 +157,8 @@ Stm : Lexp Assignment_Op Exp %prec ASS {Assgn $2 $1 $3 }
     | 'repeat' ListDecStm 'until' Exp %prec UNTIL { RepeatUntil $2 $4 }
     | 'for' Pident '=' Exp ',' Exp ',' Exp 'do' ListDecStm 'end' { For $2 $4 $6 $8 $10}
     | 'try' ListDecStm 'catch' ListDecStm 'end' { TryCatch $2 $4 } 
+    | Pbreak {Break $1}
+    | Pcontinue {Continue $1}
 
 DecStm :: { DecStm }
 DecStm : Dec { Dec $1 } | Stm { Stmt $1 }
