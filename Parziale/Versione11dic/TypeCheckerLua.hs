@@ -21,7 +21,7 @@ data BlockEnv = BlockEnv {
 } 
   deriving (Eq, Ord, Show, Read)
 
-data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ
+data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ | BTfor | BTtryCatch
   deriving (Eq, Ord, Show, Read)
 
 type Ident = String
@@ -135,7 +135,12 @@ findReturnInStm decstm = case decstm of
       returnElse <- findReturnInDecStms decstmsElse
       return (returnIf || returnElse)
     Stmt(While _  decstmts) -> findReturnInDecStms decstmts
-    Stmt(DoWhile decstmts _)-> findReturnInDecStms decstmts
+    Stmt(RepeatUntil decstmts _) -> findReturnInDecStms decstmts
+    Stmt(For _ _ _ decstmts) -> findReturnInDecStms decstmts
+    Stmt(TryCatch decstmts1 decstmts2) -> do
+      return1 <- findReturnInDecStms decstmts1
+      return2 <- findReturnInDecStms decstmts2
+      return (return1 || return2)
     _ -> return False
 
 --controlla gli statement
@@ -169,11 +174,29 @@ checkStm env stm = case stm of
     checkExpr pushEnv Tbool expr
     checkDecStms pushEnv decsStms
     return env
-  DoWhile decsStms expr -> do
+  RepeatUntil decsStms expr -> do
     checkExpr env Tbool expr
     pushEnv<-pushNewBlocktoEnv env BTloop
     checkDecStms pushEnv decsStms
     return env
+
+  For pident@(Pident (pos,ident)) iniExpr limitExpr decsStms -> do
+    pushEnv@(Env (current:stack)) <- pushNewBlocktoEnv env BTfor
+    newBlock <- addVarDec current ident pos Tint (Just Modality_CONST)
+    newPushEnv <- (Env (newBlock:stack))
+    checkExpr env Tint iniExpr
+    checkExpr env Tint limitExpr
+    checkDecStms newPushEnv decsStms
+    return env
+  
+  Break (Ploop (pos,_)) ->do
+    checkBreakContinue env pos
+    return env
+
+  Continue (Ploop (pos,_)) ->do
+    checkBreakContinue env pos
+    return env
+
   Valreturn expr -> do
     (pos,typ)<-inferExpr env expr
     if typ==Terror
@@ -181,7 +204,16 @@ checkStm env stm = case stm of
     else do
     checkReturn env pos typ expr
     return env
+  
+  
+  
 
+
+checkBreakContinue::Env->Pos->Writer [String] ()
+checkBreakContinue (Env ((BlockEnv _ _ blockTyp):stack)) pos = case blockTyp of
+  BTfun _ -> do tell $ [(show pos) ++ ": break or continue statement out of a loop"]
+  BTloop -> do return ()
+  otherwise -> checkBreakContinue (Env stack) pos
 
 --controlla che il valore tornato dal return sia compatibile con quello della dichiarazione
 checkReturn::Env->Pos->Typ->Exp->Writer [String] ()
@@ -318,12 +350,12 @@ inferExpr env expr = case expr of
         tell $ [(show pos) ++": " ++ "Cannot use array selection operand in non-array type "++ ident]
         return((-1,-1),Terror)
 
-  PrePost _ exp->do
-    (pos,typ)<-inferExpr env exp
-    posTyp<-checkIfIsInt pos typ exp
+  --PrePost _ exp->do
+  --  (pos,typ)<-inferExpr env exp
+  --  posTyp<-checkIfIsInt pos typ exp
     -- controllo costante DOPO controllo interi
-    checkConstVar env exp
-    return (pos,typ)
+  --  checkConstVar env exp
+  --  return (pos,typ)
   
   Fcall pident@(Pident (pos,ident)) callExprs callNParams ->do
     posTypLs <- mapM (inferExpr env) callExprs --trova la lista di PosTyp
@@ -446,6 +478,11 @@ checkIfIsEq pos typ exp = case typ of
   Tarray _ _ -> do 
     let ident=gettypid exp
     tell $ [(show pos) ++": " ++ "Cannot use operand in non-comparable type "++ident]
+
+  Tpointer _ -> do 
+    let ident=gettypid exp
+    tell $ [(show pos) ++": " ++ "Cannot use operand in non-comparable type "++ident]
+
   otherwise -> do return ()
 
 checkIfIsInt::Pos->Typ->Exp->Writer [String] ()
@@ -655,7 +692,7 @@ checkLexpr (pos,expr,(typ,Just modal)) = do
 --controlla se la Modality richiede una L-expr, se sì restituisco True, altrimenti False
 modalityRequiresLexpr::Modality->Bool
 modalityRequiresLexpr modal =
-  if modal==Modality_RES || modal==Modality_VALRES || modal==Modality_REF
+  if modal== modal==Modality_REF
     then True
     else False
   
