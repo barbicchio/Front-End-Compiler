@@ -22,6 +22,8 @@ render d = rend 0 (map ($ "") $ d []) "" where
     "["      :ts -> showChar '[' . rend i ts
     "("      :ts -> showChar '(' . rend i ts
     "do"      :ts -> showString "do" . new (i+1) . rend (i+1) ts
+    "try"      :ts -> showString "do" . new (i+1) . rend (i+1) ts
+    "catch"      :ts -> showString "do" . new (i+1) . rend (i+1) ts
     "then"      :ts -> showString "then" . new (i+1) . rend (i+1) ts
     "else"      :ts -> showString "else" . new (i+1) . rend (i+1) ts
     "end"      :ts -> new (i-1) . showString "end" . new (i-1) . rend (i-1) ts
@@ -140,9 +142,6 @@ instance Print Argument where
 instance Print Modality where
   prt i e = case e of
     Modality_VAL -> prPrec i 0 (concatD [doc (showString "val")])
-    Modality_RES -> prPrec i 0 (concatD [doc (showString "res")])
-    Modality_VALRES -> prPrec i 0 (concatD [doc (showString "valres")])
-    Modality_NAME -> prPrec i 0 (concatD [doc (showString "name")])
     Modality_CONST -> prPrec i 0 (concatD [doc (showString "const")])
     Modality_REF -> prPrec i 0 (concatD [doc (showString "ref")])
 
@@ -154,7 +153,11 @@ instance Print Stm where
     While exp chunkstm -> prPrec i 0 (concatD [doc (showString "while"), prt 0 exp, doc (showString "do"), prt 0 chunkstm, doc (showString "end")])
     DoWhile chunkstm exp -> prPrec i 0 (concatD [doc (showString "repeat\n"), prt 0 chunkstm, doc (showString "until"), prt 0 exp, doc (showString "\n")])
     Valreturn returnstm -> prPrec i 0 (concatD [doc (showString "return"),prt 0 returnstm,nl])
+    For Pident exp exp exp chunkstm -> prPrec i 0 (concatD [doc (showString "For"), prt 0 Pident, doc (showString "="), prt 0 Exp, doc (showString ","), prt 0 Exp, doc (showString ","), prt 0 Exp, doc (showString "do"), prt 0 chunkstm, doc (showString "end")])
+    TryCatch chunkstm1 chunkstm2 -> prPrec i 0 (concatD [doc (showString "try"), prt 0 chunkstm1, doc (showString "catch"), prt 0 chunkstm2, doc (showString "end")])
     SExp exp -> prPrec i 0 (concatD [prt 0 exp,nl])
+    Break -> prPrec i 0 (concatD [doc (showString "break"),nl])
+    Continue -> prPrec i 0 (concatD [doc (showString "continue"),nl])
   prtList _ [] = (concatD [])
   prtList _ (x:xs) = (concatD [prt 0 x, prt 0 xs])
 
@@ -181,9 +184,6 @@ instance Print Exp where
     Indirection exp -> prPrec i 0 (concatD [doc (showString "_"), prt 0 exp])
     Arr exps->prPrec i 0 (concatD [doc (showString "{"),prt 0 exps,doc (showString "}")])
     Arraysel pident exp -> prPrec i 0 (concatD [prt 0 pident, doc (showString "{"), prt 0 exp, doc (showString "}")])
-    PrePost prepost lexp -> case prepost of
-      Pre op-> prPrec i 0 (concatD [prt 0 op, prt 0 lexp])
-      Post op -> prPrec i 0 (concatD [prt 0 lexp,prt 0 op])
     
   prtList _ [] = (concatD [])
   prtList _ [x] = (concatD [prt 0 x])
@@ -222,16 +222,7 @@ instance Print RelOp where
     LtE->prPrec i 0 (concatD [doc (showString "<=")])
     Gt->prPrec i 0 (concatD [doc (showString ">")])
     GtE->prPrec i 0 (concatD [doc (showString ">=")])
-instance Print PrePost where
-  prt i e = case e of
-    Pre incrdecr->prPrec i 0 (concatD [prt 0 incrdecr])
-    Post incrdecr->prPrec i 0 (concatD [prt 0 incrdecr])
-instance Print IncrDecr where
-  prt i e = case e of
-    Incr->prPrec i 0 (concatD [doc (showString "++")])
-    Decr->prPrec i 0 (concatD [doc (showString "--")])
     
-
 instance Print BoolOp where
   prt i e = case e of
     Or->prPrec i 0 (concatD [doc (showString "or")])

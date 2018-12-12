@@ -44,9 +44,6 @@ data Argument = FormPar Modality Type_specifier Pident
 
 data Modality
     = Modality_VAL
-    | Modality_RES
-    | Modality_VALRES
-    | Modality_NAME
     | Modality_CONST
     | Modality_REF
   deriving (Eq, Ord, Show, Read)
@@ -61,6 +58,8 @@ data Stm
     | DoWhile [DecStm] Exp
     | Break Pbreak
     | Continue Pcontinue
+    | For Pident Exp Exp Exp [DecStm]
+    | TryCatch [DecStm] [DecStm]
   deriving (Eq, Ord, Show, Read)
 
 data DecStm = Dec Dec | Stmt Stm
@@ -78,7 +77,7 @@ data Exp
     | Echar Pchar
     | Addr Exp
     | Arr [Exp]
-    | PrePost PrePost Exp
+    | TernaryOp Exp [DecStm] [DecStm]
     --L expression
     | Evar Pident
     | Indirection Exp
@@ -86,10 +85,6 @@ data Exp
   deriving (Eq, Ord, Show, Read)
 
 data InfixOp = ArithOp ArithOp| RelOp RelOp | BoolOp BoolOp
- deriving (Eq, Ord, Show, Read)
-data PrePost = Pre IncrDecr|Post IncrDecr
- deriving (Eq, Ord, Show, Read)
-data IncrDecr = Incr|Decr
  deriving (Eq, Ord, Show, Read)
 data ArithOp = Add|Sub|Mul|Div|Divint|Mod|Pow
  deriving (Eq, Ord, Show, Read)

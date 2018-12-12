@@ -98,8 +98,10 @@ L_Pchar { PT _ (T_Pchar _) }
 %right REF  '&'
 %left NEG
 %nonassoc '++' '--'
-%nonassoc UNTIL RET
+%nonassoc UNTIL RET IFELSE
 %left PARLEXP
+
+
 
 %%
 
@@ -111,6 +113,7 @@ Pbool    :: {Pbool} : L_Pbool { Pbool (mkPosToken $1)}
 Pstring    :: {Pstring} : L_Pstring { Pstring (mkPosToken $1)}
 Preal    :: {Preal} : L_Preal { Preal (mkPosToken $1)}
 Pchar    :: {Pchar} : L_Pchar { Pchar (mkPosToken $1)}
+
 
 Program :: { Program }
 Program : ListDec {Progr (reverse $1)}
@@ -149,9 +152,11 @@ Stm : Lexp Assignment_Op Exp %prec ASS {Assgn $2 $1 $3 }
     | 'return' Exp %prec RET { Valreturn $2 }
     |  Exp %prec EXP { SExp $1 }
     | 'if' Exp 'then' ListDecStm 'end' {SimpleIf $2 (reverse $4) }
-    | 'if' Exp 'then' ListDecStm 'else' ListDecStm 'end' { IfThElse $2 (reverse $4) (reverse $6) }
+    | 'if' Exp 'then' ListDecStm 'else' ListDecStm 'end' %prec IFELSE { IfThElse $2 (reverse $4) (reverse $6) }
     | 'while' Exp 'do' ListDecStm 'end' { While $2 (reverse $4) }
-    | 'repeat' ListDecStm 'until' Exp %prec UNTIL { DoWhile $2 $4 } 
+    | 'repeat' ListDecStm 'until' Exp %prec UNTIL { DoWhile $2 $4 }
+    | 'for' Pident '=' Exp ',' Exp ',' Exp 'do' ListDecStm 'end' { For $2 $4 $6 $8 $10}
+    | 'try' ListDecStm 'catch' ListDecStm 'end' { TryCatch $2 $4 } 
 
 DecStm :: { DecStm }
 DecStm : Dec { Dec $1 } | Stm { Stmt $1 }
@@ -177,6 +182,7 @@ Exp : Pident '(' ListExp ')' %prec CALL { Fcall $1 $3 (length $3) }
      |Exp '/' Exp {InfixOp (ArithOp Div) $1 $3 }
      |Exp '^' Exp {InfixOp (ArithOp Pow) $1 $3 }
      |Exp '%' Exp {InfixOp (ArithOp Mod)$1 $3 }
+     |'if' Exp 'then' ListDecStm 'else' ListDecStm 'end'{ $2 (reverse $4) (reverse $6) }
      |'&' Exp  { Addr $2 } --credo sia lexp
      | '-' Exp %prec NEG { Unary_Op Neg $2}
      | 'not' Exp { Unary_Op Logneg $2 }
