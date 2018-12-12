@@ -1,8 +1,6 @@
-
+integer k=23
 function integer restrepo(ref integer k,float r,integer pluto,integer orla)
-while (i>10)
-do 
-break
+k=3+k>10?3:k+1
 end
-end
+
 

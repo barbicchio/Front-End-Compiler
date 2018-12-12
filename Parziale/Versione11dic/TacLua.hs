@@ -563,10 +563,16 @@ genexp env exp = case exp of
        addr<-newtemp
        addTAC$[TACNewTempCall addr retTyp lab]
        return addr
-  {--TernaryOp exp1 exp2 exp3->do
+  TernaryOp exp1 exp2 exp3->do
     (tt,ff)<-gets ttff
-    
-    modify (\s->s{ttff=(tt,ff))--}
+    toexp2<-newlabel
+    toexp3<-newlabel
+    modify (\s->s{ttff=(Just toexp2,Just toexp3),first=False})
+    genexp env exp1
+    modify (\s->s{ttff=(tt,ff),first=True})
+    genexp env exp2
+    genexp env exp3
+    return $ SAddr ""
   Arr exp-> do
     genArr env exp
     modify (\s->s{offset=0,arrayinfo=(Nothing,Nothing,Nothing)})

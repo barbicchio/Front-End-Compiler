@@ -172,6 +172,7 @@ instance Print Exp where
   prt i e = case e of
     Fcall pident exps _ -> prPrec i 0 (concatD [prt 0 pident, doc (showString "("), prt 0 exps, doc (showString ")")])
     InfixOp infixop exp1 exp2-> prPrec i 0 (concatD [prt 0 exp1, prt 0 infixop, prt 0 exp2])
+    TernaryOp exp1 exp2 exp3->prPrec i 0 (concatD [prt 0 exp1, prt 0 exp2, prt 0 exp3])
     Unary_Op unaryoperator exp -> prPrec i 15 (concatD [prt 0 unaryoperator, prt 14 exp])
     Efloat preal -> prPrec i 17 (concatD [prt 0 preal])
     Eint pint -> prPrec i 17 (concatD [prt 0 pint])
