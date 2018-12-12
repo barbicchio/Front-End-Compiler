@@ -435,9 +435,9 @@ genStm env stm= case stm of
         modify(\s->s{ttff=(Nothing,Nothing),first=True})
         addTAC $[TACLabel next]
         return (Just fundecs)
-    For exp1 exp2 exp3->do
-        pushEnv<-pushNewBlocktoEnv env BTloop
-        return Nothing
+    --For exp1 exp2 exp3->do
+      --  pushEnv<-pushNewBlocktoEnv env BTloop
+       -- return Nothing
 
 genAssgnBool::Env->Exp->Exp->BoolOp->State TacM(Maybe[(Dec,Env)])
 genAssgnBool env lexp rexp op=case op of
@@ -541,6 +541,10 @@ genexp env exp = case exp of
        addr<-newtemp
        addTAC$[TACNewTempCall addr retTyp lab]
        return addr
+  {--IfThenExp exp1 exp2 exp3->do
+    (tt,ff)<-gets ttff
+    addr1<-genexp exp1--}
+
   Arr exp-> do
     genArr env exp
     modify (\s->s{offset=0,arrayinfo=(Nothing,Nothing,Nothing)})

@@ -28,7 +28,8 @@ $u = [\0-\255]          -- universal: any character
 
 $white+ ;
 @rsyms { tok (\p s -> PT p (eitherResIdent (TV . share) s)) }
-b r e a k | c o n t i n u e { tok (\p s -> PT p (eitherResIdent (T_Ploop . share) s)) }
+b r e a k { tok (\p s -> PT p (eitherResIdent (T_Pbreak . share) s)) }
+c o n t i n u e { tok (\p s -> PT p (eitherResIdent (T_Pcontinue . share) s)) }
 t r u e | f a l s e { tok (\p s -> PT p (eitherResIdent (T_Pbool . share) s)) }
 $l ($l | $d | \_ | \')* { tok (\p s -> PT p (eitherResIdent (T_Pident . share) s)) }
 $d + { tok (\p s -> PT p (eitherResIdent (T_Pint . share) s)) }
@@ -57,7 +58,8 @@ data Tok =
  | TV !String         -- identifiers
  | TD !String         -- double precision float literals
  | TC !String         -- character literals
- | T_Ploop !String
+ | T_Pbreak !String
+ | T_Pcontinue !String
  | T_Pbool !String
  | T_Pident !String
  | T_Pint !String
@@ -98,7 +100,8 @@ prToken t = case t of
   PT _ (TV s)   -> s
   PT _ (TD s)   -> s
   PT _ (TC s)   -> s
-  PT _ (T_Ploop s) -> s
+  PT _ (T_Pbreak s) -> s
+  PT _ (T_Pcontinue s) -> s
   PT _ (T_Pbool s) -> s
   PT _ (T_Pident s) -> s
   PT _ (T_Pint s) -> s

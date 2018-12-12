@@ -72,7 +72,8 @@ import ErrM
   '}' { PT _ (TS _ 54) }
   '~=' { PT _ (TS _ 55) }
 
-L_Ploop { PT _ (T_Ploop _) }
+L_Pbreak { PT _ (T_Pbreak _) }
+L_Pcontinue { PT _ (T_Pcontinue _) }
 L_Pbool { PT _ (T_Pbool _) }
 L_Pident { PT _ (T_Pident _) }
 L_Pint { PT _ (T_Pint _) }
@@ -102,7 +103,8 @@ L_Pchar { PT _ (T_Pchar _) }
 
 %%
 
-Ploop    :: { Ploop} : L_Ploop { Ploop (mkPosToken $1)}
+Pbreak    :: { Pbreak} : L_Pbreak { Pbreak (mkPosToken $1)}
+Pcontinue   :: { Pcontinue} : L_Pcontinue { Pcontinue (mkPosToken $1)}
 Pident    :: {Pident} : L_Pident { Pident (mkPosToken $1)}
 Pint    :: {Pint} : L_Pint { Pint (mkPosToken $1)}
 Pbool    :: {Pbool} : L_Pbool { Pbool (mkPosToken $1)}
