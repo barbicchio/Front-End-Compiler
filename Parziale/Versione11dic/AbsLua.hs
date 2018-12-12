@@ -77,7 +77,7 @@ data Exp
     | Echar Pchar
     | Addr Exp
     | Arr [Exp]
-    | TernaryOp Exp [DecStm] [DecStm]
+    | TernaryOp Exp Exp Exp
     --L expression
     | Evar Pident
     | Indirection Exp

@@ -31,46 +31,48 @@ import ErrM
   '-=' { PT _ (TS _ 13) }
   '/' { PT _ (TS _ 14) }
   '/=' { PT _ (TS _ 15) }
-  '<' { PT _ (TS _ 16) }
-  '<=' { PT _ (TS _ 17) }
-  '=' { PT _ (TS _ 18) }
-  '==' { PT _ (TS _ 19) }
-  '>' { PT _ (TS _ 20) }
-  '>=' { PT _ (TS _ 21) }
-  '^' { PT _ (TS _ 22) }
-  '^=' { PT _ (TS _ 23) }
-  '_' { PT _ (TS _ 24) }
-  'and' { PT _ (TS _ 25) }
-  'boolean' { PT _ (TS _ 26) }
-  'catch' { PT _ (TS _ 27) }
-  'character' { PT _ (TS _ 28) }
-  'const' { PT _ (TS _ 29) }
-  'do' { PT _ (TS _ 30) }
-  'else' { PT _ (TS _ 31) }
-  'end' { PT _ (TS _ 32) }
-  'float' { PT _ (TS _ 33) }
-  'for' { PT _ (TS _ 34) }
-  'function' { PT _ (TS _ 35) }
-  'if' { PT _ (TS _ 36) }
-  'integer' { PT _ (TS _ 37) }
-  'not' { PT _ (TS _ 38) }
-  'or' { PT _ (TS _ 39) }
-  'pointer' { PT _ (TS _ 40) }
-  'ref' { PT _ (TS _ 41) }
-  'repeat' { PT _ (TS _ 42) }
-  'return' { PT _ (TS _ 43) }
-  'string' { PT _ (TS _ 44) }
-  'then' { PT _ (TS _ 45) }
-  'try' { PT _ (TS _ 46) }
-  'until' { PT _ (TS _ 47) }
-  'val' { PT _ (TS _ 48) }
-  'void' { PT _ (TS _ 49) }
-  'while' { PT _ (TS _ 50) }
-  '{' { PT _ (TS _ 51) }
-  '{}' { PT _ (TS _ 52) }
-  '|=' { PT _ (TS _ 53) }
-  '}' { PT _ (TS _ 54) }
-  '~=' { PT _ (TS _ 55) }
+  ':' { PT _ (TS _ 16) }
+  '<' { PT _ (TS _ 17) }
+  '<=' { PT _ (TS _ 18) }
+  '=' { PT _ (TS _ 19) }
+  '==' { PT _ (TS _ 20) }
+  '>' { PT _ (TS _ 21) }
+  '>=' { PT _ (TS _ 22) }
+  '?' { PT _ (TS _ 23) }
+  '^' { PT _ (TS _ 24) }
+  '^=' { PT _ (TS _ 25) }
+  '_' { PT _ (TS _ 26) }
+  'and' { PT _ (TS _ 27) }
+  'boolean' { PT _ (TS _ 28) }
+  'catch' { PT _ (TS _ 29) }
+  'character' { PT _ (TS _ 30) }
+  'const' { PT _ (TS _ 31) }
+  'do' { PT _ (TS _ 32) }
+  'else' { PT _ (TS _ 33) }
+  'end' { PT _ (TS _ 34) }
+  'float' { PT _ (TS _ 35) }
+  'for' { PT _ (TS _ 36) }
+  'function' { PT _ (TS _ 37) }
+  'if' { PT _ (TS _ 38) }
+  'integer' { PT _ (TS _ 39) }
+  'not' { PT _ (TS _ 40) }
+  'or' { PT _ (TS _ 41) }
+  'pointer' { PT _ (TS _ 42) }
+  'ref' { PT _ (TS _ 43) }
+  'repeat' { PT _ (TS _ 44) }
+  'return' { PT _ (TS _ 45) }
+  'string' { PT _ (TS _ 46) }
+  'then' { PT _ (TS _ 47) }
+  'try' { PT _ (TS _ 48) }
+  'until' { PT _ (TS _ 49) }
+  'val' { PT _ (TS _ 50) }
+  'void' { PT _ (TS _ 51) }
+  'while' { PT _ (TS _ 52) }
+  '{' { PT _ (TS _ 53) }
+  '{}' { PT _ (TS _ 54) }
+  '|=' { PT _ (TS _ 55) }
+  '}' { PT _ (TS _ 56) }
+  '~=' { PT _ (TS _ 57) }
 
 L_Pbreak { PT _ (T_Pbreak _) }
 L_Pcontinue { PT _ (T_Pcontinue _) }
@@ -86,6 +88,7 @@ L_Pchar { PT _ (T_Pchar _) }
 %left EXPINLEXP
 %left IDLEXP
 %left CALL
+%nonassoc TERN '?'
 %left 'not'
 %left 'or' 'and'
 %right '('
@@ -184,7 +187,7 @@ Exp : Pident '(' ListExp ')' %prec CALL { Fcall $1 $3 (length $3) }
      |Exp '/' Exp {InfixOp (ArithOp Div) $1 $3 }
      |Exp '^' Exp {InfixOp (ArithOp Pow) $1 $3 }
      |Exp '%' Exp {InfixOp (ArithOp Mod)$1 $3 }
-     |'if' Exp 'then' ListDecStm 'else' ListDecStm 'end'{ TernaryOp $2 (reverse $4) (reverse $6) }
+     |Exp '?' Exp ':' Exp %prec TERN { TernaryOp $1 $3 $5 }
      |'&' Exp  { Addr $2 } --credo sia lexp
      | '-' Exp %prec NEG { Unary_Op Neg $2}
      | 'not' Exp { Unary_Op Logneg $2 }
