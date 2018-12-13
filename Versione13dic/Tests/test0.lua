@@ -1,7 +1,5 @@
 function void main (const integer oppo)
     boolean r=r?false:true
-    r&=true
-    {3} string numbers={"ciao","aloa","pippo"}
     try
         integer w=5
         boolean r

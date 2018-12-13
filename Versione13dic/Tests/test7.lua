@@ -7,13 +7,9 @@ function integer main ()
 
     while ((i < 4)and(j<2)) do
         positive{i} = isPositive(numbers{i}{j}, 2)
-        i++
     end
     return 0
 end
-
---[commento di prova
-
 
 function boolean isPositive (integer num, integer dim)
     integer i = 0
@@ -21,7 +17,6 @@ function boolean isPositive (integer num, integer dim)
         if num <= 0 then 
             return false
         end
-        i++
     end
     return true
 end
