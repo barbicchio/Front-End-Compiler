@@ -40,4 +40,13 @@ end
 function void test_punt2(ref integer p)
     integer s = 7
     p = &s
+
+end
+
+function void test_punt3()
+    integer i = 7
+    pointer integer p = &i
+    --puntatore di puntatore
+    pointer pointer float p_p = &p
+    pointer pointer integer pint = _p
 end

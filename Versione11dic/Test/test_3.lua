@@ -23,6 +23,13 @@ function void test_iterazioni()
         writeInt(testIfInline(i)) 
     end
 
+    for k = 0, 14, 2 do
+        writeFloat(k*3.725)
+    end
+
+    for n = i, 38, 2 do
+        writeInt(n*n)
+    end
 end
 
 

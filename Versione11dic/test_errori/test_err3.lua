@@ -33,3 +33,14 @@ function void comp (integer i, float f)
     boolean punt_mag = punt_int > punt_int
     
 end
+
+
+function void breakContinue(float max, float step)
+    for i = 0, max, step do
+        writeFloat(max - i)
+    end  
+
+    if i < 7 then
+        continue
+    end
+end
