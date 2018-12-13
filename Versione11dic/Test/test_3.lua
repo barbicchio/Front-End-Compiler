@@ -3,16 +3,16 @@ function void test_iterazioni()
 
     while i<16 do
         writeInt(i)
-        i = i + 1 
+        i += 1 
     end
 
     repeat 
         writeInt(i)
-        i = i + 1
+        i += 1
     until i==26
 
     while true do
-        i = i + 1
+        i += 1
         if i > 36 then
             break
         else

@@ -23,9 +23,12 @@ function void puntatori()
 end
 
 function void ifinline()
+    string k
     for i = 0, 18, 1 do
-        string k = i < 5 ? "cinque" : (i < 10 ? "dieci" : (i < 15 ?  "quindici" : "diciotto"))
+        k = i < 5 ? "cinque" : (i < 10 ? "dieci" : (i < 15 ?  "quindici" : "diciotto"))
     end
+
+    call(k == "cinque" ? 5 : (k == "dieci" ? 10 : (k == "quindici" ? 15 : 18 ) ) )
 end
 
 function float trycatch(float d, float div)
@@ -35,4 +38,8 @@ function float trycatch(float d, float div)
         writeString("Errore: divisione impossibile")
         return -127819182
     end
+end
+
+function void call(integer k)
+    writeFloat(k)
 end
