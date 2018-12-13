@@ -10,17 +10,19 @@ type TacInst=[TAC]
 
 data TacM = TacM{
         kaddr::Int, 
-        klab::Int, 
+        klab::Int,
+        kstrlab::Int,  --label per le stringhe
         code::TacInst,
         ttff::(Maybe Label,Maybe Label),
         first::Bool, --Se è falso sto valutando una guardia oppure una sottoespressione di un assegnamento di tipo booleano
         offset::Int, 
         arrayinfo::(Maybe Pident,Maybe Typ,Maybe Typ), --(base,type,elemtype) dell'array corrente
-        bbcc::(Maybe Label,Maybe Label) --salti di break e continue
+        bbcc::(Maybe Label,Maybe Label), --salti di break e continue
+        staticdata::[(Label,String)] 
         }
   deriving (Show)     
 
-startState = TacM 0 0 [] (Nothing,Nothing) True 0 (Nothing,Nothing,Nothing) (Nothing,Nothing)
+startState = TacM 0 0 0 [] (Nothing,Nothing) True 0 (Nothing,Nothing,Nothing) (Nothing,Nothing) []
 
 data Env =Env [BlockEnv]  deriving (Eq, Ord, Show, Read)
 
@@ -31,7 +33,7 @@ data BlockEnv = BlockEnv {
 }
  deriving (Eq, Ord, Show, Read)
 
-data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ
+data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ | BTtryCatch
   deriving (Eq, Ord, Show, Read)
 
 data Addr= SAddr String| RefAddr Addr |ArrAddr String Pos String | PosAddr String (Maybe Pos) Mod | PointAddr Addr
@@ -74,6 +76,7 @@ data TAC= TACAssign Addr Typ Addr
   | TACArr Addr Int Addr
   | TACDeref Addr Addr 
   | TACParam Addr --parametro indirizzo
+  | TACException Label
  deriving(Show)
 --stringhe e try catch
 -------------------------------
@@ -223,6 +226,12 @@ newlabel = do
           l<-gets klab
           modify $ \s->s{klab=l+1}
           return $"label"++ (show l)
+
+newstrlabel ::State TacM (Label)
+newstrlabel = do 
+          l<-gets kstrlab
+          modify $ \s->s{kstrlab=l+1}
+          return $"ptr$str"++ (show l)
 -------------------------------------
 ------funzioni per gestione TAC------
 -------------------------------------
@@ -241,7 +250,15 @@ genProgram (Progr decls) = do
     env<-createInitialEnv emptyEnv
     genDecls env decls
     addTAC $ [TACDLabel "Program\n" 1]
+    stdata<-gets staticdata
+    printStaticData stdata
     return ()
+
+printStaticData::[(Label,String)]->State TacM()
+printStaticData ((lab,str):rest)= do
+    addTAC $ [TACStrLab lab str]
+    printStaticData rest
+printStaticData []=return ()
 
 genDecls :: Env->[Dec] -> State TacM(Env)
 genDecls env decs = do 
@@ -463,7 +480,18 @@ genStm env stm= case stm of
         addrincr<-genexp newpushEnv incr
         addTAC $ [TACBinaryInfixOp addrident Tint addrident (ArithOp Add) addrincr]++[TACLabel guard]++[TACJump addrident addrlimit (RelOp LtE) bodyfor]
         return (Just fundecs)
-    TryCatch decstm1 decstm2->return Nothing
+    TryCatch decstm1 decstm2->do 
+        pushEnvTry <- pushNewBlocktoEnv env BTtryCatch
+        pushEnvCatch <- pushNewBlocktoEnv env BTtryCatch
+        labtry<-newlabel
+        labcatch<-newlabel
+        next<-newlabel
+        addTAC $ [TACGotoM (Just labtry)]++[TACLabel labcatch]
+        (_,fundecs2)<-genDecStmts pushEnvCatch decstm1
+        addTAC $ [TACGotoM (Just next)]++[TACLabel labtry]++[TACException labcatch]
+        (_,fundecs1)<-genDecStmts pushEnvTry decstm2
+        addTAC $ [TACLabel next]
+        return (Just(fundecs1++fundecs2))
 
 genAssgnBool::Env->Exp->Exp->BoolOp->State TacM(Maybe[(Dec,Env)])
 genAssgnBool env lexp rexp op=case op of
@@ -600,8 +628,8 @@ genexp env exp = case exp of
     return $ SAddr numval
   Ebool (Pbool(_,val))->return $ SAddr val
   Estring (Pstring(_,string))->do
-    strlbl<-newlabel
-    addTAC $ [TACStrLab strlbl string]
+    strlbl<-newstrlabel
+    modify (\s@TacM{staticdata=std}->s{staticdata=(strlbl,string):std})
     return $ PointAddr $ SAddr strlbl
   Echar (Pchar(_,char))->return $ SAddr char
   Evar ident@(Pident(_,id))->do

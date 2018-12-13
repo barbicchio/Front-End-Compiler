@@ -1,9 +1,10 @@
 integer var=23
-string i="i topi non avevano nipoti"
+{2}string i={"i topi non avevano nipoti","carlo"}
 string p="i topi non avevano ipoti"
 function integer restrepo(ref integer k,float r,integer pluto,integer orla)
 var=3+var>10?3:k+1
-i=p
+function void p ()
+end
 boolean p
 boolean f
 integer z

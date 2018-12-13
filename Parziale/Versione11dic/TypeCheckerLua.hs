@@ -214,8 +214,6 @@ checkStm env stm = case stm of
     return env
   
   
-
-
 checkBreakContinue::Env->Pos->Writer [String] ()
 checkBreakContinue (Env ((BlockEnv _ _ blockTyp):stack)) pos = case blockTyp of
   BTfun _ -> do tell $ [(show pos) ++ ": break or continue statement out of a loop"]
@@ -358,15 +356,12 @@ inferExpr env expr = case expr of
         let ident=gettypid expr
         tell $ [(show pos) ++": " ++ "Cannot use array selection operand in non-array type "++ ident]
         return((-1,-1),Terror)
-
   TernaryOp exp1 exp2 exp3 -> do
     checkExpr env Tbool exp1
     (pos2,typ2)<-inferExpr env exp2
     (pos3,typ3)<-inferExpr env exp3
     genTyp<-genericType typ2 typ3
     return(pos2,genTyp)
-
- 
   
   Fcall pident@(Pident (pos,ident)) callExprs callNParams ->do
     posTypLs <- mapM (inferExpr env) callExprs --trova la lista di PosTyp
