@@ -61,6 +61,25 @@ instance TacPP TAC where
       prettyPrint (TACAssign addr typ addr1)= case typ of
         Tpointer subtyp->nest tab $ printAddr addr<+> text "=" <+>text (show subtyp)<+>text"*"<>printAddr addr1
         otherwise->nest tab $ printAddr addr<+> text "=" <+>text (show typ)<+>printAddr addr1
+      {--prettyPrint (TACNewTemp addr typ id pos mod)=case (pos,mod) of
+        (Just pos,Nothing)->case typ of
+          Tpointer subtyp->nest tab$ printAddr addr<+> text "="<+>text (show subtyp)<+>text"*"<+>text id<>text"_"<>text (show pos)
+          otherwise->nest tab$ printAddr addr<+> text "="<+>text (show typ)<+>text id<>text"_"<>text (show pos)
+        (Just pos,Just mod1)->case typ of
+          Tpointer subtyp-> case mod1 of
+            Modality_RES->nest tab$ printAddr addr<+> text "="<+>text (show subtyp)<+>text"*"<+>text"copyOf"<+>text id<>text"_"<>text (show pos)
+            Modality_VALRES->nest tab$ printAddr addr<+> text "="<+>text (show subtyp)<+>text"*"<+>text"copyOf"<+>text id<>text"_"<>text (show pos)
+            otherwise->nest tab$ printAddr addr<+> text "="<+>text (show subtyp)<+>text"*"<+>text id<>text"_"<>text (show pos)
+          otherwise-> case mod1 of
+            Modality_RES->nest tab$ printAddr addr<+> text "="<+>text (show typ)<+>text"copyOf"<+>text id<>text"_"<>text (show pos)
+            Modality_VALRES->nest tab$ printAddr addr<+> text "="<+>text (show typ)<+>text"copyOf"<+>text id<>text"_"<>text (show pos)
+            otherwise->nest tab$ printAddr addr<+> text "="<+>text (show typ)<+>text id<>text"_"<>text (show pos)
+        (Nothing,Just mod1)->case mod1 of
+            Modality_RES->nest tab$ printAddr addr<+> text "="<+>text (show typ)<+>text"copyOf"<+>text id<>text"_"<>text (show pos)
+            Modality_VALRES->nest tab$ printAddr addr<+> text "="<+>text (show typ)<+>text"copyOf"<+>text id<>text"_"<>text (show pos)
+            otherwise->nest tab$ printAddr addr<+> text "="<+>text (show typ)<+>text id<>text"_"<>text (show pos)
+        otherwise->nest tab$ printAddr addr<+> text "="<+>text (show typ)<+>text id
+      --}
       prettyPrint (TACNewTempCall addr typ lab)=nest tab$ printAddr addr<+> text "="<+>text (show typ)<+>text"callFunc"<+>text lab
       prettyPrint (TACArr addr1 offset addr2)  =nest tab$ printAddr addr1<+>text"["<+>text (show offset)<+>text"]"<+>text"="<+>printAddr addr2
       prettyPrint (TACGotoM lab)                     =case lab of
@@ -82,7 +101,6 @@ instance TacPP TAC where
       prettyPrint (TACParam addr)                 = nest tab $ text "parameter"<+> printAddr addr
       prettyPrint (TACDeref addr1 addr2)        = nest tab $ printAddr addr1 <+> text "= addr &"<>printAddr addr2
       prettyPrint (TACStrLab lab string)= text lab<+>(nest tab $ text string)
-      prettyPrint (TACException label)= nest tab $ text "onException goto" <+>text label 
 printAddr::Addr->Doc
 printAddr addr= case addr of
   SAddr subaddr->text subaddr

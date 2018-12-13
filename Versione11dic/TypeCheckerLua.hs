@@ -218,7 +218,7 @@ checkStm env stm = case stm of
 
 checkBreakContinue::Env->Pos->Writer [String] ()
 checkBreakContinue (Env ((BlockEnv _ _ blockTyp):stack)) pos = case blockTyp of
-  BTfun _ -> do tell $ [(show pos) ++ ": break or continue statement out of a loop"]
+  BTfun _ -> do tell $ [(show pos) ++ ": break or continue statement out of an indeterminated-loop"]
   BTloop -> do return ()
   otherwise -> checkBreakContinue (Env stack) pos
 
@@ -305,8 +305,8 @@ generalize from to = do
 
 genericType::Typ->Typ->Writer [String] Typ
 genericType typ1 typ2 = do
-  genTyp<-generalize typ2 typ1
-  if genTyp==typ1
+  genTyp <- generalize typ2 typ1
+  if genTyp == typ1
   then return genTyp
   else generalize typ1 typ2
 
@@ -361,12 +361,12 @@ inferExpr env expr = case expr of
 
   TernaryOp exp1 exp2 exp3 -> do
     checkExpr env Tbool exp1
-    (pos2,typ2)<-inferExpr env exp2
-    (pos3,typ3)<-inferExpr env exp3
-    genTyp<-genericType typ2 typ3
+    (pos2,typ2) <- inferExpr env exp2
+    (pos3,typ3) <- inferExpr env exp3
+    checkExpr env typ2 exp3
+    checkExpr env typ3 exp2
+    genTyp <- genericType typ2 typ3
     return(pos2,genTyp)
-
- 
   
   Fcall pident@(Pident (pos,ident)) callExprs callNParams ->do
     posTypLs <- mapM (inferExpr env) callExprs --trova la lista di PosTyp

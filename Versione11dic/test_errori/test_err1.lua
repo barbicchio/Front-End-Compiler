@@ -1,4 +1,3 @@
-const string prova = "prova"
 
 function void error_array()
     {3}{2}integer mat = {{1,2,3},{4,5,6},{7,8,9}}
@@ -11,7 +10,6 @@ end
 
 function void const_assign(const integer k)
     k = 15
-    prova = 'c'
 end
 
 function void err_assign()

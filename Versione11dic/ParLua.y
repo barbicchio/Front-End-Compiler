@@ -157,8 +157,8 @@ Stm : Lexp Assignment_Op Exp %prec ASS {Assgn $2 $1 $3 }
     | 'if' Exp 'then' ListDecStm 'end' {SimpleIf $2 (reverse $4) }
     | 'if' Exp 'then' ListDecStm 'else' ListDecStm 'end' %prec IFELSE { IfThElse $2 (reverse $4) (reverse $6) }
     | 'while' Exp 'do' ListDecStm 'end' { While $2 (reverse $4) }
-    | 'repeat' ListDecStm 'until' Exp %prec UNTIL { RepeatUntil (reverse $2) $4 }
-    | 'for' Pident '=' Exp ',' Exp ',' Exp 'do' ListDecStm 'end' { For $2 $4 $6 $8 (reverse $10)}
+    | 'repeat' ListDecStm 'until' Exp %prec UNTIL { RepeatUntil $2 $4 }
+    | 'for' Pident '=' Exp ',' Exp ',' Exp 'do' ListDecStm 'end' { For $2 $4 $6 $8 $10}
     | 'try' ListDecStm 'catch' ListDecStm 'end' { TryCatch (reverse $2) (reverse $4) } 
     | Pbreak {Break $1}
     | Pcontinue {Continue $1}

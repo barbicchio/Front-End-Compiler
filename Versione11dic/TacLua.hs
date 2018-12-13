@@ -10,19 +10,17 @@ type TacInst=[TAC]
 
 data TacM = TacM{
         kaddr::Int, 
-        klab::Int,
-        kstrlab::Int,  --label per le stringhe
+        klab::Int, 
         code::TacInst,
         ttff::(Maybe Label,Maybe Label),
         first::Bool, --Se è falso sto valutando una guardia oppure una sottoespressione di un assegnamento di tipo booleano
         offset::Int, 
         arrayinfo::(Maybe Pident,Maybe Typ,Maybe Typ), --(base,type,elemtype) dell'array corrente
-        bbcc::(Maybe Label,Maybe Label), --salti di break e continue
-        staticdata::[(Label,String)]
+        bbcc::(Maybe Label,Maybe Label) --salti di break e continue
         }
   deriving (Show)     
 
-startState = TacM 0 0 0 [] (Nothing,Nothing) True 0 (Nothing,Nothing,Nothing) (Nothing,Nothing) []
+startState = TacM 0 0 [] (Nothing,Nothing) True 0 (Nothing,Nothing,Nothing) (Nothing,Nothing)
 
 data Env =Env [BlockEnv]  deriving (Eq, Ord, Show, Read)
 
@@ -33,7 +31,7 @@ data BlockEnv = BlockEnv {
 }
  deriving (Eq, Ord, Show, Read)
 
-data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ | BTtryCatch
+data BlockTyp = BTroot | BTdecs | BTcomp | BTloop | BTifEls | BTfun Typ
   deriving (Eq, Ord, Show, Read)
 
 data Addr= SAddr String| RefAddr Addr |ArrAddr String Pos String | PosAddr String (Maybe Pos) Mod | PointAddr Addr
@@ -76,7 +74,6 @@ data TAC= TACAssign Addr Typ Addr
   | TACArr Addr Int Addr
   | TACDeref Addr Addr 
   | TACParam Addr --parametro indirizzo
-  | TACException Label
  deriving(Show)
 --stringhe e try catch
 -------------------------------
@@ -100,7 +97,7 @@ addVarDec (BlockEnv sigs context blockTyp) ident pos@(line,col) typ mod= do
 
 --aggiunge una funzione a un contesto
 addFuncDec::BlockEnv->Ident->Pos->Typ->[(Typ,Mod)]->Label->State TacM(BlockEnv)
-addFuncDec (BlockEnv sigs context blockTyp )  ident pos@(line,col) returnTyp paramsTyp label = do
+addFuncDec (BlockEnv sigs context blockTyp)  ident pos@(line,col) returnTyp paramsTyp label = do
   record<-lookFuncInSigs ident sigs
   case record of
     Nothing -> return (BlockEnv (Map.insert ident (pos,(returnTyp,paramsTyp,label)) sigs) context blockTyp)
@@ -114,9 +111,9 @@ addParam (Env (current:stack)) (FormPar mod typ (Pident (pos,ident))) = do
            return $ Env (newBlockEnv:stack)
 
 emptyEnv = Env [emptyBlockEnv BTroot]
-emptyBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp
+emptyBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp 
 newBlockEnv::BlockTyp->BlockEnv
-newBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp
+newBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp 
 
 pushNewBlocktoEnv::Env->BlockTyp->State TacM(Env)
 pushNewBlocktoEnv (Env blocks) blocktyp= return $ Env ((newBlockEnv blocktyp):blocks)
@@ -199,8 +196,8 @@ getdim typ= case typ of
   Tchar->1
   Tfloat->8
   Tstring->16
-  Tarray _ subtyp->8
-  Tpointer subtyp->8
+  Tarray _ subtyp->32
+  Tpointer subtyp->32
 
 gettyp::Typ->Typ
 gettyp typ= case typ of
@@ -226,12 +223,6 @@ newlabel = do
           l<-gets klab
           modify $ \s->s{klab=l+1}
           return $"label"++ (show l)
-
-newstrlabel ::State TacM (Label)
-newstrlabel = do 
-          l<-gets kstrlab
-          modify $ \s->s{kstrlab=l+1}
-          return $"ptr$str"++ (show l)
 -------------------------------------
 ------funzioni per gestione TAC------
 -------------------------------------
@@ -250,15 +241,7 @@ genProgram (Progr decls) = do
     env<-createInitialEnv emptyEnv
     genDecls env decls
     addTAC $ [TACDLabel "Program\n" 1]
-    stdata<-gets staticdata
-    printStaticData stdata
     return ()
-
-printStaticData::[(Label,String)]->State TacM()
-printStaticData ((lab,str):rest)= do
-    addTAC $ [TACStrLab lab str]
-    printStaticData rest
-printStaticData []=return ()
 
 genDecls :: Env->[Dec] -> State TacM(Env)
 genDecls env decs = do 
@@ -315,6 +298,7 @@ genDecl env dec = case dec of
           addTAC $ [TACDLabel label 0]
           pushEnv<-(pushNewBlocktoEnv env (BTfun retTyp))
           pushEnv<-addParams pushEnv params
+          postamble<-newlabel
           (pushEnv,list)<-genDecStmts pushEnv decstmts   --genero codice body escluse dichiarazioni di funzioni
           if(retTyp==Tvoid)
             then addTAC $ [TACRet (SAddr"void")] --se non c'è tipo ritorno stampo return void
@@ -407,15 +391,7 @@ genStm env stm= case stm of
         exitif<-newlabel
         modify(\s->s{ttff=(Just bodyif,Just exitif),first=False})
         pushEnv<- pushNewBlocktoEnv env BTifEls
-        addr<-genexp env exp
-        case exp of
-         Evar _ ->addTAC $ [TACtf addr (Just exitif) False]
-         Ebool (Pbool(_,val)) ->case val of
-          "false"->do
-            addTAC $ [TACGotoM (Just bodyif)]
-            return ()
-          otherwise->return()
-         otherwise->return()
+        genexp env exp
         addTAC $ [TACLabel bodyif]
         modify (\s->s{first=True,ttff=(Nothing,Nothing)})
         (_,fundecs)<-genDecStmts pushEnv decstms
@@ -427,15 +403,7 @@ genStm env stm= case stm of
         next<-newlabel
         modify(\s->s{ttff=(Just bodyif,Just bodyelse),first=False})
         pushEnvIf<-pushNewBlocktoEnv env BTifEls
-        addr<-genexp env exp
-        case exp of
-         Evar _ ->addTAC $ [TACtf addr (Just bodyelse) False]
-         Ebool (Pbool(_,val)) ->case val of
-          "false"->do
-            addTAC $ [TACGotoM (Just bodyelse)]
-            return ()
-          otherwise->return()
-         otherwise->return()
+        genexp env exp
         modify(\s->s{ttff=(Nothing,Nothing),first=True})
         pushEnvElse<-pushNewBlocktoEnv env BTifEls
         addTAC $[TACLabel bodyif]
@@ -454,15 +422,7 @@ genStm env stm= case stm of
         (_,fundecs)<-genDecStmts pushEnv decstms
         modify(\s->s{ttff=(Just next,Just bodywhile),first=False}) --repeat B until E, E not true
         addTAC $ [TACLabel guard]
-        addr<-genexp env exp
-        case exp of
-         Evar _ ->addTAC $ [TACtf addr (Just bodywhile) True]
-         Ebool (Pbool(_,val)) ->case val of
-          "false"->do
-            addTAC $ [TACGotoM (Just bodywhile)]
-            return ()
-          otherwise->return()
-         otherwise->return()
+        genexp env exp
         modify(\s->s{ttff=(Nothing,Nothing),first=True,bbcc=(Nothing,Nothing)})
         addTAC $ [TACLabel next]
         return (Just fundecs)
@@ -476,15 +436,7 @@ genStm env stm= case stm of
         (_,fundecs)<-genDecStmts pushEnv decstms
         modify(\s->s{ttff=(Just bodywhile,Just next),first=False})
         addTAC $ [TACLabel guard]
-        addr<-genexp env exp
-        case exp of
-         Evar _ ->addTAC $ [TACtf addr (Just bodywhile) True]
-         Ebool (Pbool(_,val)) ->case val of
-          "false"->return()
-          "true"->do
-            addTAC $ [TACGotoM (Just bodywhile)]
-            return ()
-         otherwise->return()
+        genexp env exp
         modify(\s->s{ttff=(Nothing,Nothing),first=True})
         addTAC $[TACLabel next]
         return (Just fundecs)
@@ -511,18 +463,7 @@ genStm env stm= case stm of
         addrincr<-genexp newpushEnv incr
         addTAC $ [TACBinaryInfixOp addrident Tint addrident (ArithOp Add) addrincr]++[TACLabel guard]++[TACJump addrident addrlimit (RelOp LtE) bodyfor]
         return (Just fundecs)
-    TryCatch decstm1 decstm2->do 
-        pushEnvTry <- pushNewBlocktoEnv env BTtryCatch
-        pushEnvCatch <- pushNewBlocktoEnv env BTtryCatch
-        labtry<-newlabel
-        labcatch<-newlabel
-        next<-newlabel
-        addTAC $ [TACGotoM (Just labtry)]++[TACLabel labcatch]
-        (_,fundecs2)<-genDecStmts pushEnvCatch decstm2
-        addTAC $ [TACGotoM (Just next)]++[TACLabel labtry]++[TACException labcatch]
-        (_,fundecs1)<-genDecStmts pushEnvTry decstm1
-        addTAC $ [TACLabel next]
-        return (Just(fundecs1++fundecs2))
+    TryCatch decstm1 decstm2->return Nothing
 
 genAssgnBool::Env->Exp->Exp->BoolOp->State TacM(Maybe[(Dec,Env)])
 genAssgnBool env lexp rexp op=case op of
@@ -631,15 +572,7 @@ genexp env exp = case exp of
     toexp2<-newlabel
     toexp3<-newlabel
     modify (\s->s{ttff=(Just toexp2,Just toexp3),first=False})
-    addr1<-genexp env exp1
-    case exp1 of
-      Evar _ ->addTAC $ [TACtf addr1 (Just toexp3) False]
-      Ebool (Pbool(_,val)) ->case val of
-        "false"->do
-          addTAC $ [TACGotoM (Just toexp3)]
-          return ()
-        "true"->return()
-      otherwise->return()    
+    genexp env exp1
     modify (\s->s{ttff=(tt,ff),first=True})
     addr<-newtemp
     next<-newlabel
@@ -667,8 +600,8 @@ genexp env exp = case exp of
     return $ SAddr numval
   Ebool (Pbool(_,val))->return $ SAddr val
   Estring (Pstring(_,string))->do
-    strlbl<-newstrlabel
-    modify (\s@TacM{staticdata=std}->s{staticdata=(strlbl,string):std})
+    strlbl<-newlabel
+    addTAC $ [TACStrLab strlbl string]
     return $ PointAddr $ SAddr strlbl
   Echar (Pchar(_,char))->return $ SAddr char
   Evar ident@(Pident(_,id))->do
@@ -924,7 +857,7 @@ genUnaryOp env op exp = case op of
             SAddr "false"->addTAC $ [TACGotoM tt]
             otherwise->return()
           case exp of
-           Evar _ ->addTAC$[TACtf addr1 ff True] ++[TACtf addr1 tt False]
+           Evar _ ->addTAC$[TACtf addr1 ff True] ++[TACtf addr1 tt False] --controllare tac pp
            otherwise->return()
           modify (\s->s{ttff=(tt,ff)})
           return $ SAddr ""
