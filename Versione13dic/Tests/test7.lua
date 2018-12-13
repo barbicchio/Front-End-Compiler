@@ -14,7 +14,7 @@ function void ritorni()
 
     function float num_float()
         float f = 3.005489
-        return f-1
+        return (f-1)
     end
 
     function character carattere()

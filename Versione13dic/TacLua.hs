@@ -660,6 +660,7 @@ genexp env exp = case exp of
     addr<-newtemp
     case typ of
       Tstring->addTAC $ [TACNewTemp addr (PointAddr (PosAddr  id (Just pos) mod))]
+      Tpointer _->addTAC $ [TACNewTemp addr (PointAddr (PosAddr  id (Just pos) mod))]
       otherwise->addTAC $ [TACAssign addr typ (PosAddr  id (Just pos) mod)]
     return(addr)
   otherwise->genlexp env exp
