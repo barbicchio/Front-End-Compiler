@@ -218,7 +218,7 @@ checkStm env stm = case stm of
 
 checkBreakContinue::Env->Pos->Writer [String] ()
 checkBreakContinue (Env ((BlockEnv _ _ blockTyp):stack)) pos = case blockTyp of
-  BTfun _ -> do tell $ [(show pos) ++ ": break or continue statement out of a indeterminated-loop"]
+  BTfun _ -> do tell $ [(show pos) ++ ": Break or continue statement out of a indeterminated-loop"]
   BTloop -> do return ()
   otherwise -> checkBreakContinue (Env stack) pos
 
@@ -320,7 +320,7 @@ inferExprArr env pos dimensions@(dim1:dims) (Arr list@(exp1:exprs)) = do
     tell $ [(show pos) ++ ": Expected length of array-> "++(show dim1)++". Actual length of array-> "++(show (length list))]
     return False
 inferExprArr _ pos [] (Arr exps)=do
-  tell $[(show pos) ++"Array dimension shoud be specified by an integer literal"]
+  tell $[(show pos) ++": Array dimension shoud be specified by an integer literal"]
   return False
 inferExprArr _ _ [] exp=return True
 
@@ -490,11 +490,11 @@ checkIfIsEq::Pos->Typ->Exp->Writer [String] ()
 checkIfIsEq pos typ exp = case typ of
   Tarray _ _ -> do 
     let ident=gettypid exp
-    tell $ [(show pos) ++": " ++ "Cannot use operand in non-comparable type "++ident]
+    tell $ [(show pos) ++": Cannot use operand in non-comparable type "++ident]
 
   Tpointer _ -> do 
     let ident=gettypid exp
-    tell $ [(show pos) ++": " ++ "Cannot use operand in non-comparable type "++ident]
+    tell $ [(show pos) ++": Cannot use operand in non-comparable type "++ident]
 
   otherwise -> do return ()
 
@@ -503,7 +503,7 @@ checkIfIsInt pos typ exp = do
   if typ/=Tint 
   then do
     let ident=gettypid exp
-    tell $ [(show pos) ++ ": " ++ "Cannot use operand in non-int type "++ident]
+    tell $ [(show pos) ++ ": Cannot use operand in non-int type "++ident]
   else return ()
 
 checkIfIsNumeric::Pos->Typ->Exp->Writer [String] ()
@@ -511,7 +511,7 @@ checkIfIsNumeric pos typ exp = do
   if typ/=Tint && typ/=Tfloat
   then do
     let ident=gettypid exp
-    tell $ [(show pos) ++ ": " ++ "Cannot use operand in non-numeric type "++ident]
+    tell $ [(show pos) ++ ": Cannot use operand in non-numeric type "++ident]
   else return ()
 
 checkIfBoolean::Pos->Typ->Exp->Writer [String] ()
@@ -519,7 +519,7 @@ checkIfBoolean pos typ exp = do
   if typ/=Tbool
   then do
     let ident=gettypid exp
-    tell $ [(show pos) ++":"++"Cannot use operand in non-boolean type "++ident]
+    tell $ [(show pos) ++": Cannot use operand in non-boolean type "++ident]
   else return ()  
 
 checkIfIsOrd::Pos->Typ->Exp->Writer [String] ()
@@ -527,7 +527,7 @@ checkIfIsOrd pos typ exp = do
   if typ/=Tint && typ/=Tfloat
   then do
     let ident=gettypid exp 
-    tell $ [(show pos) ++ ": "++ "Cannot use operand in non-ordered type "++ident]
+    tell $ [(show pos) ++ ": Cannot use operand in non-ordered type "++ident]
   else return ()
 
 --controlla se il typo passato è un pointer, nel caso lo sia torna il tipo "base" del pointer,
@@ -537,14 +537,14 @@ checkIfIsPointerAndReturnType pos typ exp = case typ of
   Tpointer ptyp -> return (pos,ptyp)
   _ -> do
     let ident=gettypid exp
-    tell $ [(show pos) ++":"++"Cannot use operand in non-pointer type "++ident]
+    tell $ [(show pos) ++": Cannot use operand in non-pointer type "++ident]
     return ((-1,-1),Terror)
 
 --controlla numero e tipo dei parametri di una chiamata a funzione
 checkParams::Pos->[Typ]->Int->[Typ]->Int->String->Writer [String] ()
 checkParams pos callParams callNParams defParams defNParams ident= do
   if callNParams /= defNParams
-  then tell $ [(show pos)++ ": "++"function "++ident++"expects"++ (show defNParams) ++ "parameters but " ++ (show callNParams) ++ " found"]
+  then tell $ [(show pos)++ ": Function "++ident++" expects "++ (show defNParams) ++ " parameters but " ++ (show callNParams) ++ " found"]
   else do
     checkParamsTyps pos (zip (zip callParams defParams) [1,2..]) ident
     return ()
@@ -566,7 +566,7 @@ checkParamsTyps pos list ident = case list of
 lookVar::Pident->Env->Writer [String] PosTypMod
 lookVar pident@(Pident (pos,ident)) (Env stack) = case stack of
   [] -> do
-   tell $[(show pos) ++ ": variable " ++ ident ++ " out of scope"]
+   tell $[(show pos) ++ ": Variable " ++ ident ++ " out of scope"]
    return((-1,-1),(Terror,Nothing))
   (current@(BlockEnv _ context _ ):parent) -> do
     maybePosTypMod <- lookVarInContext ident context
@@ -577,7 +577,7 @@ lookVar pident@(Pident (pos,ident)) (Env stack) = case stack of
 lookFunc::Pident->Env->Writer [String] PosSig
 lookFunc pident@(Pident (pos,ident)) (Env stack) = case stack of
   [] -> do
-    tell $[(show pos) ++ ": function " ++ ident ++ " out of scope"]
+    tell $[(show pos) ++ ": Function " ++ ident ++ " out of scope"]
     return ((-1,-1),([],Terror,0))
   (current@(BlockEnv sigs _ _ ):parent) -> do
     maybePosTyp <- lookFuncInSigs ident sigs
@@ -628,7 +628,7 @@ addVarDec curr@(BlockEnv sigs context blockTyp) ident pos@(line,col) modtyp = do
   case record of
     Nothing -> return (BlockEnv sigs (Map.insert ident (pos,modtyp) context ) blockTyp) 
     Just (pos',_) -> do
-      tell $[(show pos) ++ ": variable "++ ident ++ " already declared in " ++ (show pos')]
+      tell $[(show pos) ++ ": Variable "++ ident ++ " already declared in " ++ (show pos')]
       return curr
 
 --aggiunge una funzione a un contesto
@@ -638,7 +638,7 @@ addFuncDec curr@(BlockEnv sigs context blockTyp) ident pos@(line,col) returnTyp 
   case record of
     Nothing -> return (BlockEnv (Map.insert ident (pos,(paramsTyps,returnTyp,nParams)) sigs) context  blockTyp)
     Just (pos',_) -> do
-      tell $ [(show pos) ++ ": function "++ ident ++ " already declared in " ++ (show pos')]
+      tell $ [(show pos) ++ ": Function "++ ident ++ " already declared in " ++ (show pos')]
       return curr
       
 addParams::Env->[Argument]->Writer [String] Env
@@ -699,7 +699,7 @@ checkLexpr (pos,expr,(typ,Just modal)) = do
     then return ()
     else do
       let ident=gettypid expr
-      tell $[(show pos) ++ ":" ++ "Modality of Parameter "++ident++" requires an L-Expression"]
+      tell $[(show pos) ++ ":" ++ " Modality of Parameter "++ident++" requires an L-Expression"]
   else return ()
 
 --controlla se la Modality richiede una L-expr, se sì restituisco True, altrimenti False
@@ -726,7 +726,7 @@ checkConstCall env (_,expr,(typ,Just modal)) = do
         (_,(_,(Just varmodal)))->do
           if (varmodal==Modality_CONST) && modalityRequiresLexpr modal
             then
-              tell $ [show pos ++ ":" ++ "Cannot pass parameter "++ident++" by constant when Modality requires an L-Expression"]
+              tell $ [show pos ++ ":" ++ " Cannot pass parameter "++ident++" by constant when Modality requires an L-Expression"]
             else
               return ()
         otherwise->return ()
@@ -736,7 +736,7 @@ checkConstCall env (_,expr,(typ,Just modal)) = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST && modalityRequiresLexpr modal
-            then  tell $ [show pos ++":" ++ "Cannot pass an index of constant array "++ident++" when Modality requires an L-Expression"]
+            then  tell $ [show pos ++":" ++ " Cannot pass an index of constant array "++ident++" when Modality requires an L-Expression"]
             else return ()
         otherwise->return ()
     otherwise->return ()
@@ -749,7 +749,7 @@ checkConstVar env expr = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST
-            then  tell $ [show pos ++ ":" ++ "Cannot assign a value "++ident++ " to a CONST variable"]
+            then  tell $ [show pos ++ ":" ++ " Cannot assign a value to the CONST variable " ++ident]
             else return ()
         otherwise->return ()
     Arraysel exprArray _ -> do
@@ -758,7 +758,7 @@ checkConstVar env expr = do
       case var of
         (_,(_,varmod@(Just varmodal)))->do
           if varmodal==Modality_CONST
-            then  tell $ [show pos ++ ":" ++ "Cannot assign a value "++ident++" to an index of a CONST array"]
+            then  tell $ [show pos ++ ":" ++ " Cannot assign a value to an index of the CONST array "++ident]
             else return ()
         otherwise->return ()
     otherwise->return ()

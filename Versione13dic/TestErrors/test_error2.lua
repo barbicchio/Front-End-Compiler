@@ -1,5 +1,5 @@
 function integer main () 
-    {}{} integer numbers = {{1,2},{3,4},{5,6},{7,8}}
+    {"2"}{} integer numbers = {{1,2},{3,4},{5,6},{7,8}}
     integer i = 0
 
     {4} boolean positive
@@ -7,16 +7,16 @@ function integer main ()
 
     while i < 4 do
         positive{i} = isPositive(numbers{i}, 2)
-        i++
+        i = i + 1
     end
 
     pointer integer es_point
 
 
-    return 0
+    
 end
 
---[commento di prova
+--commento di prova
 
 
 function boolean isPositive ({}integer array, integer dim)
@@ -25,7 +25,7 @@ function boolean isPositive ({}integer array, integer dim)
         if array{i} <= 0 then 
             return false
         end
-        i++
+        i = i + 1
     end
     return true
 end
