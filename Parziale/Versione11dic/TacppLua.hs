@@ -18,7 +18,7 @@ instance TacPP TAC where
         0->text "Start of"<+>text label <> colon
       prettyPrint (TACLabel label)                     = text label <> colon
       --prettyPrint (TACBinaryOp id left op right)     = nest tab $ text id <+> text "=" <+> text left <+> text op <+> text right
-      prettyPrint (TACAssign id typ var)                  = nest tab $ printAddr id <+> text "=" <+>text(show typ) <+> printAddr var
+      prettyPrint (TACNewTemp addr1 addr2)             = nest tab $ printAddr addr1 <+> text "=" <+> printAddr addr2
       prettyPrint (TACAssignCast id  typ var)         = nest tab $ printAddr id <+> text "=" <+>text(show typ) <+> printAddr var
       prettyPrint (TACBinaryInfixOp adr typ adr1 op adr2) =case op of
         ArithOp subop-> nest tab $ printAddr adr<+>text"="<+>text(show typ)<+>text"("<+>printAddr adr1<+>text(show subop)<+>text "_"<+>text(show typ)<+>printAddr adr2<+>text")"
@@ -45,9 +45,10 @@ instance TacPP TAC where
          And->nest tab $ printAddr adr<+>text"="<+>text(show typ)<+>printAddr adr1<+>text "and"<+> printAddr adr2
          Or->nest tab $ printAddr adr<+>text"="<+>text(show typ)<+>printAddr adr1<+>text "or"<+> printAddr adr2   
       prettyPrint(TACNewTmpCast temp typ1 genTyp addr1) = nest tab $ printAddr temp<+> text "="<+>text (show genTyp)<+>text "convert"<+>text (show typ1) <+> text "_To_"<+>text (show genTyp)<+>text"("<+>printAddr addr1<+>text")"
-      prettyPrint (TACInit typ id pos typexp exp)= case (typexp,exp) of
+      prettyPrint (TACInit typ id pos typexp addr)= case (typexp,addr) of
         (Nothing,Nothing)-> nest tab $ text(show typ)<+>text id <>text"_"<> text (show pos)
-        (Just exptyp,Just exp)->nest tab $ text id<>text("_"++(show pos)) <+> text "="<+> text (show typ) <+>text exp 
+        (Just exptyp,Just addr)->nest tab $ text id<>text("_"++(show pos)) <+> text "="<+> text (show typ) <+>printAddr addr 
+        (_,Just addr)->nest tab $ text id<>text("_"++(show pos)) <+> text "="<+>printAddr addr
       prettyPrint (TACInitCast typ id pos exp)= case exp of
         Nothing-> nest tab $ text(show typ)<+>text id <>text"_"<> text (show pos)
         Just exp->nest tab $ text id<>text("_"++(show pos)) <+> text "="<+>text(show typ)<+>text"("<+>text exp <+>text")"
@@ -57,7 +58,7 @@ instance TacPP TAC where
       prettyPrint (TACUnaryOp addr op addr1)           = case op of
         Neg->nest tab $ printAddr addr <+> text "=" <+> text "-" <+> printAddr addr1
         Logneg->nest tab $ printAddr addr <+> text "=" <+> text "not" <+> printAddr addr1
-      prettyPrint (TACNewTemp addr typ addr1)= case typ of
+      prettyPrint (TACAssign addr typ addr1)= case typ of
         Tpointer subtyp->nest tab $ printAddr addr<+> text "=" <+>text (show subtyp)<+>text"*"<>printAddr addr1
         otherwise->nest tab $ printAddr addr<+> text "=" <+>text (show typ)<+>printAddr addr1
       {--prettyPrint (TACNewTemp addr typ id pos mod)=case (pos,mod) of
@@ -98,12 +99,12 @@ instance TacPP TAC where
       prettyPrint (TACRet addr)                   = nest tab $ text "return" <+> printAddr addr
       prettyPrint (TACCall id npar)               = nest tab $ text "call" <+> text id <> text "/" <> text (show npar)
       prettyPrint (TACParam addr)                 = nest tab $ text "parameter"<+> printAddr addr
-      prettyPrint (TACPointer addr1 addr2)        = nest tab $ printAddr addr1 <+> text "= addr &"<>printAddr addr2
-
+      prettyPrint (TACDeref addr1 addr2)        = nest tab $ printAddr addr1 <+> text "= addr &"<>printAddr addr2
 printAddr::Addr->Doc
 printAddr addr= case addr of
   SAddr subaddr->text subaddr
-  PointAddr subaddr ->text "*"<+> printAddr subaddr
+  PointAddr subaddr ->text "addr"<+> printAddr subaddr
+  RefAddr subaddr ->text "*"<+> printAddr subaddr
   PosAddr subaddr pos mod -> case mod of
     Just Modality_REF-> text "*"<>text subaddr<>text "_"<>printPos pos
     otherwise->text subaddr<>text "_"<>printPos pos
