@@ -198,8 +198,8 @@ getdim typ= case typ of
   Tbool->1
   Tchar->1
   Tfloat->8
-  Tstring->16
-  Tarray _ subtyp->8
+  Tstring->8
+  Tarray _ subtyp->getdim subtyp
   Tpointer subtyp->8
 
 gettyp::Typ->Typ
@@ -207,11 +207,6 @@ gettyp typ= case typ of
   Tpointer subtyp->gettyp subtyp
   Tarray _ subtyp->gettyp subtyp
   otherwise->typ
-
-cast::Addr->State TacM (Addr)
-cast (SAddr num) = do
-  let numval= (read num::Float)
-  return $ SAddr (show numval)
 
 --generatori di temporanei e label--
 
@@ -382,19 +377,7 @@ genStm env stm= case stm of
            else do 
            addTAC $ [TACBinaryInfixOp addrlexp typlexp addr (ArithOp subop) addrrexp]
            return Nothing
-        AssgnBool subop->do 
-           addr<-newtemp
-           addrlexp<-genlexp env lexp
-           typlexp<-genlexpTyp env lexp
-           addTAC $ [TACAssign addr typlexp addrlexp]
-           addrrexp<-genexp env rexp
-           typrexp<-inferExpr env rexp
-           if (typrexp /= typlexp) 
-           then do
-           genTyp<-generalize typrexp typlexp
-           addTAC $ [TACBinaryInfixOpCast addrlexp genTyp addr (BoolOp subop) addrrexp]
-           else addTAC $ [TACBinaryInfixOp addrlexp typlexp addr (BoolOp subop) addrrexp]
-           return Nothing
+        AssgnBool subop-> genAssgnBool env lexp rexp subop
     Valreturn exp-> do
         addr<-genexp env exp
         addTAC $[TACRet addr]     
@@ -875,8 +858,6 @@ genArithOp env exp1 exp2 op=do
         simplexp1<-issimple exp1
         case simplexp1 of 
           True->do 
-            --newaddr1<-cast addr1
-            --addTAC $ [TACBinaryInfixOpCast addr genTyp newaddr1 op addr2]
             addTAC $ [TACBinaryInfixOpCast addr genTyp addr1 op addr2]
             return addr
           False->do
@@ -888,8 +869,6 @@ genArithOp env exp1 exp2 op=do
         simplexp2<-issimple exp2
         case simplexp2 of 
           True->do
-            --newaddr2<-cast addr2
-            --addTAC $ [TACBinaryInfixOpCast addr genTyp addr1 op newaddr2]
             addTAC $ [TACBinaryInfixOpCast addr genTyp addr1 op addr2]
             return addr
           False->do

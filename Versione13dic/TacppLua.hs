@@ -89,14 +89,14 @@ printAddr addr= case addr of
   PointAddr subaddr ->text "addr"<+> printAddr subaddr
   RefAddr subaddr ->text "*"<+> printAddr subaddr
   PosAddr subaddr pos mod -> case mod of
-    Just Modality_REF-> text "*"<>text subaddr<>text "_"<>printPos pos
-    otherwise->text subaddr<>text "_"<>printPos pos
+    Just Modality_REF-> text "*"<>text subaddr<>printPos pos
+    otherwise->text subaddr<>printPos pos
       where maybepos=printPos
   ArrAddr subaddr pos offset-> text subaddr<>text "_"<>text (show pos)<>text "["<>text offset<>text "]"
 
 printPos::Maybe Pos->Doc
 printPos pos= case pos of
-  Just pos1 -> text(show pos1)
+  Just pos1 -> text "_"<>text(show pos1)
   otherwise -> text ""
 class TacPP a where
   prettyPrint :: a -> Doc

@@ -1,5 +1,7 @@
 function void main (const integer oppo)
-    boolean r=r?true:false
+    boolean r=r?false:true
+    r&=true
+    {3} string numbers={"ciao","aloa","pippo"}
     try
         integer w=5
         boolean r
@@ -15,13 +17,12 @@ function void main (const integer oppo)
     repeat
         c = c + 1
         break
-        continue
         c=c-1
     until c < 5
 
     for i = 0, 5, 1 do
         writeInt(1)
-        true == true ? true : false
+        boolean r=true == true ? true : false
     end
 
 end
