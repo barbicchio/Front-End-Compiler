@@ -1,4 +1,4 @@
-function boolean temporary(const integer t, valres float vr )
+function boolean temporary(const integer t, float vr )
     boolean return_value
     float float_value = 3.14
     if t > float_value then
@@ -17,11 +17,12 @@ function integer main ()
     boolean y
     integer r = 3
     float d = 3.2
+    character c = 2
     x=(y or x or x or x)
     integer sasso = 8
     temporary(5, sasso)
-    {} float sad = {2, 324.343241}
-    {} integer mandi = {2}
+    {} float m_0 = {2, 324.343241}
+    {} integer m_1 = {2}
     
     return 0
 end

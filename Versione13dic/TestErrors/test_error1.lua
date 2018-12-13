@@ -1,5 +1,5 @@
 function void test (const integer t, ref integer p) 
- t = 5 --[mi deve segnalare l'errore, non posso assegnare un valore a una costante
+ t = 5 --mi deve segnalare l'errore, non posso assegnare un valore a una costante
 
 end
 
@@ -14,17 +14,17 @@ function integer main ()
 
     while i < 4 do
         positive{i} = isPositive(numbers{i}, 2)
-        i++
+        i = i + 1
     end
 
     pointer integer es_point
 
-    test(7,1)--[segnala la richiesta di una l-expression
-    test(7,i)--[modalità corretta
+    test(7,1)--segnala la richiesta di una l-expression
+    test(7,i)--modalità corretta
     return 0
 end
 
---[commento di prova
+--commento di prova
 
 
 function boolean isPositive ({}integer array, integer dim)
@@ -33,7 +33,7 @@ function boolean isPositive ({}integer array, integer dim)
         if array{i} <= 0 then 
             return false
         end
-        i++
+        i = i + 1
     end
     return true
 end
