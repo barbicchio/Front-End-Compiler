@@ -100,6 +100,7 @@ instance TacPP TAC where
       prettyPrint (TACCall id npar)               = nest tab $ text "call" <+> text id <> text "/" <> text (show npar)
       prettyPrint (TACParam addr)                 = nest tab $ text "parameter"<+> printAddr addr
       prettyPrint (TACDeref addr1 addr2)        = nest tab $ printAddr addr1 <+> text "= addr &"<>printAddr addr2
+      prettyPrint (TACStrLab lab string)= text lab<+>(nest tab $ text string)
 printAddr::Addr->Doc
 printAddr addr= case addr of
   SAddr subaddr->text subaddr

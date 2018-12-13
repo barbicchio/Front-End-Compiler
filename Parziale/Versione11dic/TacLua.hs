@@ -61,6 +61,7 @@ data TAC= TACAssign Addr Typ Addr
   | TACTmp Ident Pos Typ Addr --temporaneo relativo a left expression
   | TACUnaryOp Addr Unary_Op Addr
   | TACNewTemp Addr Addr 
+  | TACStrLab Label String
   | TACNewTempCall Addr Typ Label --temporaneo associato ad una chiamata a funzione
   | TACNewTmpCast Addr Typ Typ Addr
   | TACJump Addr Addr InfixOp Label --salti per relop
@@ -462,7 +463,7 @@ genStm env stm= case stm of
         addrincr<-genexp newpushEnv incr
         addTAC $ [TACBinaryInfixOp addrident Tint addrident (ArithOp Add) addrincr]++[TACLabel guard]++[TACJump addrident addrlimit (RelOp LtE) bodyfor]
         return (Just fundecs)
-    {--TryCatch decstm1 decstm2 --}
+    TryCatch decstm1 decstm2->return Nothing
 
 genAssgnBool::Env->Exp->Exp->BoolOp->State TacM(Maybe[(Dec,Env)])
 genAssgnBool env lexp rexp op=case op of
@@ -598,7 +599,10 @@ genexp env exp = case exp of
     let numval= show(read num ::Float)
     return $ SAddr numval
   Ebool (Pbool(_,val))->return $ SAddr val
-  Estring (Pstring(_,string))->return $ PointAddr $ SAddr string
+  Estring (Pstring(_,string))->do
+    strlbl<-newlabel
+    addTAC $ [TACStrLab strlbl string]
+    return $ PointAddr $ SAddr strlbl
   Echar (Pchar(_,char))->return $ SAddr char
   Evar ident@(Pident(_,id))->do
     (pos,(typ,mod))<-lookVar ident env
