@@ -1,4 +1,5 @@
 function void main (const integer oppo)
+    boolean r=r?true:false
     try
         integer w=5
         boolean r
@@ -14,6 +15,8 @@ function void main (const integer oppo)
     repeat
         c = c + 1
         break
+        continue
+        c=c-1
     until c < 5
 
     for i = 0, 5, 1 do
