@@ -1,0 +1,6 @@
+Da fare:
+
+-fare il make file come lo vuole lui (vedi Eiffel)
+-mettere a posto il pretty printer (deve quantomento andare a capo dopo ogni statement)
+-tentare di capire come fare in modo che accetti commenti su più righe
+-sistemare le precedenze

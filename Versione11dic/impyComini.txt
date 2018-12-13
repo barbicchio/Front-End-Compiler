@@ -1,0 +1,21 @@
+float i=5;
+float a=1;
+int b=2;
+float c=a+b+7;
+int resto=32;
+float carlo=50.0;
+int arco=32;
+& int point=& b;
+int restrepo(ref int k,valres float r,res int pluto,int orla){
+pluto=31;
+point=&pluto;
+pluto++;
+k++;
+k=b+32;
+r=k-r;
+r=41.3;
+return pluto;
+}
+void main() {
+b=restrepo(resto,carlo,arco,b);
+}
