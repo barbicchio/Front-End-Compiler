@@ -1,22 +1,21 @@
 integer var=23
-{2}string i={"i topi non avevano nipoti","carlo"}
-string p="i topi non avevano ipoti"
 function integer restrepo(ref integer k,float r,integer pluto,integer orla)
-var=3+var>10?3:k+1
-function void p ()
+try
+var=10/0
+try
+function f ()
+var=5/0
 end
-boolean p
-boolean f
-integer z
-while z>50
+catch
+end
+catch
+k=104
+end
+for i=1,10,2
 do
-z=92
-continue
-integer rosso=3+2
-boolean r=p or f
-break
+var=var+1
 end
-return 2
+return k
 end
 
 

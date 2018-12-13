@@ -18,11 +18,12 @@ data TacM = TacM{
         offset::Int, 
         arrayinfo::(Maybe Pident,Maybe Typ,Maybe Typ), --(base,type,elemtype) dell'array corrente
         bbcc::(Maybe Label,Maybe Label), --salti di break e continue
-        staticdata::[(Label,String)] 
+        staticdata::[(Label,String)],
+        next::Label
         }
   deriving (Show)     
 
-startState = TacM 0 0 0 [] (Nothing,Nothing) True 0 (Nothing,Nothing,Nothing) (Nothing,Nothing) []
+startState = TacM 0 0 0 [] (Nothing,Nothing) True 0 (Nothing,Nothing,Nothing) (Nothing,Nothing) [] ""
 
 data Env =Env [BlockEnv]  deriving (Eq, Ord, Show, Read)
 
@@ -100,7 +101,7 @@ addVarDec (BlockEnv sigs context blockTyp) ident pos@(line,col) typ mod= do
 
 --aggiunge una funzione a un contesto
 addFuncDec::BlockEnv->Ident->Pos->Typ->[(Typ,Mod)]->Label->State TacM(BlockEnv)
-addFuncDec (BlockEnv sigs context blockTyp)  ident pos@(line,col) returnTyp paramsTyp label = do
+addFuncDec (BlockEnv sigs context blockTyp )  ident pos@(line,col) returnTyp paramsTyp label = do
   record<-lookFuncInSigs ident sigs
   case record of
     Nothing -> return (BlockEnv (Map.insert ident (pos,(returnTyp,paramsTyp,label)) sigs) context blockTyp)
@@ -114,9 +115,9 @@ addParam (Env (current:stack)) (FormPar mod typ (Pident (pos,ident))) = do
            return $ Env (newBlockEnv:stack)
 
 emptyEnv = Env [emptyBlockEnv BTroot]
-emptyBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp 
+emptyBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp
 newBlockEnv::BlockTyp->BlockEnv
-newBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp 
+newBlockEnv blockTyp = BlockEnv Map.empty Map.empty blockTyp
 
 pushNewBlocktoEnv::Env->BlockTyp->State TacM(Env)
 pushNewBlocktoEnv (Env blocks) blocktyp= return $ Env ((newBlockEnv blocktyp):blocks)
@@ -315,7 +316,6 @@ genDecl env dec = case dec of
           addTAC $ [TACDLabel label 0]
           pushEnv<-(pushNewBlocktoEnv env (BTfun retTyp))
           pushEnv<-addParams pushEnv params
-          postamble<-newlabel
           (pushEnv,list)<-genDecStmts pushEnv decstmts   --genero codice body escluse dichiarazioni di funzioni
           if(retTyp==Tvoid)
             then addTAC $ [TACRet (SAddr"void")] --se non c'è tipo ritorno stampo return void
@@ -487,9 +487,9 @@ genStm env stm= case stm of
         labcatch<-newlabel
         next<-newlabel
         addTAC $ [TACGotoM (Just labtry)]++[TACLabel labcatch]
-        (_,fundecs2)<-genDecStmts pushEnvCatch decstm1
+        (_,fundecs2)<-genDecStmts pushEnvCatch decstm2
         addTAC $ [TACGotoM (Just next)]++[TACLabel labtry]++[TACException labcatch]
-        (_,fundecs1)<-genDecStmts pushEnvTry decstm2
+        (_,fundecs1)<-genDecStmts pushEnvTry decstm1
         addTAC $ [TACLabel next]
         return (Just(fundecs1++fundecs2))
 

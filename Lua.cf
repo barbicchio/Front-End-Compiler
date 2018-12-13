@@ -8,7 +8,7 @@ VarDeclar.     Dec ::= Type_specifier Pident;
 InitDeclarI.   Dec ::= Type_specifier Pident  "=" Exp;
 
 Typespec.      Type_specifier ::= BasicType;
-rules BasicType ::= "boolean" | "character" | "float" | "integer" | "string"|"void" ;
+rules BasicType ::= "boolean" | "character" | "float" | "integer" | "string"| "void" ;
 Typecompl.	   Type_specifier ::= ComplexType;
 
 --Tinteger.      BasicType ::= "integer";
@@ -16,9 +16,9 @@ Typecompl.	   Type_specifier ::= ComplexType;
 --Tfloat.        BasicType ::= "float";
 --Tchar.         BasicType ::= "character";
 --Tstring.       BasicType ::= "string";
---Tvoid. 		   BasicType ::= {-empty-};
-Tarray.		   ComplexType ::= "{" "}" Type_specifier;
-Tarraydef.	   ComplexType ::= "{"Integer"}" Type_specifier;
+--Tvoid. 		 BasicType ::= {-empty-};
+Tarray.		   ComplexType ::= "{}" Type_specifier;
+--Tarraydef.	   ComplexType ::= "{"Integer"}" Type_specifier;
 Tpointer.	   ComplexType ::= "pointer" Type_specifier;
 
 
@@ -29,7 +29,7 @@ Func.          Function_def ::= "function" Type_specifier Pident "("[Argument]")
 --ParamArrayV.  Argument ::= Type_specifier Pident "[""]";
 --ParamArray.   Argument ::= Type_specifier Pident "["Pint"]";
 ParamInt.       Argument ::= Modality Type_specifier Pident;
-rules Modality	::={-empty-}|"val"|"res"|"valres"|"name"|"const"|"ref";
+rules Modality	::={-empty-}|"val"|"const"|"ref";
 separator Argument ",";
 
 CompStm.        Stm ::= Chunk_stm ;
@@ -39,12 +39,13 @@ IterStm.    	Stm ::= Cond_stm ;
 separator Exp "";
 separator Dec "";
 
+TryCatch.       Cond_stm ::= "try" Chunk_stm "catch" Chunk_stm "end";
+
 If.          	Cond_stm ::= "if" Exp "then" Chunk_stm "end";
 IfThenElse.     Cond_stm ::= "if" Exp "then" Chunk_stm "else" Chunk_stm "end";
---if else if da fare dopo
 While.          Cond_stm ::= "while" Exp "do" Chunk_stm "end";
 DoWhile.		Cond_stm ::="repeat" Chunk_stm "until" Exp;
---For.          Cond_stm ::= "for" Exp "do" Chunk_stm "end";
+For.            Cond_stm ::= "for" Exp "do" Chunk_stm "end";
 Chunkstm.	    Chunk_stm::=[Dec][Stm];
 ReturnStm1.		Return_stm::="return" Exp;
 separator Stm "";
@@ -87,14 +88,13 @@ ActParam.    ActPar::=[Exp];
 separator Exp ",";
 
 Evar.        Lexp ::= Pident;
-Indirection. Lexp ::= "*"Exp ;
+Indirection. Lexp ::= "_"Exp ;
 Arraysel.    Lexp ::= Pident "{"Exp"}" ;
-PreInc.      Lexp ::= "++" Lexp ;
-PreDecr.     Lexp ::= "--" Lexp ;
-PostInc.     Lexp ::= Lexp "++" ;
-PostDecr.    Lexp ::= Lexp "--" ;
-
---Arraysel1.   Lexp::= Pident "@" Pint;
+InlineIf.    Lexp ::= Exp "?" Exp ":" Exp ;
+--PreInc.      Lexp ::= "++" Lexp ;
+--PreDecr.     Lexp ::= "--" Lexp ;
+--PostInc.     Lexp ::= Lexp "++" ;
+--PostDecr.    Lexp ::= Lexp "--" ;
 
 Address.    Unary_operator::= "&"; 
 Logicalneg.  Unary_operator ::= "not" ; 
@@ -114,12 +114,14 @@ AssgnPow.     Assignment_op ::= "^=";
 AssgnAnd.     Assignment_op ::= "&=" ;
 AssgnOr.      Assignment_op ::= "|=" ;
 comment "--" ;
+comment "--[" "--]" ;
  
 --token definitions
---position token Ploop ({"break"}|{"continue"});
+position token Pbreak {"break"};
+position token Pcontinue {"continue"};
+position token Pbool ({"true"}|{"false"});
 position token Pident letter (letter | digit | '_' | '\'')* ;
 position token Pint digit+;
-position token Pbool ({"true"}|{"false"});
 position token Pstring  '"' ((char - ["\"\\"]) | ('\\' ["\"\\nt"]))* '"';
 position token Preal digit+ '.' digit+ ('e' '-'? digit+)? ;
 position token Pchar '\'' ((char - ["'\\"]) | ('\\' ["'\\nt"])) '\'';

@@ -1,0 +1,15 @@
+diff a/Parziale/Eugenia/test1 b/Parziale/Eugenia/test1	(rejected hunks)
+@@ -4,4 +4,12 @@
+     integer r
+     x=(x and y)
+     return 50
++end
++
++function float dog ()
++    boolean x=true
++    boolean y
++    integer r
++    x=(x and y)
++    return 50.3
+ end
+\ No newline at end of file
