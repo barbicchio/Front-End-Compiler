@@ -80,7 +80,6 @@ instance Print Double where
   prt _ x = doc (shows x)
 
 
-
 instance Print Pident where
   prt _ (Pident (_,i)) = doc (showString ( i))
 
@@ -105,12 +104,11 @@ instance Print Pchar where
   prt _ (Pchar (_,i)) = doc (showString ( i))
 
 
-
 instance Print Program where
   prt i e = case e of
     Progr decs -> prPrec i 0 (concatD [prt 0 decs])
 
-nl=doc (showString "\n")
+nl = doc (showString "\n")
 
 instance Print Dec where
   prt i e = case e of
